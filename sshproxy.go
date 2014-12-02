@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"sshproxy/group.go"
+
 	"github.com/BurntSushi/toml"
 	"github.com/op/go-logging"
 )
@@ -28,7 +30,8 @@ type sshProxyConfig struct {
 	Log        string
 	Bg_Command string
 	Ssh        sshConfig
-	Users      map[string]userConfig
+	Users      map[string]subConfig
+	Groups     map[string]subConfig
 }
 
 type sshConfig struct {
@@ -37,7 +40,7 @@ type sshConfig struct {
 	Args        []string
 }
 
-type userConfig struct {
+type subConfig struct {
 	Debug      bool
 	Log        string
 	Bg_Command string
@@ -78,7 +81,52 @@ func MustSetupLogging(template, current_user, source string, debug bool) {
 	}
 }
 
-func LoadConfig(config_file, username string) (*sshProxyConfig, error) {
+func GetGroups() (map[string]bool, error) {
+	gids, err := os.Getgroups()
+	if err != nil {
+		return nil, err
+	}
+
+	groups := make(map[string]bool)
+	for _, gid := range gids {
+		g, err := group.LookupId(gid)
+		if err != nil {
+			return nil, err
+		}
+
+		groups[g.Name] = true
+	}
+
+	return groups, nil
+}
+
+func ParseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subConfig, subgroup, subname string) {
+	if md.IsDefined(subgroup, subname, "debug") {
+		config.Debug = subconfig.Debug
+	}
+
+	if md.IsDefined(subgroup, subname, "log") {
+		config.Log = subconfig.Log
+	}
+
+	if md.IsDefined(subgroup, subname, "bg_command") {
+		config.Bg_Command = subconfig.Bg_Command
+	}
+
+	if md.IsDefined(subgroup, subname, "ssh", "exe") {
+		config.Ssh.Exe = subconfig.Ssh.Exe
+	}
+
+	if md.IsDefined(subgroup, subname, "ssh", "destination") {
+		config.Ssh.Destination = subconfig.Ssh.Destination
+	}
+
+	if md.IsDefined(subgroup, subname, "ssh", "args") {
+		config.Ssh.Args = subconfig.Ssh.Args
+	}
+}
+
+func LoadConfig(config_file, username string, groups map[string]bool) (*sshProxyConfig, error) {
 	var config sshProxyConfig
 	md, err := toml.DecodeFile(config_file, &config)
 	if err != nil {
@@ -97,30 +145,18 @@ func LoadConfig(config_file, username string) (*sshProxyConfig, error) {
 		config.Ssh.Args = defaultSshArgs
 	}
 
+	for _, key := range md.Keys() {
+		if key[0] == "groups" {
+			groupname := key[1]
+			if groups[groupname] {
+				groupconfig := config.Groups[groupname]
+				ParseSubConfig(&md, &config, &groupconfig, "groups", groupname)
+			}
+		}
+	}
+
 	if userconfig, present := config.Users[username]; present {
-		if md.IsDefined("users", username, "debug") {
-			config.Debug = userconfig.Debug
-		}
-
-		if md.IsDefined("users", username, "log") {
-			config.Log = userconfig.Log
-		}
-
-		if md.IsDefined("users", username, "bg_command") {
-			config.Bg_Command = userconfig.Bg_Command
-		}
-
-		if md.IsDefined("users", username, "ssh", "exe") {
-			config.Ssh.Exe = userconfig.Ssh.Exe
-		}
-
-		if md.IsDefined("users", username, "ssh", "destination") {
-			config.Ssh.Destination = userconfig.Ssh.Destination
-		}
-
-		if md.IsDefined("users", username, "ssh", "args") {
-			config.Ssh.Args = userconfig.Ssh.Args
-		}
+		ParseSubConfig(&md, &config, &userconfig, "users", username)
 	}
 
 	return &config, nil
@@ -198,19 +234,25 @@ func main() {
 		log.Fatalf("parsing SSH_CONNECTION: bad value '%s'", ssh_connection)
 	}
 
-	config, err := LoadConfig(config_file, username)
+	groups, err := GetGroups()
+	if err != nil {
+		log.Fatalf("Cannot find current user groups: %s", err)
+	}
+
+	config, err := LoadConfig(config_file, username, groups)
 	if err != nil {
 		log.Fatalf("Reading configuration '%s': %s", config_file, err)
 	}
 
 	MustSetupLogging(config.Log, username, src, config.Debug)
 
-	log.Debug("debug = %v", config.Debug)
-	log.Debug("log = %s", config.Log)
-	log.Debug("bg_command = %s", config.Bg_Command)
-	log.Debug("ssh.exe = %s", config.Ssh.Exe)
-	log.Debug("ssh.destination = %s", config.Ssh.Destination)
-	log.Debug("ssh.args = %v", config.Ssh.Args)
+	log.Debug("groups = %v", groups)
+	log.Debug("config.debug = %v", config.Debug)
+	log.Debug("config.log = %s", config.Log)
+	log.Debug("config.bg_command = %s", config.Bg_Command)
+	log.Debug("config.ssh.exe = %s", config.Ssh.Exe)
+	log.Debug("config.ssh.destination = %s", config.Ssh.Destination)
+	log.Debug("config.ssh.args = %v", config.Ssh.Args)
 
 	log.Notice("connected")
 	defer log.Notice("disconnected")
