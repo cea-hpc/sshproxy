@@ -67,7 +67,7 @@ func lookup(gid int, groupname string, lookupByName bool) (*Group, error) {
 		}
 	}
 	buf := C.malloc(C.size_t(bufSize))
-	defer C.free(buf)
+	defer func() { C.free(buf) }() // cannot call C.free(buf) directly if we reallocate the buffer
 	var rv C.int
 	if lookupByName {
 		nameC := C.CString(groupname)
@@ -86,13 +86,22 @@ func lookup(gid int, groupname string, lookupByName bool) (*Group, error) {
 		}
 
 	} else {
-		rv = C.mygetgrgid_r(C.int(gid),
-			&grp,
-			(*C.char)(buf),
-			C.size_t(bufSize),
-			&result)
-		if rv != 0 {
-			return nil, fmt.Errorf("group: lookup groupid %d: %s", gid, syscall.Errno(rv))
+		for success := false; !success; {
+			rv = C.mygetgrgid_r(C.int(gid),
+				&grp,
+				(*C.char)(buf),
+				C.size_t(bufSize),
+				&result)
+			if rv == 0 {
+				success = true
+			} else {
+				if syscall.Errno(rv) == syscall.ERANGE {
+					bufSize *= 2
+					buf = C.realloc(buf, C.size_t(bufSize))
+				} else {
+					return nil, fmt.Errorf("group: lookup groupid %d: %s", gid, syscall.Errno(rv))
+				}
+			}
 		}
 		if result == nil {
 			return nil, UnknownGroupIdError(gid)
