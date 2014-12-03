@@ -4,11 +4,13 @@
 
 * Install the Go compiler suite: see http://golang.org/doc/install for details.
 
-* Fetch the dependencies (from the sshproxy source directory, git and Internet
-  access are required):
+* Unpack the source in `$HOME/go/src` (i.e. this file should be
+  `$HOME/go/src/sshproxy/README.md`).
 
-    $ mkdir $HOME/go
+* Fetch the dependencies (git and Internet access are required):
+
     $ export GOPATH=$HOME/go
+    $ cd $HOME/go/src/sshproxy
     $ go get -d
 
   The dependencies are in `$HOME/go` and you may want to add the `GOPATH`
