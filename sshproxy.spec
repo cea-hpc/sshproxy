@@ -1,10 +1,10 @@
 %global debug_package   %{nil}
-%global commit          1c1c5eefc07f2c8cbb43f93558abc257243426db
+%global commit          83aa3a1b8b61b7b6eed652f3ffe042780f0e5469
 %global shortcommit     %(c=%{commit}; echo ${c:0:7})
 
 Name:           sshproxy
 Version:        0
-Release:        0.1.git%{shortcommit}%{?dist}
+Release:        0.2.git%{shortcommit}%{?dist}
 Summary:        SSH proxy
 License:        BSD
 Source0:        sshproxy-%{shortcommit}.tar.xz
@@ -26,7 +26,7 @@ automatically connect a remote user to a defined internal host.
 
 %build
 # set up temporary build gopath, and put our directory there
-mkdir -p ./_build/src/sshproxy
+mkdir -p ./_build/src
 ln -s $(pwd) ./_build/src/sshproxy
 
 export GOPATH=$(pwd)/_build:%{gopath}
@@ -47,5 +47,8 @@ install -p -m 644 sshproxy.cfg %{buildroot}%{_sysconfdir}/
 %{_sbindir}/sshproxy
 
 %changelog
+* Wed Dec 03 2014 Arnaud Guignard <arnaud.guignard@cea.fr> - 0-0.2.git83aa3a1
+- New version with groups and routes configuration
+
 * Tue Oct 21 2014 Arnaud Guignard <arnaud.guignard@cea.fr> - 0-0.1.git1c1c5ee
 - Initial fedora package
