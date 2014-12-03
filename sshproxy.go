@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"os/user"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"sshproxy/group.go"
 
@@ -30,20 +32,21 @@ type sshProxyConfig struct {
 	Log        string
 	Bg_Command string
 	Ssh        sshConfig
+	Routes     map[string][]string
 	Users      map[string]subConfig
 	Groups     map[string]subConfig
 }
 
 type sshConfig struct {
-	Exe         string
-	Destination string
-	Args        []string
+	Exe  string
+	Args []string
 }
 
 type subConfig struct {
 	Debug      bool
 	Log        string
 	Bg_Command string
+	Routes     map[string][]string
 	Ssh        sshConfig
 }
 
@@ -117,12 +120,12 @@ func ParseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subCon
 		config.Ssh.Exe = subconfig.Ssh.Exe
 	}
 
-	if md.IsDefined(subgroup, subname, "ssh", "destination") {
-		config.Ssh.Destination = subconfig.Ssh.Destination
-	}
-
 	if md.IsDefined(subgroup, subname, "ssh", "args") {
 		config.Ssh.Args = subconfig.Ssh.Args
+	}
+
+	if md.IsDefined(subgroup, subname, "routes") {
+		config.Routes = subconfig.Routes
 	}
 }
 
@@ -133,8 +136,8 @@ func LoadConfig(config_file, username string, groups map[string]bool) (*sshProxy
 		return nil, err
 	}
 
-	if !md.IsDefined("ssh", "destination") {
-		return nil, fmt.Errorf("no ssh.destination specified")
+	if !md.IsDefined("routes") {
+		return nil, fmt.Errorf("no routes specified")
 	}
 
 	if !md.IsDefined("ssh", "exe") {
@@ -208,6 +211,23 @@ func LaunchBackgroundCommand(command string, done <-chan struct{}, debug bool) {
 	}
 }
 
+func ChooseDestination(destinations []string) string {
+	if len(destinations) == 1 {
+		return destinations[0]
+	}
+	rand.Seed(time.Now().UnixNano())
+	return destinations[rand.Intn(len(destinations))]
+}
+
+func FindDestination(routes map[string][]string, sshd_ip string) (string, error) {
+	if destinations, present := routes[sshd_ip]; present {
+		return ChooseDestination(destinations), nil
+	} else if destinations, present := routes["default"]; present {
+		return ChooseDestination(destinations), nil
+	}
+	return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_ip)
+}
+
 func main() {
 	config_file := defaultConfig
 	if len(os.Args) > 1 {
@@ -229,10 +249,13 @@ func main() {
 		log.Fatal("No SSH_CONNECTION environment variable")
 	}
 
-	src := regexp.MustCompile(`([0-9\.]+) ([0-9]+) [0-9\.]+ [0-9]+`).ReplaceAllString(ssh_connection, "$1:$2")
-	if src == ssh_connection {
+	ssh_conn_infos := regexp.MustCompile(`([0-9\.]+) ([0-9]+) ([0-9\.]+) ([0-9]+)`).FindStringSubmatch(ssh_connection)
+	if len(ssh_conn_infos) != 5 {
 		log.Fatalf("parsing SSH_CONNECTION: bad value '%s'", ssh_connection)
 	}
+
+	src := fmt.Sprintf("%s:%s", ssh_conn_infos[1], ssh_conn_infos[2])
+	sshd_ip, sshd_port := ssh_conn_infos[3], ssh_conn_infos[4]
 
 	groups, err := GetGroups()
 	if err != nil {
@@ -250,12 +273,17 @@ func main() {
 	log.Debug("config.debug = %v", config.Debug)
 	log.Debug("config.log = %s", config.Log)
 	log.Debug("config.bg_command = %s", config.Bg_Command)
+	log.Debug("config.routes = %v", config.Routes)
 	log.Debug("config.ssh.exe = %s", config.Ssh.Exe)
-	log.Debug("config.ssh.destination = %s", config.Ssh.Destination)
 	log.Debug("config.ssh.args = %v", config.Ssh.Args)
 
-	log.Notice("connected")
+	log.Notice("connected to sshd listening on %s:%s", sshd_ip, sshd_port)
 	defer log.Notice("disconnected")
+
+	destination, err := FindDestination(config.Routes, sshd_ip)
+	if err != nil {
+		log.Fatalf("Finding destination: %s", err)
+	}
 
 	// waitgroup and channel to stop our background command when exiting.
 	var wg sync.WaitGroup
@@ -277,7 +305,7 @@ func main() {
 
 	// We assume the `sftp-server` binary is in the same directory on the
 	// gateway as on the target.
-	ssh_args := append(config.Ssh.Args, config.Ssh.Destination, original_cmd)
+	ssh_args := append(config.Ssh.Args, destination, original_cmd)
 	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
@@ -285,6 +313,8 @@ func main() {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+
+	log.Notice("proxied to %s", destination)
 
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("error executing command: %s", err)
