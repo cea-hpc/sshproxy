@@ -213,10 +213,7 @@ func LaunchBackgroundCommand(command string, done <-chan struct{}, debug bool) {
 		cmd.Wait()
 	}()
 
-	select {
-	case <-done:
-		return
-	}
+	<-done
 }
 
 func ChooseDestination(destinations []string) string {
