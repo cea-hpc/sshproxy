@@ -50,10 +50,10 @@ type subConfig struct {
 	Ssh        sshConfig
 }
 
-func MustSetupLogging(template, current_user, source string, debug bool) {
+func MustSetupLogging(logfile, current_user, source string, debug bool) {
 	var logBackend logging.Backend
 	logFormat := fmt.Sprintf("%%{time:2006-01-02 15:04:05} %%{level} [%s] %%{message}", source)
-	if template == "syslog" {
+	if logfile == "syslog" {
 		var err error
 		logBackend, err = logging.NewSyslogBackend("sshproxy")
 		if err != nil {
@@ -62,14 +62,13 @@ func MustSetupLogging(template, current_user, source string, debug bool) {
 		logFormat = fmt.Sprintf("%%{level} [%s@%s] %%{message}", current_user, source)
 	} else {
 		var f *os.File
-		if template == "" {
+		if logfile == "" {
 			f = os.Stderr
 		} else {
 			var err error
-			fn := regexp.MustCompile(`{user}`).ReplaceAllString(template, current_user)
-			f, err = os.OpenFile(fn, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			f, err = os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			if err != nil {
-				log.Fatalf("error opening log file %s: %v", fn, err)
+				log.Fatalf("error opening log file %s: %v", logfile, err)
 			}
 		}
 		logBackend = logging.NewLogBackend(f, "", 0)
@@ -160,6 +159,10 @@ func LoadConfig(config_file, username string, groups map[string]bool) (*sshProxy
 
 	if userconfig, present := config.Users[username]; present {
 		ParseSubConfig(&md, &config, &userconfig, "users", username)
+	}
+
+	if config.Log != "" {
+		config.Log = regexp.MustCompile(`{user}`).ReplaceAllString(config.Log, username)
 	}
 
 	return &config, nil
