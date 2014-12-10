@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"regexp"
 	"strings"
 	"sync"
@@ -65,7 +66,11 @@ func MustSetupLogging(logfile, current_user, source string, debug bool) {
 		if logfile == "" {
 			f = os.Stderr
 		} else {
-			var err error
+			err := os.MkdirAll(path.Dir(logfile), 0755)
+			if err != nil {
+				log.Fatalf("creating directory %s: %s", path.Dir(logfile), err)
+			}
+
 			f, err = os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 			if err != nil {
 				log.Fatalf("error opening log file %s: %v", logfile, err)
