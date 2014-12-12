@@ -9,6 +9,7 @@ import (
 	"os/user"
 	"path"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -234,6 +235,9 @@ func FindDestination(routes map[string][]string, sshd_ip string) (string, error)
 }
 
 func main() {
+	// use all processor cores
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	config_file := defaultConfig
 	if len(os.Args) > 1 {
 		config_file = os.Args[1]
