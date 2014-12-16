@@ -24,7 +24,10 @@ import (
 type ChoseDestinationFunc func([]string) (string, string, error)
 
 var (
-	routeChosers = map[string]ChoseDestinationFunc{"ordered": choseDestinationOrdered, "random": choseDestinationRandom}
+	routeChosers = map[string]ChoseDestinationFunc{
+		"ordered": choseDestinationOrdered,
+		"random":  choseDestinationRandom,
+	}
 
 	defaultConfig      = "/etc/sshproxy.cfg"
 	defaultRouteChoice = "ordered"
@@ -61,7 +64,7 @@ type subConfig struct {
 	Ssh          sshConfig
 }
 
-func MustSetupLogging(logfile, current_user, source string, debug bool) {
+func mustSetupLogging(logfile, current_user, source string, debug bool) {
 	var logBackend logging.Backend
 	logFormat := fmt.Sprintf("%%{time:2006-01-02 15:04:05} %%{level} [%s] %%{message}", source)
 	if logfile == "syslog" {
@@ -98,7 +101,7 @@ func MustSetupLogging(logfile, current_user, source string, debug bool) {
 	}
 }
 
-func GetGroups() (map[string]bool, error) {
+func getGroups() (map[string]bool, error) {
 	gids, err := os.Getgroups()
 	if err != nil {
 		return nil, err
@@ -117,7 +120,7 @@ func GetGroups() (map[string]bool, error) {
 	return groups, nil
 }
 
-func ParseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subConfig, subgroup, subname string) {
+func parseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subConfig, subgroup, subname string) {
 	if md.IsDefined(subgroup, subname, "debug") {
 		config.Debug = subconfig.Debug
 	}
@@ -147,7 +150,7 @@ func ParseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subCon
 	}
 }
 
-func LoadConfig(config_file, username string, groups map[string]bool) (*sshProxyConfig, error) {
+func loadConfig(config_file, username string, groups map[string]bool) (*sshProxyConfig, error) {
 	var config sshProxyConfig
 	md, err := toml.DecodeFile(config_file, &config)
 	if err != nil {
@@ -175,13 +178,13 @@ func LoadConfig(config_file, username string, groups map[string]bool) (*sshProxy
 			groupname := key[1]
 			if groups[groupname] {
 				groupconfig := config.Groups[groupname]
-				ParseSubConfig(&md, &config, &groupconfig, "groups", groupname)
+				parseSubConfig(&md, &config, &groupconfig, "groups", groupname)
 			}
 		}
 	}
 
 	if userconfig, present := config.Users[username]; present {
-		ParseSubConfig(&md, &config, &userconfig, "users", username)
+		parseSubConfig(&md, &config, &userconfig, "users", username)
 	}
 
 	if config.Log != "" {
@@ -207,7 +210,7 @@ func (b *BackgroundCommandLogger) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func LaunchBackgroundCommand(command string, done <-chan struct{}, debug bool) {
+func launchBackgroundCommand(command string, done <-chan struct{}, debug bool) {
 	if command == "" {
 		return
 	}
@@ -331,17 +334,17 @@ func main() {
 	src := fmt.Sprintf("%s:%s", ssh_conn_infos[1], ssh_conn_infos[2])
 	sshd_ip, sshd_port := ssh_conn_infos[3], ssh_conn_infos[4]
 
-	groups, err := GetGroups()
+	groups, err := getGroups()
 	if err != nil {
 		log.Fatalf("Cannot find current user groups: %s", err)
 	}
 
-	config, err := LoadConfig(config_file, username, groups)
+	config, err := loadConfig(config_file, username, groups)
 	if err != nil {
 		log.Fatalf("Reading configuration '%s': %s", config_file, err)
 	}
 
-	MustSetupLogging(config.Log, username, src, config.Debug)
+	mustSetupLogging(config.Log, username, src, config.Debug)
 
 	log.Debug("groups = %v", groups)
 	log.Debug("config.debug = %v", config.Debug)
@@ -372,7 +375,7 @@ func main() {
 	go func() {
 		wg.Add(1)
 		defer wg.Done()
-		LaunchBackgroundCommand(config.Bg_Command, done, config.Debug)
+		launchBackgroundCommand(config.Bg_Command, done, config.Debug)
 	}()
 
 	original_cmd := os.Getenv("SSH_ORIGINAL_COMMAND")
