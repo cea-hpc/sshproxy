@@ -57,6 +57,12 @@ The following parameters can be defined:
   background for the session duration. Its standard and error outputs are only
   logged in debug mode. It is empty by default.
 
+* `route_choice`: a string specifying how the host destination will be chosen.
+  It can be "ordered" (the default) or "random".  If "ordered", the hosts are
+  tried in the order listed until a successful connection is made.  The list is
+  first randomly sorted if "random" is specified (i.e. a poor-man
+  load-balancing algorithm).
+
 A table `routes` defines the destination according to the listening IP address
 of the SSH daemon:
 
@@ -68,13 +74,14 @@ default = ["host5:4222"]
 ```
 
 Each key is a listening IP address of the SSH daemon and the values are a list
-of destination hosts (with an optional port). The definitive host will be
-randomly chosen. The special key `default` can be used to define a default route.
+of destination hosts (with an optional port). The special key `default` can be
+used to define a default route. The hosts are tried in the order specified in
+the previously defined `route_choice` option.
 
 In the previous example, a client connected to `192.168.0.1` will be proxied to
-either `host1` or `host2`. If a client does not connect to `192.168.0.1` or
-`192.168.0.2` it will be proxied to the sshd daemon listening on port 4222 on
-`host5`.
+`host1` and, if the host is not reachable, to `host2`. If a client does not
+connect to `192.168.0.1` or `192.168.0.2` it will be proxied to the sshd daemon
+listening on port 4222 on `host5`.
 
 A table `ssh` specifies the SSH options:
 

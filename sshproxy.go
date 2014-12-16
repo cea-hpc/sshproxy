@@ -21,8 +21,13 @@ import (
 	"github.com/op/go-logging"
 )
 
+type ChoseDestinationFunc func([]string) (string, string, error)
+
 var (
-	defaultConfig = "/etc/sshproxy.cfg"
+	routeChosers = map[string]ChoseDestinationFunc{"ordered": choseDestinationOrdered, "random": choseDestinationRandom}
+
+	defaultConfig      = "/etc/sshproxy.cfg"
+	defaultRouteChoice = "ordered"
 
 	defaultSshExe  = "ssh"
 	defaultSshPort = "22"
@@ -32,13 +37,14 @@ var (
 var log = logging.MustGetLogger("sshproxy")
 
 type sshProxyConfig struct {
-	Debug      bool
-	Log        string
-	Bg_Command string
-	Ssh        sshConfig
-	Routes     map[string][]string
-	Users      map[string]subConfig
-	Groups     map[string]subConfig
+	Debug        bool
+	Log          string
+	Bg_Command   string
+	Route_Choice string
+	Ssh          sshConfig
+	Routes       map[string][]string
+	Users        map[string]subConfig
+	Groups       map[string]subConfig
 }
 
 type sshConfig struct {
@@ -47,11 +53,12 @@ type sshConfig struct {
 }
 
 type subConfig struct {
-	Debug      bool
-	Log        string
-	Bg_Command string
-	Routes     map[string][]string
-	Ssh        sshConfig
+	Debug        bool
+	Log          string
+	Bg_Command   string
+	Route_Choice string
+	Routes       map[string][]string
+	Ssh          sshConfig
 }
 
 func MustSetupLogging(logfile, current_user, source string, debug bool) {
@@ -123,6 +130,10 @@ func ParseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subCon
 		config.Bg_Command = subconfig.Bg_Command
 	}
 
+	if md.IsDefined(subgroup, subname, "route_choice") {
+		config.Route_Choice = subconfig.Route_Choice
+	}
+
 	if md.IsDefined(subgroup, subname, "ssh", "exe") {
 		config.Ssh.Exe = subconfig.Ssh.Exe
 	}
@@ -145,6 +156,10 @@ func LoadConfig(config_file, username string, groups map[string]bool) (*sshProxy
 
 	if !md.IsDefined("routes") {
 		return nil, fmt.Errorf("no routes specified")
+	}
+
+	if !md.IsDefined("route_choice") {
+		config.Route_Choice = defaultRouteChoice
 	}
 
 	if !md.IsDefined("ssh", "exe") {
@@ -171,6 +186,10 @@ func LoadConfig(config_file, username string, groups map[string]bool) (*sshProxy
 
 	if config.Log != "" {
 		config.Log = regexp.MustCompile(`{user}`).ReplaceAllString(config.Log, username)
+	}
+
+	if _, ok := routeChosers[config.Route_Choice]; !ok {
+		return nil, fmt.Errorf("invalid value for `route_choice` option: %s", config.Route_Choice)
 	}
 
 	return &config, nil
@@ -231,23 +250,51 @@ func splitHostPort(hostport string) (string, string, error) {
 	return host, port, nil
 }
 
-func ChooseDestination(destinations []string) (string, string, error) {
-	dst := ""
-	switch {
-	case len(destinations) == 1:
-		dst = destinations[0]
-	default:
-		rand.Seed(time.Now().UnixNano())
-		dst = destinations[rand.Intn(len(destinations))]
+func canConnect(host, port string) bool {
+	c, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 1*time.Second)
+	if err != nil {
+		log.Info("cannot connect to %s:%s: %s", host, port, err)
+		return false
 	}
-	return splitHostPort(dst)
+	c.Close()
+	return true
 }
 
-func FindDestination(routes map[string][]string, sshd_ip string) (string, string, error) {
+func choseDestinationOrdered(destinations []string) (string, string, error) {
+	for i, dst := range destinations {
+		host, port, err := splitHostPort(dst)
+		if err != nil {
+			return "", "", err
+		}
+
+		// always return the last destination without trying to connect
+		if i == len(destinations)-1 {
+			return host, port, nil
+		}
+		if canConnect(host, port) {
+			return host, port, nil
+		}
+	}
+	return "", "", fmt.Errorf("no valid destination found")
+}
+
+func choseDestinationRandom(destinations []string) (string, string, error) {
+	rand.Seed(time.Now().UnixNano())
+	// Fisher-Yates shuffle: http://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
+	// In-place shuffle (instead of using rand.Perm()).
+	for i := len(destinations) - 1; i > 0; i-- {
+		j := rand.Intn(i)
+		destinations[i], destinations[j] = destinations[j], destinations[i]
+	}
+	log.Debug("randomized destinations: %v", destinations)
+	return choseDestinationOrdered(destinations)
+}
+
+func findDestination(routes map[string][]string, route_choice, sshd_ip string) (string, string, error) {
 	if destinations, present := routes[sshd_ip]; present {
-		return ChooseDestination(destinations)
+		return routeChosers[route_choice](destinations)
 	} else if destinations, present := routes["default"]; present {
-		return ChooseDestination(destinations)
+		return routeChosers[route_choice](destinations)
 	}
 	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_ip)
 }
@@ -300,6 +347,7 @@ func main() {
 	log.Debug("config.debug = %v", config.Debug)
 	log.Debug("config.log = %s", config.Log)
 	log.Debug("config.bg_command = %s", config.Bg_Command)
+	log.Debug("config.route_choice = %s", config.Route_Choice)
 	log.Debug("config.routes = %v", config.Routes)
 	log.Debug("config.ssh.exe = %s", config.Ssh.Exe)
 	log.Debug("config.ssh.args = %v", config.Ssh.Args)
@@ -307,7 +355,7 @@ func main() {
 	log.Notice("connected to sshd listening on %s:%s", sshd_ip, sshd_port)
 	defer log.Notice("disconnected")
 
-	host, port, err := FindDestination(config.Routes, sshd_ip)
+	host, port, err := findDestination(config.Routes, config.Route_Choice, sshd_ip)
 	if err != nil {
 		log.Fatalf("Finding destination: %s", err)
 	}
