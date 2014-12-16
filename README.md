@@ -64,16 +64,17 @@ of the SSH daemon:
 [routes]
 192.168.0.1 = ["host1", "host2"]
 192.168.0.2 = ["host3", "host4"]
-default = ["host5"]
+default = ["host5:4222"]
 ```
 
 Each key is a listening IP address of the SSH daemon and the values are a list
-of destination hosts. The definitive host will be randomly chosen. The special
-key `default` can be used to define a default route.
+of destination hosts (with an optional port). The definitive host will be
+randomly chosen. The special key `default` can be used to define a default route.
 
 In the previous example, a client connected to `192.168.0.1` will be proxied to
 either `host1` or `host2`. If a client does not connect to `192.168.0.1` or
-`192.168.0.2` it will be proxied to `host5`.
+`192.168.0.2` it will be proxied to the sshd daemon listening on port 4222 on
+`host5`.
 
 A table `ssh` specifies the SSH options:
 

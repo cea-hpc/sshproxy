@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"net"
 	"os"
 	"os/exec"
 	"os/user"
@@ -24,6 +25,7 @@ var (
 	defaultConfig = "/etc/sshproxy.cfg"
 
 	defaultSshExe  = "ssh"
+	defaultSshPort = "22"
 	defaultSshArgs = []string{"-q", "-Y"}
 )
 
@@ -217,21 +219,37 @@ func LaunchBackgroundCommand(command string, done <-chan struct{}, debug bool) {
 	<-done
 }
 
-func ChooseDestination(destinations []string) string {
-	if len(destinations) == 1 {
-		return destinations[0]
+func splitHostPort(hostport string) (string, string, error) {
+	host, port, err := net.SplitHostPort(hostport)
+	if err != nil {
+		if err.(*net.AddrError).Err == "missing port in address" {
+			return hostport, defaultSshPort, nil
+		} else {
+			return hostport, defaultSshPort, err
+		}
 	}
-	rand.Seed(time.Now().UnixNano())
-	return destinations[rand.Intn(len(destinations))]
+	return host, port, nil
 }
 
-func FindDestination(routes map[string][]string, sshd_ip string) (string, error) {
-	if destinations, present := routes[sshd_ip]; present {
-		return ChooseDestination(destinations), nil
-	} else if destinations, present := routes["default"]; present {
-		return ChooseDestination(destinations), nil
+func ChooseDestination(destinations []string) (string, string, error) {
+	dst := ""
+	switch {
+	case len(destinations) == 1:
+		dst = destinations[0]
+	default:
+		rand.Seed(time.Now().UnixNano())
+		dst = destinations[rand.Intn(len(destinations))]
 	}
-	return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_ip)
+	return splitHostPort(dst)
+}
+
+func FindDestination(routes map[string][]string, sshd_ip string) (string, string, error) {
+	if destinations, present := routes[sshd_ip]; present {
+		return ChooseDestination(destinations)
+	} else if destinations, present := routes["default"]; present {
+		return ChooseDestination(destinations)
+	}
+	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_ip)
 }
 
 func main() {
@@ -289,7 +307,7 @@ func main() {
 	log.Notice("connected to sshd listening on %s:%s", sshd_ip, sshd_port)
 	defer log.Notice("disconnected")
 
-	destination, err := FindDestination(config.Routes, sshd_ip)
+	host, port, err := FindDestination(config.Routes, sshd_ip)
 	if err != nil {
 		log.Fatalf("Finding destination: %s", err)
 	}
@@ -314,7 +332,11 @@ func main() {
 
 	// We assume the `sftp-server` binary is in the same directory on the
 	// gateway as on the target.
-	ssh_args := append(config.Ssh.Args, destination, original_cmd)
+	ssh_args := config.Ssh.Args
+	if port != defaultSshPort {
+		ssh_args = append(ssh_args, "-p", port)
+	}
+	ssh_args = append(ssh_args, host, original_cmd)
 	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
@@ -323,7 +345,7 @@ func main() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	log.Notice("proxied to %s", destination)
+	log.Notice("proxied to %s:%s", host, port)
 
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("error executing command: %s", err)
