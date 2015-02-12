@@ -23,6 +23,8 @@ import (
 
 type ChoseDestinationFunc func([]string) (string, string, error)
 
+var VERSION = "0.1.0"
+
 var (
 	routeChosers = map[string]ChoseDestinationFunc{
 		"ordered": choseDestinationOrdered,
@@ -313,8 +315,12 @@ func main() {
 	config_file := defaultConfig
 	if len(os.Args) > 1 {
 		config_file = os.Args[1]
-		if config_file == "-h" || config_file == "--help" {
-			fmt.Fprintf(os.Stderr, "usage: sshproxy [config]\n")
+		switch config_file {
+		case "-h", "--help":
+			fmt.Fprintf(os.Stderr, "usage: sshproxy [--version] [config]\n")
+			os.Exit(0)
+		case "--version":
+			fmt.Fprintf(os.Stderr, "sshproxy version %s\n", VERSION)
 			os.Exit(0)
 		}
 	}

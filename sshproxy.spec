@@ -1,13 +1,11 @@
 %global debug_package   %{nil}
-%global commit          83aa3a1b8b61b7b6eed652f3ffe042780f0e5469
-%global shortcommit     %(c=%{commit}; echo ${c:0:7})
 
 Name:           sshproxy
-Version:        0
-Release:        0.2.git%{shortcommit}%{?dist}
+Version:        0.1.0
+Release:        1%{?dist}
 Summary:        SSH proxy
-License:        BSD
-Source0:        sshproxy-%{shortcommit}.tar.xz
+License:        CeCILL-B
+Source:         %{name}-%{version}.tar.xz
 BuildArch:      %{ix86} x86_64 %{arm}
 
 BuildRequires:  golang >= 1.3
@@ -22,7 +20,7 @@ This package provides an SSH proxy which can be used on a gateway to
 automatically connect a remote user to a defined internal host.
 
 %prep
-%setup -q -n sshproxy-%{shortcommit}
+%setup -q
 
 %build
 # set up temporary build gopath, and put our directory there
@@ -42,13 +40,10 @@ install -d %{buildroot}%{_sysconfdir}
 install -p -m 644 sshproxy.cfg %{buildroot}%{_sysconfdir}/
 
 %files
-%doc README.md
+%doc README.md Licence_CeCILL-B_V1-en.txt Licence_CeCILL-B_V1-fr.txt
 %config(noreplace) %{_sysconfdir}/sshproxy.cfg
 %{_sbindir}/sshproxy
 
 %changelog
-* Wed Dec 03 2014 Arnaud Guignard <arnaud.guignard@cea.fr> - 0-0.2.git83aa3a1
-- New version with groups and routes configuration
-
-* Tue Oct 21 2014 Arnaud Guignard <arnaud.guignard@cea.fr> - 0-0.1.git1c1c5ee
-- Initial fedora package
+* Fri Feb 12 2015 Arnaud Guignard <arnaud.guignard@cea.fr> - 0.1.0-1
+- sshproxy 0.1.0
