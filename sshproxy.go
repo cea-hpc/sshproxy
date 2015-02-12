@@ -229,16 +229,20 @@ func launchBackgroundCommand(command string, done <-chan struct{}, debug bool) {
 		log.Error("Error launching background command: %s", err)
 		return
 	}
+	go cmd.Wait()
 
-	defer func() {
-		// Send a SIGKILL when leaving.
-		// XXX Maybe could we send a SIGTERM instead and then a
-		// SIGKILL after a timeout?
-		cmd.Process.Kill()
-		cmd.Wait()
-	}()
-
-	<-done
+	for {
+		select {
+		case <-time.After(1 * time.Second):
+			if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
+				log.Debug("Background command exited prematurely: %s", cmd.ProcessState.String())
+				return
+			}
+		case <-done:
+			cmd.Process.Kill()
+			return
+		}
+	}
 }
 
 func splitHostPort(hostport string) (string, string, error) {
