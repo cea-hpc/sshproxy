@@ -21,14 +21,14 @@ import (
 	"github.com/op/go-logging"
 )
 
-type ChoseDestinationFunc func([]string) (string, string, error)
+type ChooseDestinationFunc func([]string) (string, string, error)
 
 var VERSION = "0.1.0"
 
 var (
-	routeChosers = map[string]ChoseDestinationFunc{
-		"ordered": choseDestinationOrdered,
-		"random":  choseDestinationRandom,
+	routeChoosers = map[string]ChooseDestinationFunc{
+		"ordered": chooseDestinationOrdered,
+		"random":  chooseDestinationRandom,
 	}
 
 	defaultConfig      = "/etc/sshproxy.cfg"
@@ -193,7 +193,7 @@ func loadConfig(config_file, username string, groups map[string]bool) (*sshProxy
 		config.Log = regexp.MustCompile(`{user}`).ReplaceAllString(config.Log, username)
 	}
 
-	if _, ok := routeChosers[config.Route_Choice]; !ok {
+	if _, ok := routeChoosers[config.Route_Choice]; !ok {
 		return nil, fmt.Errorf("invalid value for `route_choice` option: %s", config.Route_Choice)
 	}
 
@@ -269,7 +269,7 @@ func canConnect(host, port string) bool {
 	return true
 }
 
-func choseDestinationOrdered(destinations []string) (string, string, error) {
+func chooseDestinationOrdered(destinations []string) (string, string, error) {
 	for i, dst := range destinations {
 		host, port, err := splitHostPort(dst)
 		if err != nil {
@@ -287,7 +287,7 @@ func choseDestinationOrdered(destinations []string) (string, string, error) {
 	return "", "", fmt.Errorf("no valid destination found")
 }
 
-func choseDestinationRandom(destinations []string) (string, string, error) {
+func chooseDestinationRandom(destinations []string) (string, string, error) {
 	rand.Seed(time.Now().UnixNano())
 	// Fisher-Yates shuffle: http://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
 	// In-place shuffle (instead of using rand.Perm()).
@@ -296,14 +296,14 @@ func choseDestinationRandom(destinations []string) (string, string, error) {
 		destinations[i], destinations[j] = destinations[j], destinations[i]
 	}
 	log.Debug("randomized destinations: %v", destinations)
-	return choseDestinationOrdered(destinations)
+	return chooseDestinationOrdered(destinations)
 }
 
 func findDestination(routes map[string][]string, route_choice, sshd_ip string) (string, string, error) {
 	if destinations, present := routes[sshd_ip]; present {
-		return routeChosers[route_choice](destinations)
+		return routeChoosers[route_choice](destinations)
 	} else if destinations, present := routes["default"]; present {
-		return routeChosers[route_choice](destinations)
+		return routeChoosers[route_choice](destinations)
 	}
 	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_ip)
 }
