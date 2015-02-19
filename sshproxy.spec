@@ -10,6 +10,8 @@ BuildArch:      %{ix86} x86_64 %{arm}
 
 BuildRequires:  golang >= 1.3
 BuildRequires:  golang(github.com/BurntSushi/toml)
+BuildRequires:  golang(github.com/docker/docker/pkg/term)
+BuildRequires:  golang(github.com/kr/pty)
 BuildRequires:  golang(github.com/op/go-logging)
 Summary:        SSH proxy
 
