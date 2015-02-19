@@ -51,7 +51,8 @@ The following parameters can be defined:
 
   - a path to a filename. The directory must exist. The pattern `{user}` in the
     path will be replaced with the user login (eg.
-    `"/var/log/sshproxy/{user}.log"`).
+    `"/var/log/sshproxy/{user}.log"`). The user is the owner of the filename,
+    so he needs the right to write in the specified directory.
 
 * `bg_command`: a string specifying a command which will be launched in the
   background for the session duration. Its standard and error outputs are only
