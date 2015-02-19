@@ -45,5 +45,5 @@ install -p -m 644 sshproxy.cfg %{buildroot}%{_sysconfdir}/
 %{_sbindir}/sshproxy
 
 %changelog
-* Fri Feb 12 2015 Arnaud Guignard <arnaud.guignard@cea.fr> - 0.1.0-1
+* Thu Feb 12 2015 Arnaud Guignard <arnaud.guignard@cea.fr> - 0.1.0-1
 - sshproxy 0.1.0
