@@ -1,35 +1,27 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"io"
 	"math/rand"
 	"net"
 	"os"
 	"os/exec"
-	"os/signal"
 	"os/user"
 	"path"
 	"regexp"
 	"runtime"
-	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"sshproxy/group.go"
 
-	"github.com/BurntSushi/toml"
 	"github.com/docker/docker/pkg/term"
-	"github.com/kr/pty"
 	"github.com/op/go-logging"
 )
 
-type ChooseDestinationFunc func([]string) (string, string, error)
-
 var VERSION = "0.1.0"
+
+type ChooseDestinationFunc func([]string) (string, string, error)
 
 var (
 	routeChoosers = map[string]ChooseDestinationFunc{
@@ -37,256 +29,22 @@ var (
 		"random":  chooseDestinationRandom,
 	}
 
-	defaultConfig      = "/etc/sshproxy.cfg"
-	defaultRouteChoice = "ordered"
-
-	defaultSshExe  = "ssh"
-	defaultSshPort = "22"
-	defaultSshArgs = []string{"-q", "-Y"}
+	defaultConfig = "/etc/sshproxy.cfg"
 )
 
+// main logger for sshproxy
 var log = logging.MustGetLogger("sshproxy")
 
-type duration struct {
-	time.Duration
-}
-
-func (d *duration) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = time.ParseDuration(string(text))
-	return err
-}
-
-type sshProxyConfig struct {
-	Debug          bool
-	Log            string
-	Dump           string
-	Stats_Interval duration
-	Bg_Command     string
-	Route_Choice   string
-	Ssh            sshConfig
-	Environment    map[string]string
-	Routes         map[string][]string
-	Users          map[string]subConfig
-	Groups         map[string]subConfig
-}
-
-type sshConfig struct {
-	Exe  string
-	Args []string
-}
-
-type subConfig struct {
-	Debug          bool
-	Log            string
-	Dump           string
-	Stats_Interval duration
-	Bg_Command     string
-	Route_Choice   string
-	Environment    map[string]string
-	Routes         map[string][]string
-	Ssh            sshConfig
-}
-
-func runStdCommand(cmd *exec.Cmd, done <-chan struct{}, rec *Recorder) error {
-	cmd.Stdin = rec.Stdin
-	cmd.Stdout = rec.Stdout
-	cmd.Stderr = rec.Stderr
-	runCommand(cmd, false, done)
-	return nil
-}
-
-///////////////////////
-// Launch command in a PTY
-// from https://github.com/9seconds/ah/blob/master/app/utils/exec.go
-func runTtyCommand(cmd *exec.Cmd, done <-chan struct{}, rec *Recorder) error {
-	p, err := pty.Start(cmd)
-	if err != nil {
-		return err
-	}
-	defer p.Close()
-
-	hostFd := os.Stdin.Fd()
-	oldState, err := term.SetRawTerminal(hostFd)
-	if err != nil {
-		return err
-	}
-	defer term.RestoreTerminal(hostFd, oldState)
-
-	monitorTtyResize(hostFd, p.Fd())
-
-	go io.Copy(p, rec.Stdin)
-	go io.Copy(rec.Stdout, p)
-	go io.Copy(rec.Stderr, p)
-
-	runCommand(cmd, true, done)
-	return nil
-}
-
-func monitorTtyResize(hostFd uintptr, guestFd uintptr) {
-	resizeTty(hostFd, guestFd)
-
-	winchChan := make(chan os.Signal, 1)
-	signal.Notify(winchChan, syscall.SIGWINCH)
-
-	go func() {
-		for _ = range winchChan {
-			resizeTty(hostFd, guestFd)
-		}
-	}()
-}
-
-func resizeTty(hostFd uintptr, guestFd uintptr) {
-	winsize, err := term.GetWinsize(hostFd)
-	if err != nil {
-		return
-	}
-	term.SetWinsize(guestFd, winsize)
-}
-
-type Record struct {
-	Fd  int
-	Buf []byte
-}
-
-type Splitter struct {
-	f  *os.File
-	fd int
-	ch chan<- Record
-}
-
-func NewSplitter(f *os.File, ch chan Record) *Splitter {
-	return &Splitter{f, int(f.Fd()), ch}
-}
-
-func (s *Splitter) Close() error {
-	return s.f.Close()
-}
-
-func (s *Splitter) Read(p []byte) (int, error) {
-	s.ch <- Record{s.fd, p}
-	return s.f.Read(p)
-}
-
-func (s *Splitter) Write(p []byte) (int, error) {
-	s.ch <- Record{s.fd, p}
-	return s.f.Write(p)
-}
-
-type Recorder struct {
-	Stdin, Stdout, Stderr *Splitter
-	start                 time.Time
-	stats_interval        duration
-	totals                map[int]int
-	ch                    chan Record
-	fdump                 *os.File
-	done                  <-chan struct{}
-}
-
-func NewRecorder(done <-chan struct{}, start time.Time, dumpfile string, stats_interval duration) (*Recorder, error) {
-	var fdump *os.File = nil
-	if dumpfile != "" {
-		err := os.MkdirAll(path.Dir(dumpfile), 0700)
-		if err != nil {
-			return nil, fmt.Errorf("creating directory %s: %s", path.Dir(dumpfile), err)
-		}
-
-		fdump, err = os.Create(dumpfile)
-		if err != nil {
-			return nil, fmt.Errorf("creating %s: %s", dumpfile, err)
-		}
-	}
-
-	ch := make(chan Record)
-
-	return &Recorder{
-		Stdin:          NewSplitter(os.Stdin, ch),
-		Stdout:         NewSplitter(os.Stdout, ch),
-		Stderr:         NewSplitter(os.Stderr, ch),
-		start:          start,
-		stats_interval: stats_interval,
-		totals:         map[int]int{0: 0, 1: 0, 2: 0},
-		ch:             ch,
-		fdump:          fdump,
-		done:           done,
-	}, nil
-}
-
-func (r *Recorder) Log() {
-	t := []string{}
-	fds := []string{"stdin", "stdout", "stderr"}
-	for fd, name := range fds {
-		t = append(t, fmt.Sprintf("%s: %d", name, r.totals[fd]))
-	}
-	// round to second
-	elapsed := time.Duration((time.Now().Sub(r.start) / time.Second) * time.Second)
-	log.Notice("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
-}
-
-func (r *Recorder) Dump(rec Record) {
-	if r.fdump == nil {
-		return
-	}
-
-	buf := new(bytes.Buffer)
-	data := []interface{}{
-		uint8(rec.Fd),
-		uint32(len(rec.Buf)),
-	}
-
-	for _, v := range data {
-		err := binary.Write(buf, binary.BigEndian, v)
-		if err != nil {
-			log.Error("binary.Write failed: %s", err)
-			return
-		}
-	}
-
-	_, err := buf.Write(rec.Buf)
-	if err != nil {
-		log.Error("bytes.Buffer.Write failed: %s", err)
-		return
-	}
-
-	_, err = buf.WriteTo(r.fdump)
-	if err != nil {
-		log.Error("writing in %s: %s", r.fdump.Name(), err)
-		// XXX close r.fdump?
-	}
-}
-
-func (r *Recorder) Run() {
-	defer func() {
-		r.fdump.Close()
-		r.Log()
-	}()
-
-	if r.stats_interval.Duration != 0 {
-		go func() {
-			for {
-				select {
-				case <-time.After(r.stats_interval.Duration):
-					r.Log()
-				case <-r.done:
-					return
-				}
-			}
-		}()
-	}
-
-	for {
-		select {
-		case rec := <-r.ch:
-			r.totals[rec.Fd] += len(rec.Buf)
-			if r.fdump != nil {
-				r.Dump(rec)
-			}
-		case <-r.done:
-			return
-		}
-	}
-}
-
+// mustSetupLogging setups logging framework for sshproxy.
+//
+// logfile can be:
+//   - empty (""): logs will be written on stdout,
+//   - "syslog": logs will be sent to syslog(),
+//   - a filename: logs will be appended in this file (the subdirectories will
+//     be created if they do not exist).
+//
+// current_user and source are used to prefix the log message and debug output
+// is enabled if debug is true.
 func mustSetupLogging(logfile, current_user, source string, debug bool) {
 	var logBackend logging.Backend
 	logFormat := fmt.Sprintf("%%{time:2006-01-02 15:04:05} %%{level} [%s] %%{message}", source)
@@ -324,6 +82,9 @@ func mustSetupLogging(logfile, current_user, source string, debug bool) {
 	}
 }
 
+// getGroups returns a map of group memberships for the current user.
+//
+// It can be used to quickly check if a user is in a specified group.
 func getGroups() (map[string]bool, error) {
 	gids, err := os.Getgroups()
 	if err != nil {
@@ -343,158 +104,9 @@ func getGroups() (map[string]bool, error) {
 	return groups, nil
 }
 
-func parseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subConfig, subgroup, subname string) {
-	if md.IsDefined(subgroup, subname, "debug") {
-		config.Debug = subconfig.Debug
-	}
-
-	if md.IsDefined(subgroup, subname, "log") {
-		config.Log = subconfig.Log
-	}
-
-	if md.IsDefined(subgroup, subname, "dump") {
-		config.Dump = subconfig.Dump
-	}
-
-	if md.IsDefined(subgroup, subname, "bg_command") {
-		config.Bg_Command = subconfig.Bg_Command
-	}
-
-	if md.IsDefined(subgroup, subname, "route_choice") {
-		config.Route_Choice = subconfig.Route_Choice
-	}
-
-	if md.IsDefined(subgroup, subname, "ssh", "exe") {
-		config.Ssh.Exe = subconfig.Ssh.Exe
-	}
-
-	if md.IsDefined(subgroup, subname, "ssh", "args") {
-		config.Ssh.Args = subconfig.Ssh.Args
-	}
-
-	if md.IsDefined(subgroup, subname, "routes") {
-		config.Routes = subconfig.Routes
-	}
-
-	if md.IsDefined(subgroup, subname, "environment") {
-		// merge environment
-		for k, v := range subconfig.Environment {
-			config.Environment[k] = v
-		}
-	}
-}
-
-func loadConfig(config_file, username string, start time.Time, groups map[string]bool) (*sshProxyConfig, error) {
-	var config sshProxyConfig
-	md, err := toml.DecodeFile(config_file, &config)
-	if err != nil {
-		return nil, err
-	}
-
-	if !md.IsDefined("routes") {
-		return nil, fmt.Errorf("no routes specified")
-	}
-
-	if !md.IsDefined("route_choice") {
-		config.Route_Choice = defaultRouteChoice
-	}
-
-	if !md.IsDefined("ssh", "exe") {
-		config.Ssh.Exe = defaultSshExe
-	}
-
-	if !md.IsDefined("ssh", "args") {
-		config.Ssh.Args = defaultSshArgs
-	}
-
-	for _, key := range md.Keys() {
-		if key[0] == "groups" {
-			groupname := key[1]
-			if groups[groupname] {
-				groupconfig := config.Groups[groupname]
-				parseSubConfig(&md, &config, &groupconfig, "groups", groupname)
-			}
-		}
-	}
-
-	if userconfig, present := config.Users[username]; present {
-		parseSubConfig(&md, &config, &userconfig, "users", username)
-	}
-
-	if config.Log != "" {
-		config.Log = regexp.MustCompile(`{user}`).ReplaceAllString(config.Log, username)
-	}
-
-	for k, v := range config.Environment {
-		config.Environment[k] = regexp.MustCompile(`{user}`).ReplaceAllString(v, username)
-	}
-
-	if _, ok := routeChoosers[config.Route_Choice]; !ok {
-		return nil, fmt.Errorf("invalid value for `route_choice` option: %s", config.Route_Choice)
-	}
-
-	if config.Dump != "" {
-		config.Dump = regexp.MustCompile(`{user}`).ReplaceAllString(config.Dump, username)
-		config.Dump = regexp.MustCompile(`{time}`).ReplaceAllString(config.Dump, start.Format(time.RFC3339Nano))
-	}
-
-	return &config, nil
-}
-
-func runCommand(cmd *exec.Cmd, started bool, done <-chan struct{}) {
-	if !started {
-		if err := cmd.Start(); err != nil {
-			log.Error("Error launching command '%s': %s", strings.Join(cmd.Args, " "), err)
-			return
-		}
-	}
-	go cmd.Wait()
-
-	for {
-		select {
-		case <-time.After(1 * time.Second):
-			if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-				if !cmd.ProcessState.Success() {
-					log.Debug("Command '%s' exited prematurely: %s", strings.Join(cmd.Args, " "), cmd.ProcessState.String())
-				}
-				return
-			}
-		case <-done:
-			cmd.Process.Kill()
-			return
-		}
-	}
-}
-
-type BackgroundCommandLogger struct {
-	Prefix string
-}
-
-func (b *BackgroundCommandLogger) Write(p []byte) (int, error) {
-	lines := strings.Split(bytes.NewBuffer(p).String(), "\n")
-	for _, l := range lines {
-		l = strings.TrimSpace(l)
-		if len(l) != 0 {
-			log.Debug("%s: %s", b.Prefix, l)
-		}
-	}
-	return len(p), nil
-}
-
-func prepareBackgroundCommand(command string, done <-chan struct{}, debug bool) *exec.Cmd {
-	args := strings.Fields(command)
-	cmd := exec.Command(args[0], args[1:]...)
-
-	if debug {
-		stdout_log := &BackgroundCommandLogger{"bg_command.stdout"}
-		stderr_log := &BackgroundCommandLogger{"bg_command.stderr"}
-		cmd.Stdout = stdout_log
-		cmd.Stderr = stderr_log
-	}
-
-	return cmd
-}
-
+// splitHostPort splits a network address of the form "host:port" or
+// "host[:port]" into host and port. If the port is not specified the default
+// ssh port ("22") is returned.
 func splitHostPort(hostport string) (string, string, error) {
 	host, port, err := net.SplitHostPort(hostport)
 	if err != nil {
@@ -507,6 +119,7 @@ func splitHostPort(hostport string) (string, string, error) {
 	return host, port, nil
 }
 
+// canConnect tests if a connection to host:port can be made (with a 1s timeout).
 func canConnect(host, port string) bool {
 	c, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 1*time.Second)
 	if err != nil {
@@ -517,6 +130,8 @@ func canConnect(host, port string) bool {
 	return true
 }
 
+// chooseDestinationOrdered chooses the first reachable destination from a list
+// of destinations. It returns its host and port.
 func chooseDestinationOrdered(destinations []string) (string, string, error) {
 	for i, dst := range destinations {
 		host, port, err := splitHostPort(dst)
@@ -535,6 +150,9 @@ func chooseDestinationOrdered(destinations []string) (string, string, error) {
 	return "", "", fmt.Errorf("no valid destination found")
 }
 
+// chooseDestinationRandom randomizes the order of the provided list of
+// destinations and chooses the first reachable one. It returns its host and
+// port.
 func chooseDestinationRandom(destinations []string) (string, string, error) {
 	rand.Seed(time.Now().UnixNano())
 	// Fisher-Yates shuffle: http://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
@@ -547,15 +165,20 @@ func chooseDestinationRandom(destinations []string) (string, string, error) {
 	return chooseDestinationOrdered(destinations)
 }
 
-func findDestination(routes map[string][]string, route_choice, sshd_ip string) (string, string, error) {
-	if destinations, present := routes[sshd_ip]; present {
+// findDestination finds a reachable destination for the sshd server according
+// to routes. route_choice specifies the algorithm used to choose the
+// destination (can be "ordered" or "random").
+func findDestination(routes map[string][]string, route_choice, sshd string) (string, string, error) {
+	if destinations, present := routes[sshd]; present {
 		return routeChoosers[route_choice](destinations)
 	} else if destinations, present := routes["default"]; present {
 		return routeChoosers[route_choice](destinations)
 	}
-	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_ip)
+	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd)
 }
 
+// setEnvironment sets environment variables from a map whose keys are the
+// variable names.
 func setEnvironment(environment map[string]string) {
 	for k, v := range environment {
 		os.Setenv(k, v)
@@ -658,8 +281,10 @@ func main() {
 		go func() {
 			wg.Add(1)
 			defer wg.Done()
-			cmd := prepareBackgroundCommand(config.Bg_Command, done, config.Debug)
-			runCommand(cmd, false, done)
+			cmd := prepareBackgroundCommand(config.Bg_Command, config.Debug)
+			if err := runCommand(cmd, false, done); err != nil {
+				log.Error("error running background command: %s", err)
+			}
 		}()
 	}
 
@@ -676,7 +301,7 @@ func main() {
 	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
-	recorder, err := NewRecorder(done, start, config.Dump, config.Stats_Interval)
+	recorder, err := NewRecorder(config.Dump, config.Stats_Interval, done)
 	if err != nil {
 		log.Fatalf("setting recorder: %s", err)
 	}
@@ -695,6 +320,6 @@ func main() {
 		err = runStdCommand(cmd, done, recorder)
 	}
 	if err != nil {
-		log.Fatalf("error executing command: %s", err)
+		log.Error("error executing proxied ssh command: %s", err)
 	}
 }
