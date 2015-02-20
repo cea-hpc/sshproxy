@@ -1,14 +1,14 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"os"
 	"path"
 	"strings"
 	"time"
+
+	"sshproxy/record"
 )
 
 // Dup duplicates a []byte slice.
@@ -18,26 +18,19 @@ func Dup(a []byte, n int) []byte {
 	return b
 }
 
-// A Record represents the data read from or written to a file descriptor.
-type Record struct {
-	Time time.Time // received time
-	Fd   int       // integer file descriptor
-	Buf  []byte    // read/written data
-}
-
-// A Splitter reads from and/or writes to a file descriptor and sends a Record
-// struct to a channel for each read/write operation.
+// A Splitter reads from and/or writes to a file descriptor and sends a
+// record.Record struct to a channel for each read/write operation.
 type Splitter struct {
-	f  *os.File      // opened file
-	fd int           // integer file descriptor
-	ch chan<- Record // channel to send Record structs
+	f  *os.File             // opened file
+	fd int                  // integer file descriptor
+	ch chan<- record.Record // channel to send record.Record structs
 }
 
 // NewSplitter returns a new Splitter struct from an already opened *os.File
-// and a channel where Record structs will be sent.
+// and a channel where record.Record structs will be sent.
 //
 // It implements the ReadWriteCloser interface.
-func NewSplitter(f *os.File, ch chan Record) *Splitter {
+func NewSplitter(f *os.File, ch chan record.Record) *Splitter {
 	return &Splitter{f, int(f.Fd()), ch}
 }
 
@@ -51,7 +44,7 @@ func (s *Splitter) Close() error {
 func (s *Splitter) Read(p []byte) (int, error) {
 	n, err := s.f.Read(p)
 	pp := Dup(p, n)
-	s.ch <- Record{time.Now(), s.fd, pp}
+	s.ch <- record.Record{time.Now(), s.fd, n, pp}
 	return n, err
 }
 
@@ -59,7 +52,7 @@ func (s *Splitter) Read(p []byte) (int, error) {
 // slice to its internal channel.
 func (s *Splitter) Write(p []byte) (int, error) {
 	pp := Dup(p, len(p))
-	s.ch <- Record{time.Now(), s.fd, pp}
+	s.ch <- record.Record{time.Now(), s.fd, len(p), pp}
 	return s.f.Write(p)
 }
 
@@ -69,18 +62,14 @@ func (s *Splitter) Write(p []byte) (int, error) {
 // It logs periodically basic statistics of transferred bytes and can save
 // intercepted raw data in a file.
 //
-// The file is a succession of serialized Record structs with the following format:
-//   - an unsigned 64 bits integer indicating the received time (in ns),
-//   - an unsigned 8 bits integer indicating the file descritor,
-//   - an unsigned 32 bits integer indicating the data size,
-//   - data.
-// All integers are big endian.
+// The file is a succession of serialized record.Record structs. See the
+// record.Record documentation for details on the format.
 type Recorder struct {
 	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors.
 	start                 time.Time          // when the Recorder was started
 	stats_interval        duration           // interval at which basic statistics of transferred bytes are logged
 	totals                map[int]int        // total of bytes for each recorded file descriptor
-	ch                    chan Record        // channel to read Record structs
+	ch                    chan record.Record // channel to read record.Record structs
 	fdump                 *os.File           // *os.File where the raw records are dumped.
 	done                  <-chan struct{}    // control channel to stop recording when it's closed
 }
@@ -104,7 +93,7 @@ func NewRecorder(dumpfile string, stats_interval duration, done <-chan struct{})
 		}
 	}
 
-	ch := make(chan Record)
+	ch := make(chan record.Record)
 
 	return &Recorder{
 		Stdin:          NewSplitter(os.Stdin, ch),
@@ -130,35 +119,13 @@ func (r *Recorder) log() {
 	log.Notice("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
 }
 
-// dump saves a Record in the dumpfile.
-func (r *Recorder) dump(rec Record) {
+// dump saves a record.Record in the dumpfile.
+func (r *Recorder) dump(rec record.Record) {
 	if r.fdump == nil {
 		return
 	}
 
-	buf := new(bytes.Buffer)
-	data := []interface{}{
-		uint64(rec.Time.UnixNano()),
-		uint8(rec.Fd),
-		uint32(len(rec.Buf)),
-	}
-
-	for _, v := range data {
-		err := binary.Write(buf, binary.BigEndian, v)
-		if err != nil {
-			log.Error("binary.Write failed: %s", err)
-			return
-		}
-	}
-
-	_, err := buf.Write(rec.Buf)
-	if err != nil {
-		log.Error("bytes.Buffer.Write failed: %s", err)
-		return
-	}
-
-	_, err = buf.WriteTo(r.fdump)
-	if err != nil {
+	if err := record.Encode(r.fdump, &rec); err != nil {
 		log.Error("writing in %s: %s", r.fdump.Name(), err)
 		// XXX close r.fdump?
 	}
@@ -189,7 +156,7 @@ func (r *Recorder) Run() {
 	for {
 		select {
 		case rec := <-r.ch:
-			r.totals[rec.Fd] += len(rec.Buf)
+			r.totals[rec.Fd] += rec.Size
 			if r.fdump != nil {
 				r.dump(rec)
 			}
