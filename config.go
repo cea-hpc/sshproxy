@@ -97,7 +97,22 @@ func parseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subCon
 	}
 }
 
+type PatternReplacer struct {
+	Regexp *regexp.Regexp
+	Text   string
+}
+
+func replace(src string, replacer *PatternReplacer) string {
+	return replacer.Regexp.ReplaceAllString(src, replacer.Text)
+}
+
 func loadConfig(config_file, username, sid string, start time.Time, groups map[string]bool) (*sshProxyConfig, error) {
+	patterns := map[string]*PatternReplacer{
+		"{user}": &PatternReplacer{regexp.MustCompile(`{user}`), username},
+		"{sid}":  &PatternReplacer{regexp.MustCompile(`{sid}`), sid},
+		"{time}": &PatternReplacer{regexp.MustCompile(`{time}`), start.Format(time.RFC3339Nano)},
+	}
+
 	var config sshProxyConfig
 	md, err := toml.DecodeFile(config_file, &config)
 	if err != nil {
@@ -135,11 +150,11 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 	}
 
 	if config.Log != "" {
-		config.Log = regexp.MustCompile(`{user}`).ReplaceAllString(config.Log, username)
+		config.Log = replace(config.Log, patterns["{user}"])
 	}
 
 	for k, v := range config.Environment {
-		config.Environment[k] = regexp.MustCompile(`{user}`).ReplaceAllString(v, username)
+		config.Environment[k] = replace(v, patterns["{user}"])
 	}
 
 	if _, ok := routeChoosers[config.Route_Choice]; !ok {
@@ -147,9 +162,9 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 	}
 
 	if config.Dump != "" {
-		config.Dump = regexp.MustCompile(`{user}`).ReplaceAllString(config.Dump, username)
-		config.Dump = regexp.MustCompile(`{sid}`).ReplaceAllString(config.Dump, sid)
-		config.Dump = regexp.MustCompile(`{time}`).ReplaceAllString(config.Dump, start.Format(time.RFC3339Nano))
+		for _, repl := range patterns {
+			config.Dump = replace(config.Dump, repl)
+		}
 	}
 
 	return &config, nil
