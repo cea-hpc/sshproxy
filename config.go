@@ -97,7 +97,7 @@ func parseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subCon
 	}
 }
 
-func loadConfig(config_file, username string, start time.Time, groups map[string]bool) (*sshProxyConfig, error) {
+func loadConfig(config_file, username, sid string, start time.Time, groups map[string]bool) (*sshProxyConfig, error) {
 	var config sshProxyConfig
 	md, err := toml.DecodeFile(config_file, &config)
 	if err != nil {
@@ -148,6 +148,7 @@ func loadConfig(config_file, username string, start time.Time, groups map[string
 
 	if config.Dump != "" {
 		config.Dump = regexp.MustCompile(`{user}`).ReplaceAllString(config.Dump, username)
+		config.Dump = regexp.MustCompile(`{sid}`).ReplaceAllString(config.Dump, sid)
 		config.Dump = regexp.MustCompile(`{time}`).ReplaceAllString(config.Dump, start.Format(time.RFC3339Nano))
 	}
 

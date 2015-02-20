@@ -248,7 +248,7 @@ func main() {
 		log.Fatalf("Cannot find current user groups: %s", err)
 	}
 
-	config, err := loadConfig(config_file, username, start, groups)
+	config, err := loadConfig(config_file, username, sid, start, groups)
 	if err != nil {
 		log.Fatalf("Reading configuration '%s': %s", config_file, err)
 	}

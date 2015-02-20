@@ -65,16 +65,19 @@ The following parameters can be defined:
   load-balancing algorithm).
 
 * `dump`: a string specifying the path to save raw dumps for each user session.
-  Empty by default. The path can (and should) contain the following patterns:
+  Empty by default. The path can (and should) contain one or more of the
+  following patterns:
 
   - `{user}` replaced by the user login
+
+  - `{sid}` replaced by the unique session id
 
   - `{time}` replaced by the connection starting time (e.g.
     "2006-01-02T15:04:05.999999999Z07:00").
 
   The subdirectories will be created if needed with the user as owner. So the
   user needs to have the right to write in this directory.
-  For example: "/var/spool/sshproxy/{user}/{time}.dump"
+  For example: "/var/spool/sshproxy/{user}/{time}-{sid}.dump"
 
 * `stats_interval`: a string specifying the interval at which basic statistics
   of transferred bytes are logged.  It is empty by default. The string can
