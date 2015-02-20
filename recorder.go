@@ -12,8 +12,8 @@ import (
 )
 
 // Dup duplicates a []byte slice.
-func Dup(a []byte) []byte {
-	b := make([]byte, len(a))
+func Dup(a []byte, n int) []byte {
+	b := make([]byte, n)
 	copy(b, a)
 	return b
 }
@@ -50,7 +50,7 @@ func (s *Splitter) Close() error {
 // its internal channel.
 func (s *Splitter) Read(p []byte) (int, error) {
 	n, err := s.f.Read(p)
-	pp := Dup(p)
+	pp := Dup(p, n)
 	s.ch <- Record{time.Now(), s.fd, pp}
 	return n, err
 }
@@ -58,7 +58,7 @@ func (s *Splitter) Read(p []byte) (int, error) {
 // Write implements the Writer Write method. It sends a copy of the written
 // slice to its internal channel.
 func (s *Splitter) Write(p []byte) (int, error) {
-	pp := Dup(p)
+	pp := Dup(p, len(p))
 	s.ch <- Record{time.Now(), s.fd, pp}
 	return s.f.Write(p)
 }
