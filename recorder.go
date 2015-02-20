@@ -20,8 +20,9 @@ func Dup(a []byte) []byte {
 
 // A Record represents the data read from or written to a file descriptor.
 type Record struct {
-	Fd  int    // integer file descriptor
-	Buf []byte // read/written data
+	Time time.Time // received time
+	Fd   int       // integer file descriptor
+	Buf  []byte    // read/written data
 }
 
 // A Splitter reads from and/or writes to a file descriptor and sends a Record
@@ -50,7 +51,7 @@ func (s *Splitter) Close() error {
 func (s *Splitter) Read(p []byte) (int, error) {
 	n, err := s.f.Read(p)
 	pp := Dup(p)
-	s.ch <- Record{s.fd, pp}
+	s.ch <- Record{time.Now(), s.fd, pp}
 	return n, err
 }
 
@@ -58,7 +59,7 @@ func (s *Splitter) Read(p []byte) (int, error) {
 // slice to its internal channel.
 func (s *Splitter) Write(p []byte) (int, error) {
 	pp := Dup(p)
-	s.ch <- Record{s.fd, pp}
+	s.ch <- Record{time.Now(), s.fd, pp}
 	return s.f.Write(p)
 }
 
@@ -66,10 +67,14 @@ func (s *Splitter) Write(p []byte) (int, error) {
 // ouput or standard error.
 //
 // It logs periodically basic statistics of transferred bytes and can save
-// intercepted raw data in a file. The file is a succession of serialized
-// Record structs with the following format: an unsigned 8 bits integer
-// indicating the file descritor, an unsigned 32 bits integer indicating the
-// data size, data. All integers are big endian.
+// intercepted raw data in a file.
+//
+// The file is a succession of serialized Record structs with the following format:
+//   - an unsigned 64 bits integer indicating the received time (in ns),
+//   - an unsigned 8 bits integer indicating the file descritor,
+//   - an unsigned 32 bits integer indicating the data size,
+//   - data.
+// All integers are big endian.
 type Recorder struct {
 	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors.
 	start                 time.Time          // when the Recorder was started
@@ -133,6 +138,7 @@ func (r *Recorder) dump(rec Record) {
 
 	buf := new(bytes.Buffer)
 	data := []interface{}{
+		uint64(rec.Time.UnixNano()),
 		uint8(rec.Fd),
 		uint32(len(rec.Buf)),
 	}
