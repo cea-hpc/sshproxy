@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"math/rand"
 	"net"
@@ -35,6 +36,12 @@ var (
 // main logger for sshproxy
 var log = logging.MustGetLogger("sshproxy")
 
+// calcSessionId returns a unique 10 hexadecimal characters string from a user
+// name, host, port and timestamp.
+func calcSessionId(user, host, port string, ts time.Time) string {
+	return fmt.Sprintf("%.5X", sha1.Sum([]byte(fmt.Sprintf("%s@%s:%s@%d", user, host, port, ts.UnixNano()))))
+}
+
 // mustSetupLogging setups logging framework for sshproxy.
 //
 // logfile can be:
@@ -43,18 +50,19 @@ var log = logging.MustGetLogger("sshproxy")
 //   - a filename: logs will be appended in this file (the subdirectories will
 //     be created if they do not exist).
 //
-// current_user and source are used to prefix the log message and debug output
-// is enabled if debug is true.
-func mustSetupLogging(logfile, current_user, source string, debug bool) {
+// sid is a unique session id (calculated with calcSessionId) used to identify
+// a session in the logs.
+// Debug output is enabled if debug is true.
+func mustSetupLogging(logfile, sid string, debug bool) {
 	var logBackend logging.Backend
-	logFormat := fmt.Sprintf("%%{time:2006-01-02 15:04:05} %%{level} [%s] %%{message}", source)
+	logFormat := fmt.Sprintf("%%{time:2006-01-02 15:04:05} %%{level} %s: %%{message}", sid)
 	if logfile == "syslog" {
 		var err error
 		logBackend, err = logging.NewSyslogBackend("sshproxy")
 		if err != nil {
 			log.Fatalf("error opening syslog: %s", err)
 		}
-		logFormat = fmt.Sprintf("%%{level} [%s@%s] %%{message}", current_user, source)
+		logFormat = fmt.Sprintf("%%{level} %s: %%{message}", sid)
 	} else {
 		var f *os.File
 		if logfile == "" {
@@ -231,8 +239,9 @@ func main() {
 		log.Fatalf("parsing SSH_CONNECTION: bad value '%s'", ssh_connection)
 	}
 
-	src := fmt.Sprintf("%s:%s", ssh_conn_infos[1], ssh_conn_infos[2])
+	client_ip, client_port := ssh_conn_infos[1], ssh_conn_infos[2]
 	sshd_ip, sshd_port := ssh_conn_infos[3], ssh_conn_infos[4]
+	sid := calcSessionId(username, client_ip, client_port, start)
 
 	groups, err := getGroups()
 	if err != nil {
@@ -244,7 +253,7 @@ func main() {
 		log.Fatalf("Reading configuration '%s': %s", config_file, err)
 	}
 
-	mustSetupLogging(config.Log, username, src, config.Debug)
+	mustSetupLogging(config.Log, sid, config.Debug)
 
 	log.Debug("groups = %v", groups)
 	log.Debug("config.debug = %v", config.Debug)
@@ -260,7 +269,7 @@ func main() {
 
 	setEnvironment(config.Environment)
 
-	log.Notice("connected to sshd listening on %s:%s", sshd_ip, sshd_port)
+	log.Notice("%s connected from %s:%s to sshd listening on %s:%s", username, client_ip, client_port, sshd_ip, sshd_port)
 	defer log.Notice("disconnected")
 
 	host, port, err := findDestination(config.Routes, config.Route_Choice, sshd_ip)
