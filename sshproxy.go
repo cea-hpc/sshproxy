@@ -47,6 +47,7 @@ type sshProxyConfig struct {
 	Bg_Command   string
 	Route_Choice string
 	Ssh          sshConfig
+	Environment  map[string]string
 	Routes       map[string][]string
 	Users        map[string]subConfig
 	Groups       map[string]subConfig
@@ -62,6 +63,7 @@ type subConfig struct {
 	Log          string
 	Bg_Command   string
 	Route_Choice string
+	Environment  map[string]string
 	Routes       map[string][]string
 	Ssh          sshConfig
 }
@@ -150,6 +152,13 @@ func parseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subCon
 	if md.IsDefined(subgroup, subname, "routes") {
 		config.Routes = subconfig.Routes
 	}
+
+	if md.IsDefined(subgroup, subname, "environment") {
+		// merge environment
+		for k, v := range subconfig.Environment {
+			config.Environment[k] = v
+		}
+	}
 }
 
 func loadConfig(config_file, username string, groups map[string]bool) (*sshProxyConfig, error) {
@@ -191,6 +200,10 @@ func loadConfig(config_file, username string, groups map[string]bool) (*sshProxy
 
 	if config.Log != "" {
 		config.Log = regexp.MustCompile(`{user}`).ReplaceAllString(config.Log, username)
+	}
+
+	for k, v := range config.Environment {
+		config.Environment[k] = regexp.MustCompile(`{user}`).ReplaceAllString(v, username)
 	}
 
 	if _, ok := routeChoosers[config.Route_Choice]; !ok {
@@ -308,6 +321,15 @@ func findDestination(routes map[string][]string, route_choice, sshd_ip string) (
 	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_ip)
 }
 
+func setEnvironment(environment map[string]string) {
+	for k, v := range environment {
+		os.Setenv(k, v)
+	}
+	for _, e := range os.Environ() {
+		log.Debug("env = %s", e)
+	}
+}
+
 func main() {
 	// use all processor cores
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -360,10 +382,13 @@ func main() {
 	log.Debug("config.debug = %v", config.Debug)
 	log.Debug("config.log = %s", config.Log)
 	log.Debug("config.bg_command = %s", config.Bg_Command)
+	log.Debug("config.environment = %v", config.Environment)
 	log.Debug("config.route_choice = %s", config.Route_Choice)
 	log.Debug("config.routes = %v", config.Routes)
 	log.Debug("config.ssh.exe = %s", config.Ssh.Exe)
 	log.Debug("config.ssh.args = %v", config.Ssh.Args)
+
+	setEnvironment(config.Environment)
 
 	log.Notice("connected to sshd listening on %s:%s", sshd_ip, sshd_port)
 	defer log.Notice("disconnected")

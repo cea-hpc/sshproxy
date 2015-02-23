@@ -64,6 +64,14 @@ The following parameters can be defined:
   first randomly sorted if "random" is specified (i.e. a poor-man
   load-balancing algorithm).
 
+A table `environment` can be used to set environment variables. The pattern
+`{user}` will be replaced with the user login.
+
+```
+[environment]
+XAUTHORITY = "/tmp/.Xauthority_{user}"
+```
+
 A table `routes` defines the destination according to the listening IP address
 of the SSH daemon:
 
@@ -102,7 +110,7 @@ group we define:
 debug = true
 ```
 
-To modify the routes or SSH options we use another sub-table:
+To modify the routes, environment or SSH options we use another sub-table:
 
 ```
 [groups.foo.routes]
@@ -139,7 +147,8 @@ define:
 debug = true
 ```
 
-As for the groups, a sub-table is used to modify the routes or SSH options:
+As for the groups, a sub-table is used to modify the routes, environment or SSH
+options:
 
 ```
 [users.foo.ssh]
