@@ -1,0 +1,41 @@
+sshproxy
+========
+
+Compilation
+-----------
+
+Install the Go compiler suite: see http://golang.org/doc/install for details.
+
+Unpack the source in '$HOME/go/src' (i.e. this file should be
+'$HOME/go/src/sshproxy/README').
+
+Fetch the dependencies (git and Internet access are required):
+
+	$ export GOPATH=$HOME/go
+	$ cd $HOME/go/src/sshproxy
+	$ go get -d
+
+The dependencies are in '$HOME/go' and you may want to add the 'GOPATH'
+directory to your '.bashrc'.
+
+Compile everything:
+
+	$ make
+
+Installation
+------------
+
+Copy 'sshproxy' binary to '/sbin' and 'sshproxy.cfg' to '/etc'.
+
+Configure '/etc/sshproxy.cfg' to suit your needs.
+
+Modify the SSH daemon configuration '/etc/ssh/sshd_config' by adding:
+
+	ForceCommand /sbin/sshproxy
+
+Documentation
+-------------
+
+See files in 'doc' directory.
+
+// vim:tw=78:ft=asciidoc:

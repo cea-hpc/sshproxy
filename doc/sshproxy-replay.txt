@@ -1,0 +1,61 @@
+sshproxy-replay(8)
+==================
+:doctype:	manpage
+:man source:	sshproxy
+:man manual:	sshproxy manual
+:man version:	{sshproxy_version}
+
+NAME
+----
+sshproxy-replay - Show recorded session from sshproxy
+
+SYNOPSIS
+--------
+*sshproxy-replay* [-replay] files ...
+
+DESCRIPTION
+-----------
+'sshproxy-replay' is a tool to read a session recorded with *sshproxy*(8).
+
+First it displays the header information with the file format version number
+and the original command sent to the destination.
+
+If no option is specified each record is successively printed on the standard
+output.
+
+Each record is preceded by a header with the following fields:
+
+* The date if it is the first record or the time delta from the first record
+for all the other records.
+* The direction of the data represented by the following symbols:
+`-->`::
+	data written on the standard input (i.e. keystrokes typed the user),
+`<--`::
+	data written on the standard output,
+`<==`::
+	data written on the standard error.
+* The record length.
+
+The raw data is displayed in an hexadecimal dump on two-columns similar to the
+result of the familiar 'hexdump -C' command.
+
+OPTIONS
+-------
+
+*-replay*::
+	Live replay a session.
+
+SEE ALSO
+--------
+*sshproxy*(8)
+
+AUTHORS
+-------
+sshproxy-replay was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+
+COPYING
+-------
+Copyright (C) 2015 CEA. Free use of this software is granted under the term of
+the CeCILL-B license.
+
+// vim:tw=78:ft=asciidoc:

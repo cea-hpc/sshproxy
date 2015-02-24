@@ -1,4 +1,11 @@
+# swap files
 *~
 .*.swp
+
+# binaries
 sshproxy/sshproxy
 sshproxy-replay/sshproxy-replay
+
+# generated doc
+doc/*.[58]
+doc/*.xml

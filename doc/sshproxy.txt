@@ -1,0 +1,54 @@
+sshproxy(8)
+===========
+:doctype:	manpage
+:man source:	sshproxy
+:man manual:	sshproxy manual
+:man version:	{sshproxy_version}
+
+NAME
+----
+sshproxy - proxy SSH connections on a gateway
+
+SYNOPSIS
+--------
+*sshproxy* ['OPTIONS'] ['config']
+
+DESCRIPTION
+-----------
+
+'sshproxy' is used on a gateway to proxy SSH connections.
+
+OPTIONS
+-------
+
+*--version*::
+	Show version and exit.
+
+INSTALLATION
+------------
+
+* Configure '/etc/sshproxy.cfg' to suit your needs.
+
+* Modify the OpenSSH daemon configuration '/etc/ssh/sshd_config' by adding:
+
+	ForceCommand /sbin/sshproxy
+
+FILES
+-----
+/etc/sshproxy.cfg::
+	Contains configuration (see *sshproxy.cfg*(5) for details).
+
+SEE ALSO
+--------
+*sshproxy.cfg*(5), *sshproxy-replay*(8), *sshd_config*(5)
+
+AUTHORS
+-------
+sshproxy was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+
+COPYING
+-------
+Copyright (C) 2015 CEA. Free use of this software is granted under the term of
+the CeCILL-B license.
+
+// vim:tw=78:ft=asciidoc:
