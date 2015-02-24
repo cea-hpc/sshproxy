@@ -70,7 +70,8 @@ type Recorder struct {
 	stats_interval        duration           // interval at which basic statistics of transferred bytes are logged
 	totals                map[int]int        // total of bytes for each recorded file descriptor
 	ch                    chan record.Record // channel to read record.Record structs
-	fdump                 *os.File           // *os.File where the raw records are dumped.
+	command               string             // initial user command
+	dumpfile              string             // path to filename where the raw records are dumped.
 	writer                *record.Writer     // *record.Writer where the raw records are dumped.
 	done                  <-chan struct{}    // control channel to stop recording when it's closed
 }
@@ -81,25 +82,6 @@ type Recorder struct {
 // file. Logging of basic statistics will be done every stats_interval seconds.
 // It will stop recording when the done channel is closed.
 func NewRecorder(dumpfile, command string, stats_interval duration, done <-chan struct{}) (*Recorder, error) {
-	var fdump *os.File
-	var writer *record.Writer
-	if dumpfile != "" {
-		err := os.MkdirAll(path.Dir(dumpfile), 0700)
-		if err != nil {
-			return nil, fmt.Errorf("creating directory %s: %s", path.Dir(dumpfile), err)
-		}
-
-		fdump, err = os.Create(dumpfile)
-		if err != nil {
-			return nil, fmt.Errorf("creating %s: %s", dumpfile, err)
-		}
-
-		writer, err = record.NewWriter(fdump, &record.FileHeader{1, command})
-		if err != nil {
-			return nil, fmt.Errorf("writing %s: %s", dumpfile, err)
-		}
-	}
-
 	ch := make(chan record.Record)
 
 	return &Recorder{
@@ -109,8 +91,9 @@ func NewRecorder(dumpfile, command string, stats_interval duration, done <-chan 
 		stats_interval: stats_interval,
 		totals:         map[int]int{0: 0, 1: 0, 2: 0},
 		ch:             ch,
-		fdump:          fdump,
-		writer:         writer,
+		command:        command,
+		dumpfile:       dumpfile,
+		writer:         nil,
 		done:           done,
 	}, nil
 }
@@ -134,16 +117,35 @@ func (r *Recorder) dump(rec record.Record) {
 	}
 
 	if err := r.writer.Write(&rec); err != nil {
-		log.Error("writing in %s: %s", r.fdump.Name(), err)
-		// XXX close r.fdump?
+		log.Error("writing: %s", err)
 	}
 }
 
 // Run starts the recorder.
 func (r *Recorder) Run() {
+	var f *os.File
+	if r.dumpfile != "" {
+		var err error
+		f, err = openRecordFile(r.dumpfile)
+		if err != nil {
+			log.Error("session recording disabled due to error: %s", err)
+			f = nil
+		}
+		if f != nil {
+			r.writer, err = record.NewWriter(f, &record.FileHeader{1, r.command})
+			if err != nil {
+				log.Error("session recording disabled due to error: %s", err)
+				f.Close()
+				f = nil
+			}
+		}
+
+	}
 	defer func() {
-		r.fdump.Close()
 		r.log()
+		if f != nil {
+			f.Close()
+		}
 	}()
 
 	r.start = time.Now()
@@ -165,11 +167,27 @@ func (r *Recorder) Run() {
 		select {
 		case rec := <-r.ch:
 			r.totals[rec.Fd] += rec.Size
-			if r.fdump != nil {
+			if r.writer != nil {
 				r.dump(rec)
 			}
 		case <-r.done:
 			return
 		}
 	}
+}
+
+// openRecordFile opens a record file, creating missing subdirectories if
+// missing.
+func openRecordFile(filename string) (*os.File, error) {
+	err := os.MkdirAll(path.Dir(filename), 0700)
+	if err != nil {
+		return nil, fmt.Errorf("creating directory %s: %s", path.Dir(filename), err)
+	}
+
+	f, err := os.Create(filename)
+	if err != nil {
+		return nil, fmt.Errorf("creating %s: %s", filename, err)
+	}
+
+	return f, nil
 }
