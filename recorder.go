@@ -71,6 +71,7 @@ type Recorder struct {
 	totals                map[int]int        // total of bytes for each recorded file descriptor
 	ch                    chan record.Record // channel to read record.Record structs
 	fdump                 *os.File           // *os.File where the raw records are dumped.
+	writer                *record.Writer     // *record.Writer where the raw records are dumped.
 	done                  <-chan struct{}    // control channel to stop recording when it's closed
 }
 
@@ -79,8 +80,9 @@ type Recorder struct {
 // If dumpfile is not empty, the intercepted raw data will be written in this
 // file. Logging of basic statistics will be done every stats_interval seconds.
 // It will stop recording when the done channel is closed.
-func NewRecorder(dumpfile string, stats_interval duration, done <-chan struct{}) (*Recorder, error) {
-	var fdump *os.File = nil
+func NewRecorder(dumpfile, command string, stats_interval duration, done <-chan struct{}) (*Recorder, error) {
+	var fdump *os.File
+	var writer *record.Writer
 	if dumpfile != "" {
 		err := os.MkdirAll(path.Dir(dumpfile), 0700)
 		if err != nil {
@@ -90,6 +92,11 @@ func NewRecorder(dumpfile string, stats_interval duration, done <-chan struct{})
 		fdump, err = os.Create(dumpfile)
 		if err != nil {
 			return nil, fmt.Errorf("creating %s: %s", dumpfile, err)
+		}
+
+		writer, err = record.NewWriter(fdump, &record.FileHeader{1, command})
+		if err != nil {
+			return nil, fmt.Errorf("writing %s: %s", dumpfile, err)
 		}
 	}
 
@@ -103,6 +110,7 @@ func NewRecorder(dumpfile string, stats_interval duration, done <-chan struct{})
 		totals:         map[int]int{0: 0, 1: 0, 2: 0},
 		ch:             ch,
 		fdump:          fdump,
+		writer:         writer,
 		done:           done,
 	}, nil
 }
@@ -121,11 +129,11 @@ func (r *Recorder) log() {
 
 // dump saves a record.Record in the dumpfile.
 func (r *Recorder) dump(rec record.Record) {
-	if r.fdump == nil {
+	if r.writer == nil {
 		return
 	}
 
-	if err := record.Encode(r.fdump, &rec); err != nil {
+	if err := r.writer.Write(&rec); err != nil {
 		log.Error("writing in %s: %s", r.fdump.Name(), err)
 		// XXX close r.fdump?
 	}

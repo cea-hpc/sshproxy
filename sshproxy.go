@@ -310,7 +310,7 @@ func main() {
 	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
-	recorder, err := NewRecorder(config.Dump, config.Stats_Interval, done)
+	recorder, err := NewRecorder(config.Dump, original_cmd, config.Stats_Interval, done)
 	if err != nil {
 		log.Fatalf("setting recorder: %s", err)
 	}

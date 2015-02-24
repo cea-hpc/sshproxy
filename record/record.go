@@ -7,11 +7,19 @@
 // - an unsigned 32 bits integer indicating the data size,
 // - data.
 //
+// A file record has a header with the following fields:
+// - an unsigned 16 bits integer for the version number,
+// - a NULL terminated string with the command run by the user (can be empty
+// with only its NULL end).
+//
 // All integers are big endian.
 package record
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"time"
 )
@@ -79,4 +87,75 @@ func Encode(wd io.Writer, rec *Record) error {
 	}
 
 	return nil
+}
+
+// FileHeader is the parsed header of a record file.
+type FileHeader struct {
+	Version uint16
+	Command string
+}
+
+// Reader parses record file.
+type Reader struct {
+	Header FileHeader
+	reader *bufio.Reader
+	err    error
+}
+
+// NewReader reads records from an io.Reader.
+func NewReader(reader io.Reader) (*Reader, error) {
+	r := &Reader{
+		reader: bufio.NewReader(reader),
+	}
+
+	if err := binary.Read(r.reader, binary.BigEndian, &r.Header.Version); err != nil {
+		return nil, fmt.Errorf("reading version number: %s", err)
+	}
+
+	if r.Header.Version != 1 {
+		return nil, fmt.Errorf("Unknow version number: %x", r.Header.Version)
+	}
+
+	command, err := r.reader.ReadString(0x0)
+	if err != nil {
+		return nil, fmt.Errorf("reading command: %s", err)
+	}
+	// remove trailing \0
+	r.Header.Command = command[:len(command)-1]
+
+	return r, nil
+}
+
+// Next fills the provided Record with the next record read from the Reader.
+func (r *Reader) Next(rec *Record) error {
+	return Decode(r.reader, rec)
+}
+
+// Writers writes records into a file.
+type Writer struct {
+	writer io.Writer
+}
+
+func NewWriter(writer io.Writer, header *FileHeader) (*Writer, error) {
+	w := &Writer{
+		writer: writer,
+	}
+
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.BigEndian, header.Version); err != nil {
+		return nil, err
+	}
+
+	buf.WriteString(header.Command)
+	buf.WriteByte(0x0)
+
+	if _, err := buf.WriteTo(w.writer); err != nil {
+		return nil, fmt.Errorf("writing file header: %s", err)
+	}
+
+	return w, nil
+}
+
+func (w *Writer) Write(rec *Record) error {
+	return Encode(w.writer, rec)
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -27,7 +26,14 @@ func replay(filename string) {
 	}
 	defer f.Close()
 
-	bf := bufio.NewReader(f)
+	reader, err := record.NewReader(f)
+	if err != nil {
+		log.Printf("error: %s\n", err)
+		return
+	}
+
+	fmt.Printf("--> Version: %d\n", reader.Header.Version)
+	fmt.Printf("--> Command: %s\n", reader.Header.Command)
 
 	var rec record.Record
 	var start, previous time.Time
@@ -35,7 +41,7 @@ func replay(filename string) {
 	var stream *os.File
 	dayFormat := "Jan 02 15:04:05"
 	for {
-		err := record.Decode(bf, &rec)
+		err := reader.Next(&rec)
 		if err != nil {
 			if err == io.EOF {
 				return
