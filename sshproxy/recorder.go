@@ -70,6 +70,7 @@ type Recorder struct {
 	stats_interval        duration           // interval at which basic statistics of transferred bytes are logged
 	totals                map[int]int        // total of bytes for each recorded file descriptor
 	ch                    chan record.Record // channel to read record.Record structs
+	conninfo              *ConnInfo          // specific SSH connection information
 	command               string             // initial user command
 	dumpfile              string             // path to filename where the raw records are dumped.
 	writer                *record.Writer     // *record.Writer where the raw records are dumped.
@@ -81,7 +82,7 @@ type Recorder struct {
 // If dumpfile is not empty, the intercepted raw data will be written in this
 // file. Logging of basic statistics will be done every stats_interval seconds.
 // It will stop recording when the done channel is closed.
-func NewRecorder(dumpfile, command string, stats_interval duration, done <-chan struct{}) (*Recorder, error) {
+func NewRecorder(conninfo *ConnInfo, dumpfile, command string, stats_interval duration, done <-chan struct{}) (*Recorder, error) {
 	ch := make(chan record.Record)
 
 	return &Recorder{
@@ -91,6 +92,7 @@ func NewRecorder(dumpfile, command string, stats_interval duration, done <-chan 
 		stats_interval: stats_interval,
 		totals:         map[int]int{0: 0, 1: 0, 2: 0},
 		ch:             ch,
+		conninfo:       conninfo,
 		command:        command,
 		dumpfile:       dumpfile,
 		writer:         nil,
@@ -132,7 +134,17 @@ func (r *Recorder) Run() {
 			f = nil
 		}
 		if f != nil {
-			r.writer, err = record.NewWriter(f, &record.FileHeader{1, r.command})
+			infos := &record.FileInfo{
+				Version: 1,
+				Time:    r.conninfo.Start,
+				SrcIP:   r.conninfo.Ssh.SrcIP,
+				SrcPort: r.conninfo.Ssh.SrcPort,
+				DstIP:   r.conninfo.Ssh.DstIP,
+				DstPort: r.conninfo.Ssh.DstPort,
+				User:    r.conninfo.User,
+				Command: r.command,
+			}
+			r.writer, err = record.NewWriter(f, infos)
 			if err != nil {
 				log.Error("session recording disabled due to error: %s", err)
 				f.Close()

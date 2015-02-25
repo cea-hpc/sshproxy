@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"errors"
 	"flag"
 	"fmt"
 	"math/rand"
@@ -12,6 +13,7 @@ import (
 	"path"
 	"regexp"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -37,10 +39,10 @@ var (
 // main logger for sshproxy
 var log = logging.MustGetLogger("sshproxy")
 
-// calcSessionId returns a unique 10 hexadecimal characters string from a user
-// name, host, port and timestamp.
-func calcSessionId(user, host, port string, ts time.Time) string {
-	return fmt.Sprintf("%.5X", sha1.Sum([]byte(fmt.Sprintf("%s@%s:%s@%d", user, host, port, ts.UnixNano()))))
+// calcSessionId returns a unique 10 hexadecimal characters string from
+// connection information.
+func calcSessionId(c *ConnInfo) string {
+	return fmt.Sprintf("%.5X", sha1.Sum([]byte(fmt.Sprintf("%s@%s:%d@%d", c.User, c.Ssh.SrcIP, c.Ssh.SrcPort, c.Start.UnixNano()))))
 }
 
 // mustSetupLogging setups logging framework for sshproxy.
@@ -204,6 +206,53 @@ func usage() {
 	os.Exit(2)
 }
 
+// SSHInfo represents the SSH connection information provided by the
+// environment variable SSH_CONNECTION.
+type SSHInfo struct {
+	SrcIP, DstIP     net.IP
+	SrcPort, DstPort int
+}
+
+// NewSSHInfo parse a string with the same format as the environment variable
+// SSH_CONNECTION.
+func NewSSHInfo(s string) (*SSHInfo, error) {
+	infos := regexp.MustCompile(`([0-9\.]+) ([0-9]+) ([0-9\.]+) ([0-9]+)`).FindStringSubmatch(s)
+	if len(infos) != 5 {
+		return nil, errors.New("bad value")
+	}
+
+	srcip := net.ParseIP(infos[1])
+	if srcip == nil {
+		return nil, errors.New("bad value for source IP")
+	}
+	srcport, err := strconv.Atoi(infos[2])
+	if err != nil {
+		return nil, errors.New("bad value for source port")
+	}
+	dstip := net.ParseIP(infos[3])
+	if dstip == nil {
+		return nil, errors.New("bad value for destination IP")
+	}
+	dstport, err := strconv.Atoi(infos[4])
+	if err != nil {
+		return nil, errors.New("bad value for destination port")
+	}
+
+	return &SSHInfo{
+		SrcIP:   srcip,
+		SrcPort: srcport,
+		DstIP:   dstip,
+		DstPort: dstport,
+	}, nil
+}
+
+// ConnInfo regroups specific information about a connection.
+type ConnInfo struct {
+	Start time.Time // start time
+	User  string    // user name
+	Ssh   *SSHInfo  // SSH source and destination (from SSH_CONNECTION)
+}
+
 func main() {
 	// use all processor cores
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -243,14 +292,18 @@ func main() {
 		log.Fatal("No SSH_CONNECTION environment variable")
 	}
 
-	ssh_conn_infos := regexp.MustCompile(`([0-9\.]+) ([0-9]+) ([0-9\.]+) ([0-9]+)`).FindStringSubmatch(ssh_connection)
-	if len(ssh_conn_infos) != 5 {
-		log.Fatalf("parsing SSH_CONNECTION: bad value '%s'", ssh_connection)
+	ssh_infos, err := NewSSHInfo(ssh_connection)
+	if err != nil {
+		log.Fatalf("parsing SSH_CONNECTION '%s': %s", ssh_connection, err)
 	}
 
-	client_ip, client_port := ssh_conn_infos[1], ssh_conn_infos[2]
-	sshd_ip, sshd_port := ssh_conn_infos[3], ssh_conn_infos[4]
-	sid := calcSessionId(username, client_ip, client_port, start)
+	conninfo := &ConnInfo{
+		Start: start,
+		User:  username,
+		Ssh:   ssh_infos,
+	}
+
+	sid := calcSessionId(conninfo)
 
 	groups, err := getGroups()
 	if err != nil {
@@ -278,10 +331,10 @@ func main() {
 
 	setEnvironment(config.Environment)
 
-	log.Notice("%s connected from %s:%s to sshd listening on %s:%s", username, client_ip, client_port, sshd_ip, sshd_port)
+	log.Notice("%s connected from %s:%d to sshd listening on %s:%d", username, ssh_infos.SrcIP, ssh_infos.SrcPort, ssh_infos.DstIP, ssh_infos.DstPort)
 	defer log.Notice("disconnected")
 
-	host, port, err := findDestination(config.Routes, config.Route_Choice, sshd_ip)
+	host, port, err := findDestination(config.Routes, config.Route_Choice, ssh_infos.DstIP.String())
 	if err != nil {
 		log.Fatalf("Finding destination: %s", err)
 	}
@@ -319,7 +372,7 @@ func main() {
 	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
-	recorder, err := NewRecorder(config.Dump, original_cmd, config.Stats_Interval, done)
+	recorder, err := NewRecorder(conninfo, config.Dump, original_cmd, config.Stats_Interval, done)
 	if err != nil {
 		log.Fatalf("setting recorder: %s", err)
 	}
