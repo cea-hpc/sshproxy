@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path"
 	"strings"
@@ -125,15 +126,24 @@ func (r *Recorder) dump(rec record.Record) {
 
 // Run starts the recorder.
 func (r *Recorder) Run() {
-	var f *os.File
+	var fd io.WriteCloser
 	if r.dumpfile != "" {
 		var err error
-		f, err = openRecordFile(r.dumpfile)
-		if err != nil {
-			log.Error("session recording disabled due to error: %s", err)
-			f = nil
+		if strings.HasPrefix(r.dumpfile, "TCP:") {
+			hostport := r.dumpfile[4:]
+			fd, err = net.Dial("tcp", hostport)
+			if err != nil {
+				log.Error("session recording disabled due to error connecting to host '%s': %s", hostport, err)
+				fd = nil
+			}
+		} else {
+			fd, err = openRecordFile(r.dumpfile)
+			if err != nil {
+				log.Error("session recording disabled due to error: %s", err)
+				fd = nil
+			}
 		}
-		if f != nil {
+		if fd != nil {
 			infos := &record.FileInfo{
 				Version: 1,
 				Time:    r.conninfo.Start,
@@ -144,19 +154,18 @@ func (r *Recorder) Run() {
 				User:    r.conninfo.User,
 				Command: r.command,
 			}
-			r.writer, err = record.NewWriter(f, infos)
+			r.writer, err = record.NewWriter(fd, infos)
 			if err != nil {
 				log.Error("session recording disabled due to error: %s", err)
-				f.Close()
-				f = nil
+				fd.Close()
+				fd = nil
 			}
 		}
-
 	}
 	defer func() {
 		r.log()
-		if f != nil {
-			f.Close()
+		if fd != nil {
+			fd.Close()
 		}
 	}()
 

@@ -54,13 +54,17 @@ The following parameters can be defined:
 	a string specifying the path to save raw dumps for each user session.
 	Empty by default. The path can (and should) contain one or more of the
 	following patterns:
-	- '\{user}' replaced by the user login
-	- '\{sid}' replaced by the unique session id
-	- '\{time}' replaced by the connection starting time (e.g.
+	'\{user}'::: replaced by the user login
+	'\{sid}'::: replaced by the unique session id
+	'\{time}'::: replaced by the connection starting time (e.g.
 	  "2006-01-02T15:04:05.999999999Z07:00").
-	The subdirectories will be created if needed with the user as owner.
-	So the user needs to have the right to write in this directory.  For
-	example: '/var/spool/sshproxy/\{user}/\{time}-\{sid}.dump'
+
+The subdirectories will be created if needed with the user as owner. So the
+user needs to have the right to write in this directory. For example:
+'/var/spool/sshproxy/\{user}/\{time}-\{sid}.dump'
+
+It can also be a network address where to send dumps if specified as
+'TCP:host:port' (the TCP is case sensitive), e.g.  'TCP:collector:5555'.
 
 *stats_interval*::
 	a string specifying the interval at which basic statistics of
