@@ -1,0 +1,54 @@
+sshproxy-dumpd(8)
+=================
+:doctype:	manpage
+:man source:	sshproxy
+:man manual:	sshproxy manual
+:man version:	{sshproxy_version}
+
+NAME
+----
+sshproxy-dumpd - Network daemon to save sessions recorded by sshproxy
+
+SYNOPSIS
+--------
+*sshproxy-dumpd* ['OPTIONS']
+
+DESCRIPTION
+-----------
+'sshproxy-dumpd' listens on a TCP socket and reads packets sent by
+*sshproxy*(8).
+
+It parses the header to find some information (such as the user name, start
+time, IP addresses and ports, etc.) and saves each dump in a subdirectory
+named after the user. The filename is the concatenation of the start time and
+a unique session identifier calculated with some of the header information
+(it is the same one used by *sshproxy*(8) in its log).
+
+OPTIONS
+-------
+
+*-listen=":5555"*::
+	Listen on this address (format '[host]:port'). It listens on ':5555'
+	by default.
+
+*-output=""*::
+	Output directory where dumps will be written. This options is
+	mandatory.
+
+*-version*::
+	Show version number and exit.
+
+SEE ALSO
+--------
+*sshproxy*(8)
+
+AUTHORS
+-------
+sshproxy-dumpd was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+
+COPYING
+-------
+Copyright (C) 2015 CEA. Free use of this software is granted under the term of
+the CeCILL-B license.
+
+// vim:tw=78:ft=asciidoc:

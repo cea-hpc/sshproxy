@@ -4,6 +4,7 @@
 
 # binaries
 sshproxy/sshproxy
+sshproxy-dumpd/sshproxy-dumpd
 sshproxy-replay/sshproxy-replay
 
 # generated doc
