@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/sha1"
+	"flag"
 	"fmt"
 	"math/rand"
 	"net"
@@ -20,7 +21,7 @@ import (
 	"github.com/op/go-logging"
 )
 
-var VERSION = "0.1.0"
+var SSHPROXY_VERSION string
 
 type ChooseDestinationFunc func([]string) (string, string, error)
 
@@ -196,6 +197,13 @@ func setEnvironment(environment map[string]string) {
 	}
 }
 
+//
+func usage() {
+	fmt.Fprintf(os.Stderr, "usage: sshproxy [config]\n")
+	flag.PrintDefaults()
+	os.Exit(2)
+}
+
 func main() {
 	// use all processor cores
 	runtime.GOMAXPROCS(runtime.NumCPU())
@@ -210,17 +218,18 @@ func main() {
 	var err error
 	start := time.Now()
 
+	versionFlag := flag.Bool("version", false, "show version number and exit")
+	flag.Usage = usage
+	flag.Parse()
+
+	if *versionFlag {
+		fmt.Fprintf(os.Stderr, "sshproxy version %s\n", SSHPROXY_VERSION)
+		os.Exit(0)
+	}
+
 	config_file := defaultConfig
-	if len(os.Args) > 1 {
-		config_file = os.Args[1]
-		switch config_file {
-		case "-h", "--help":
-			fmt.Fprintf(os.Stderr, "usage: sshproxy [--version] [config]\n")
-			os.Exit(0)
-		case "--version":
-			fmt.Fprintf(os.Stderr, "sshproxy version %s\n", VERSION)
-			os.Exit(0)
-		}
+	if flag.NArg() != 0 {
+		config_file = flag.Arg(0)
 	}
 
 	current_user, err := user.Current()

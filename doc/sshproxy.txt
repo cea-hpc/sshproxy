@@ -21,8 +21,8 @@ DESCRIPTION
 OPTIONS
 -------
 
-*--version*::
-	Show version and exit.
+*-version*::
+	Show version number and exit.
 
 INSTALLATION
 ------------

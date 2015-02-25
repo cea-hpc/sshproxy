@@ -11,7 +11,7 @@ sshproxy-replay - Show recorded session from sshproxy
 
 SYNOPSIS
 --------
-*sshproxy-replay* [-replay] files ...
+*sshproxy-replay* ['OPTIONS'] 'files' ...
 
 DESCRIPTION
 -----------
@@ -44,6 +44,9 @@ OPTIONS
 
 *-replay*::
 	Live replay a session.
+
+*-version*::
+	Show version number and exit.
 
 SEE ALSO
 --------

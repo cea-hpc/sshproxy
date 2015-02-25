@@ -12,8 +12,11 @@ import (
 	"sshproxy/record"
 )
 
+var SSHPROXY_VERSION string
+
 var (
-	replayFlag = flag.Bool("replay", false, "live replay a session (as the user did it)")
+	replayFlag  = flag.Bool("replay", false, "live replay a session (as the user did it)")
+	versionFlag = flag.Bool("version", false, "show version number and exit")
 )
 
 func replay(filename string) {
@@ -93,6 +96,11 @@ func usage() {
 func main() {
 	flag.Usage = usage
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Fprintf(os.Stderr, "sshproxy-replay version %s\n", SSHPROXY_VERSION)
+		os.Exit(0)
+	}
 
 	if flag.NArg() == 0 {
 		usage()
