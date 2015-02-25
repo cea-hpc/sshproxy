@@ -11,8 +11,9 @@ GO_OPTS		= -ldflags "-X main.SSHPROXY_VERSION $(SSHPROXY_VERSION)"
 
 SSHPROXY_SRC		= $(wildcard sshproxy/*.go)
 SSHPROXY_REPLAY_SRC	= $(wildcard sshproxy-replay/*.go)
-RECORD_SRC		= $(wildcard record/*.go)
 GROUPGO_SRC		= $(wildcard group.go/*.go)
+RECORD_SRC		= $(wildcard record/*.go)
+UTILS_SRC		= $(wildcard utils/*.go)
 
 EXE	= sshproxy/sshproxy sshproxy-replay/sshproxy-replay
 MANDOC	= doc/sshproxy.cfg.5 doc/sshproxy.8 doc/sshproxy-replay.8
@@ -25,7 +26,7 @@ all: $(EXE) $(MANDOC)
 %.8: %.txt
 	a2x $(ASCIIDOC_OPTS) -f manpage $<
 
-sshproxy/sshproxy: $(SSHPROXY_SRC) $(RECORD_SRC) $(GROUPGO_SRC)
+sshproxy/sshproxy: $(SSHPROXY_SRC) $(GROUPGO_SRC) $(RECORD_SRC) $(UTILS_SRC)
 	cd sshproxy && go build $(GO_OPTS)
 
 sshproxy-replay/sshproxy-replay: $(SSHPROXY_REPLAY_SRC) $(RECORD_SRC)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/sha1"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"sshproxy/group.go"
+	"sshproxy/utils"
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/op/go-logging"
@@ -39,12 +39,6 @@ var (
 // main logger for sshproxy
 var log = logging.MustGetLogger("sshproxy")
 
-// calcSessionId returns a unique 10 hexadecimal characters string from
-// connection information.
-func calcSessionId(c *ConnInfo) string {
-	return fmt.Sprintf("%.5X", sha1.Sum([]byte(fmt.Sprintf("%s@%s:%d@%d", c.User, c.Ssh.SrcIP, c.Ssh.SrcPort, c.Start.UnixNano()))))
-}
-
 // mustSetupLogging setups logging framework for sshproxy.
 //
 // logfile can be:
@@ -53,8 +47,8 @@ func calcSessionId(c *ConnInfo) string {
 //   - a filename: logs will be appended in this file (the subdirectories will
 //     be created if they do not exist).
 //
-// sid is a unique session id (calculated with calcSessionId) used to identify
-// a session in the logs.
+// sid is a unique session id (calculated with utils.CalcSessionId) used to
+// identify a session in the logs.
 // Debug output is enabled if debug is true.
 func mustSetupLogging(logfile, sid string, debug bool) {
 	var logBackend logging.Backend
@@ -303,7 +297,7 @@ func main() {
 		Ssh:   ssh_infos,
 	}
 
-	sid := calcSessionId(conninfo)
+	sid := utils.CalcSessionId(conninfo.User, conninfo.Start, conninfo.Ssh.SrcIP, conninfo.Ssh.SrcPort)
 
 	groups, err := getGroups()
 	if err != nil {
