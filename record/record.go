@@ -121,66 +121,42 @@ type FileHeader struct {
 	Time    uint64
 }
 
-// Reader parses record file.
-type Reader struct {
-	Info   FileInfo
-	reader *bufio.Reader
-	err    error
-}
-
-// NewReader reads records from an io.Reader.
-func NewReader(reader io.Reader) (*Reader, error) {
-	r := &Reader{
-		reader: bufio.NewReader(reader),
-	}
-
+// ReadHeader reads file information from a *bufio.Reader.
+func ReadHeader(r *bufio.Reader) (*FileInfo, error) {
 	var hdr FileHeader
-	if err := binary.Read(r.reader, binary.BigEndian, &hdr); err != nil {
-		return nil, fmt.Errorf("reading header: %s", err)
+	if err := binary.Read(r, binary.BigEndian, &hdr); err != nil {
+		return nil, err
 	}
 
 	if hdr.Version != 1 {
-		return nil, fmt.Errorf("Unknow version number: %x", hdr.Version)
+		return nil, fmt.Errorf("unknow version number: %x", hdr.Version)
 	}
 
-	user, err := r.reader.ReadString(0x0)
+	user, err := r.ReadString(0x0)
 	if err != nil {
 		return nil, fmt.Errorf("reading user: %s", err)
 	}
 
-	command, err := r.reader.ReadString(0x0)
+	command, err := r.ReadString(0x0)
 	if err != nil {
 		return nil, fmt.Errorf("reading command: %s", err)
 	}
 
-	r.Info.Version = int(hdr.Version)
-	r.Info.Time = time.Unix(0, int64(hdr.Time))
-	r.Info.SrcIP = net.IPv4(hdr.SrcIP[0], hdr.SrcIP[1], hdr.SrcIP[2], hdr.SrcIP[3])
-	r.Info.SrcPort = int(hdr.SrcPort)
-	r.Info.DstIP = net.IPv4(hdr.DstIP[0], hdr.DstIP[1], hdr.DstIP[2], hdr.DstIP[3])
-	r.Info.DstPort = int(hdr.DstPort)
-	// remove trailing \0
-	r.Info.User = user[:len(user)-1]
-	r.Info.Command = command[:len(command)-1]
-
-	return r, nil
+	return &FileInfo{
+		Version: int(hdr.Version),
+		Time:    time.Unix(0, int64(hdr.Time)),
+		SrcIP:   net.IPv4(hdr.SrcIP[0], hdr.SrcIP[1], hdr.SrcIP[2], hdr.SrcIP[3]),
+		SrcPort: int(hdr.SrcPort),
+		DstIP:   net.IPv4(hdr.DstIP[0], hdr.DstIP[1], hdr.DstIP[2], hdr.DstIP[3]),
+		DstPort: int(hdr.DstPort),
+		// remove trailing \0,
+		User:    user[:len(user)-1],
+		Command: command[:len(command)-1],
+	}, nil
 }
 
-// Next fills the provided Record with the next record read from the Reader.
-func (r *Reader) Next(rec *Record) error {
-	return Decode(r.reader, rec)
-}
-
-// Writers writes records into a file.
-type Writer struct {
-	writer io.Writer
-}
-
-func NewWriter(writer io.Writer, infos *FileInfo) (*Writer, error) {
-	w := &Writer{
-		writer: writer,
-	}
-
+// WriteHeader writes file information to an io.Writer.
+func WriteHeader(w io.Writer, infos *FileInfo) error {
 	hdr := FileHeader{
 		Version: uint16(infos.Version),
 		SrcPort: uint16(infos.SrcPort),
@@ -199,7 +175,7 @@ func NewWriter(writer io.Writer, infos *FileInfo) (*Writer, error) {
 
 	buf := new(bytes.Buffer)
 	if err := binary.Write(buf, binary.BigEndian, &hdr); err != nil {
-		return nil, err
+		return err
 	}
 
 	buf.WriteString(infos.User)
@@ -207,13 +183,60 @@ func NewWriter(writer io.Writer, infos *FileInfo) (*Writer, error) {
 	buf.WriteString(infos.Command)
 	buf.WriteByte(0x0)
 
-	if _, err := buf.WriteTo(w.writer); err != nil {
-		return nil, fmt.Errorf("writing file header: %s", err)
+	if _, err := buf.WriteTo(w); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Reader parses record file.
+type Reader struct {
+	Info   *FileInfo
+	reader *bufio.Reader
+	err    error
+}
+
+// NewReader reads records from an io.Reader.
+func NewReader(reader io.Reader) (*Reader, error) {
+	r := &Reader{
+		reader: bufio.NewReader(reader),
+	}
+
+	info, err := ReadHeader(r.reader)
+	if err != nil {
+		return nil, fmt.Errorf("reading header: %s", err)
+	}
+
+	r.Info = info
+
+	return r, nil
+}
+
+// Next fills the provided Record with the next record read from the Reader.
+func (r *Reader) Next(rec *Record) error {
+	return Decode(r.reader, rec)
+}
+
+// Writers writes records into a file.
+type Writer struct {
+	writer io.Writer
+}
+
+// NewWriter writes records to an io.Writer.
+func NewWriter(writer io.Writer, infos *FileInfo) (*Writer, error) {
+	w := &Writer{
+		writer: writer,
+	}
+
+	if err := WriteHeader(w.writer, infos); err != nil {
+		return nil, fmt.Errorf("writing header: %s", err)
 	}
 
 	return w, nil
 }
 
+// Write writes a Record in the Writer.
 func (w *Writer) Write(rec *Record) error {
 	return Encode(w.writer, rec)
 }
