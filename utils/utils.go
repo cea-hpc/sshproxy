@@ -10,5 +10,6 @@ import (
 // CalcSessionId returns a unique 10 hexadecimal characters string from
 // a user name, time, ip address and port.
 func CalcSessionId(user string, t time.Time, ip net.IP, port int) string {
-	return fmt.Sprintf("%.5X", sha1.Sum([]byte(fmt.Sprintf("%s@%s:%d@%d", user, ip, port, t.UnixNano()))))
+	sum := sha1.Sum([]byte(fmt.Sprintf("%s@%s:%d@%d", user, ip, port, t.UnixNano())))
+	return fmt.Sprintf("%X", sum[:5])
 }
