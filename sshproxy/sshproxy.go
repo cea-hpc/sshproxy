@@ -315,7 +315,7 @@ func main() {
 	log.Debug("config.debug = %v", config.Debug)
 	log.Debug("config.log = %s", config.Log)
 	log.Debug("config.dump = %s", config.Dump)
-	log.Debug("config.stats_interval = %s", config.Stats_Interval)
+	log.Debug("config.stats_interval = %s", time.Duration(config.Stats_Interval))
 	log.Debug("config.bg_command = %s", config.Bg_Command)
 	log.Debug("config.environment = %v", config.Environment)
 	log.Debug("config.route_choice = %s", config.Route_Choice)
@@ -366,7 +366,7 @@ func main() {
 	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
-	recorder, err := NewRecorder(conninfo, config.Dump, original_cmd, config.Stats_Interval, done)
+	recorder, err := NewRecorder(conninfo, config.Dump, original_cmd, time.Duration(config.Stats_Interval), done)
 	if err != nil {
 		log.Fatalf("setting recorder: %s", err)
 	}

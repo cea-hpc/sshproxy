@@ -68,7 +68,7 @@ func (s *Splitter) Write(p []byte) (int, error) {
 type Recorder struct {
 	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors.
 	start                 time.Time          // when the Recorder was started
-	stats_interval        duration           // interval at which basic statistics of transferred bytes are logged
+	stats_interval        time.Duration      // interval at which basic statistics of transferred bytes are logged
 	totals                map[int]int        // total of bytes for each recorded file descriptor
 	ch                    chan record.Record // channel to read record.Record structs
 	conninfo              *ConnInfo          // specific SSH connection information
@@ -83,7 +83,7 @@ type Recorder struct {
 // If dumpfile is not empty, the intercepted raw data will be written in this
 // file. Logging of basic statistics will be done every stats_interval seconds.
 // It will stop recording when the done channel is closed.
-func NewRecorder(conninfo *ConnInfo, dumpfile, command string, stats_interval duration, done <-chan struct{}) (*Recorder, error) {
+func NewRecorder(conninfo *ConnInfo, dumpfile, command string, stats_interval time.Duration, done <-chan struct{}) (*Recorder, error) {
 	ch := make(chan record.Record)
 
 	return &Recorder{
@@ -171,11 +171,11 @@ func (r *Recorder) Run() {
 
 	r.start = time.Now()
 
-	if r.stats_interval.Duration != 0 {
+	if r.stats_interval != 0 {
 		go func() {
 			for {
 				select {
-				case <-time.After(r.stats_interval.Duration):
+				case <-time.After(r.stats_interval):
 					r.log()
 				case <-r.done:
 					return

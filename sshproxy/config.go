@@ -15,14 +15,15 @@ var (
 	defaultSshArgs     = []string{"-q", "-Y"}
 )
 
-type duration struct {
-	time.Duration
-}
+type duration time.Duration
 
 func (d *duration) UnmarshalText(text []byte) error {
-	var err error
-	d.Duration, err = time.ParseDuration(string(text))
-	return err
+	td, err := time.ParseDuration(string(text))
+	if err != nil {
+		return err
+	}
+	*d = duration(td)
+	return nil
 }
 
 type sshProxyConfig struct {
