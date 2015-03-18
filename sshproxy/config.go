@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"regexp"
 	"time"
 
-	"github.com/BurntSushi/toml"
+	"gopkg.in/yaml.v2"
 )
 
 var (
@@ -17,8 +18,13 @@ var (
 
 type duration time.Duration
 
-func (d *duration) UnmarshalText(text []byte) error {
-	td, err := time.ParseDuration(string(text))
+func (d *duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var text string
+	if err := unmarshal(&text); err != nil {
+		return err
+	}
+
+	td, err := time.ParseDuration(text)
 	if err != nil {
 		return err
 	}
@@ -45,56 +51,56 @@ type sshConfig struct {
 	Args []string
 }
 
+// We use interface{} instead of real type to check if the option was specified
+// or not.
 type subConfig struct {
-	Debug          bool
-	Log            string
-	Dump           string
-	Stats_Interval duration
-	Bg_Command     string
-	Route_Choice   string
+	Debug          interface{}
+	Log            interface{}
+	Dump           interface{}
+	Stats_Interval interface{}
+	Bg_Command     interface{}
+	Route_Choice   interface{}
 	Environment    map[string]string
 	Routes         map[string][]string
 	Ssh            sshConfig
 }
 
-func parseSubConfig(md *toml.MetaData, config *sshProxyConfig, subconfig *subConfig, subgroup, subname string) {
-	if md.IsDefined(subgroup, subname, "debug") {
-		config.Debug = subconfig.Debug
+func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) {
+	if subconfig.Debug != nil {
+		config.Debug = subconfig.Debug.(bool)
 	}
 
-	if md.IsDefined(subgroup, subname, "log") {
-		config.Log = subconfig.Log
+	if subconfig.Log != nil {
+		config.Log = subconfig.Log.(string)
 	}
 
-	if md.IsDefined(subgroup, subname, "dump") {
-		config.Dump = subconfig.Dump
+	if subconfig.Dump != nil {
+		config.Dump = subconfig.Dump.(string)
 	}
 
-	if md.IsDefined(subgroup, subname, "bg_command") {
-		config.Bg_Command = subconfig.Bg_Command
+	if subconfig.Bg_Command != nil {
+		config.Bg_Command = subconfig.Bg_Command.(string)
 	}
 
-	if md.IsDefined(subgroup, subname, "route_choice") {
-		config.Route_Choice = subconfig.Route_Choice
+	if subconfig.Route_Choice != nil {
+		config.Route_Choice = subconfig.Route_Choice.(string)
 	}
 
-	if md.IsDefined(subgroup, subname, "ssh", "exe") {
+	if subconfig.Ssh.Exe != "" {
 		config.Ssh.Exe = subconfig.Ssh.Exe
 	}
 
-	if md.IsDefined(subgroup, subname, "ssh", "args") {
+	if subconfig.Ssh.Args != nil {
 		config.Ssh.Args = subconfig.Ssh.Args
 	}
 
-	if md.IsDefined(subgroup, subname, "routes") {
+	if subconfig.Routes != nil {
 		config.Routes = subconfig.Routes
 	}
 
-	if md.IsDefined(subgroup, subname, "environment") {
-		// merge environment
-		for k, v := range subconfig.Environment {
-			config.Environment[k] = v
-		}
+	// merge environment
+	for k, v := range subconfig.Environment {
+		config.Environment[k] = v
 	}
 }
 
@@ -114,40 +120,43 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 		"{time}": &PatternReplacer{regexp.MustCompile(`{time}`), start.Format(time.RFC3339Nano)},
 	}
 
-	var config sshProxyConfig
-	md, err := toml.DecodeFile(config_file, &config)
+	yamlFile, err := ioutil.ReadFile(config_file)
 	if err != nil {
 		return nil, err
 	}
 
-	if !md.IsDefined("routes") {
+	var config sshProxyConfig
+	// if no environment is defined in config it seems to not be allocated
+	config.Environment = make(map[string]string)
+
+	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
+		return nil, err
+	}
+
+	if len(config.Routes) == 0 {
 		return nil, fmt.Errorf("no routes specified")
 	}
 
-	if !md.IsDefined("route_choice") {
+	if config.Route_Choice == "" {
 		config.Route_Choice = defaultRouteChoice
 	}
 
-	if !md.IsDefined("ssh", "exe") {
+	if config.Ssh.Exe == "" {
 		config.Ssh.Exe = defaultSshExe
 	}
 
-	if !md.IsDefined("ssh", "args") {
+	if config.Ssh.Args == nil {
 		config.Ssh.Args = defaultSshArgs
 	}
 
-	for _, key := range md.Keys() {
-		if key[0] == "groups" {
-			groupname := key[1]
-			if groups[groupname] {
-				groupconfig := config.Groups[groupname]
-				parseSubConfig(&md, &config, &groupconfig, "groups", groupname)
-			}
+	for groupname, groupconfig := range config.Groups {
+		if groups[groupname] {
+			parseSubConfig(&config, &groupconfig)
 		}
 	}
 
 	if userconfig, present := config.Users[username]; present {
-		parseSubConfig(&md, &config, &userconfig, "users", username)
+		parseSubConfig(&config, &userconfig)
 	}
 
 	if config.Log != "" {

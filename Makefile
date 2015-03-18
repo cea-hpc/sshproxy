@@ -17,7 +17,7 @@ RECORD_SRC		= $(wildcard record/*.go)
 UTILS_SRC		= $(wildcard utils/*.go)
 
 EXE	= sshproxy/sshproxy sshproxy-dumpd/sshproxy-dumpd sshproxy-replay/sshproxy-replay
-MANDOC	= doc/sshproxy.cfg.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8
+MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8
 
 all: $(EXE) $(MANDOC)
 

@@ -1,14 +1,12 @@
-# This file uses the TOML configuration file format.
-# See https://github.com/toml-lang/toml for details.
-
+---
 # Debug mode
-#debug = false
+#debug: false
 
 # Where logs will be written.
 # Default is empty but it can either be "syslog" if you want to use syslog or a
 # filename where the pattern '{user}' which will be replaced by the user login
 # (e.g. "/var/log/sshproxy/{user}.log").
-#log = ""
+#log: ""
 
 # Where raw dumps are written.
 # Default is empty.
@@ -22,43 +20,43 @@
 # For example: "/var/lib/sshproxy/dumps/{user}/{time}-{sid}.dump"
 # It can also be a network address where to send dumps if specified as
 # 'TCP:host:port' (the TCP is case sensitive), e.g. 'TCP:collector:5555'.
-#dump = ""
+#dump: ""
 
 # Interval at which basic statistics of transferred bytes are logged.
 # Empty by default, the string can contain a unit suffix such as 'h', 'm' and
 # 's' (e.g. "2m30s").
-#stats_interval = ""
+#stats_interval: ""
 
 # A command can be launched in the background for the session duration.
 # The standard and error outputs are only logged in debug mode.
-#bg_command = ""
+#bg_command: ""
 
 # How the host destination will be chosen. It can be "ordered" (the default) or
 # "random". If "ordered", the hosts are tried in the order listed until a
 # successful connection is made. The list is first randomly sorted if "random"
 # is specified (i.e. a poor-man load-balancing algorithm).
-#route_choice = "ordered"
+#route_choice: ordered
 
 # Environment.
 # Environment variables can be set if needed. The '{user}' pattern will be
 # replaced with the user login.
-#[environment]
-#XAUTHORITY = "/tmp/.Xauthority_{user}"
+#environment:
+#    XAUTHORITY: /tmp/.Xauthority_{user}
 
 # Global SSH options.
-#[ssh]
-#exe = "ssh"
-#args = ["-q", "-Y"]
+#ssh:
+#    exe: ssh
+#    args: ["-q", "-Y"]
 
 # Routes definition.
 # The key is the IP address of the listening SSH daemon and the value is an
 # array of destination hosts (with an optional port). The special key "default"
 # can be used to define a default route. The hosts are tried in the order
 # specified in the previously defined "route_choice" option.
-#[routes]
-#192.168.0.1 = ["host1", "host2"]
-#192.168.0.2 = ["host3", "host4"]
-#default = ["host5:4222"]
+#routes:
+#    192.168.0.1: [host1, host2]
+#    192.168.0.2: [host3, host4]
+#    default: ["host5:4222"]
 
 # Each option can be overridden for a Unix group of users.
 # If a user is in multiple groups and these groups are defined in the
@@ -66,28 +64,28 @@
 # next ones.
 # The parameters defined in a "users" option (see below) will be applied last
 # and override groups parameters.
-#[groups.foo]
-#debug = true
-#log = "/tmp/sshproxy-foo/{user}.log"
-
-# A sub-table is used to specify environment, SSH options or routes.
-#[groups.foo.environment]
-#ENV1 = "/tmp/env"
-
-#[groups.foo.ssh]
-#args = ["-vvv", "-Y"]
-
-# If routes are specified, they are fully overridden, not merged.
-#[groups.foo.routes]
-#default = ["hostx"]
+#groups:
+#    foo:
+#        debug: true
+#        log: /tmp/sshproxy-foo/{user}.log
+#        # An associative array is used to specify environment, SSH options or
+#        # routes.
+#        environment:
+#            ENV1: /tmp/env
+#        ssh:
+#            args: ["-vvv", "-Y"]
+#        # If routes are specified, they are fully overridden, not merged.
+#        routes:
+#            default: [hostx]
 
 # Each option can also be overridden for a specific user (eg. for debugging
 # purpose).
-#[users.foo]
-#debug = true
-#log = "/tmp/sshproxy-{user}.log"
-#dump = "/tmp/sshproxy-{user}-{time}.dump"
-
-# A sub-table is used to specify environment, SSH options or routes.
-#[users.foo.ssh]
-#args = ["-vvv", "-Y"]
+#users:
+#    foo:
+#        debug: true
+#        log: /tmp/sshproxy-{user}.log
+#        dump: /tmp/sshproxy-{user}-{time}.dump
+#        # An associative array is used to specify environment, SSH options or
+#        # routes.
+#        ssh:
+#            args: ["-vvv", "-Y"]

@@ -33,7 +33,7 @@ var (
 		"random":  chooseDestinationRandom,
 	}
 
-	defaultConfig = "/etc/sshproxy.cfg"
+	defaultConfig = "/etc/sshproxy.yaml"
 )
 
 // main logger for sshproxy

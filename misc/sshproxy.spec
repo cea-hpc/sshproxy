@@ -11,10 +11,10 @@ Source:         %{name}-%{version}.tar.xz
 BuildArch:      %{ix86} x86_64 %{arm}
 
 BuildRequires:  golang >= 1.3
-BuildRequires:  golang(github.com/BurntSushi/toml)
 BuildRequires:  golang(github.com/docker/docker/pkg/term)
 BuildRequires:  golang(github.com/kr/pty)
 BuildRequires:  golang(github.com/op/go-logging)
+BuildRequires:  golang(gopkg.in/yaml.v2)
 BuildRequires:  asciidoc
 Summary:        SSH proxy
 
@@ -38,15 +38,15 @@ make
 %install
 make install DESTDIR=%{buildroot} prefix=%{_prefix} mandir=%{_mandir}
 install -d %{buildroot}%{_sysconfdir}
-install -p -m 0644 config/sshproxy.cfg %{buildroot}%{_sysconfdir}
+install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}
 
 %files
 %doc Licence_CeCILL-B_V1-en.txt Licence_CeCILL-B_V1-fr.txt
-%config(noreplace) %{_sysconfdir}/sshproxy.cfg
+%config(noreplace) %{_sysconfdir}/sshproxy.yaml
 %{_sbindir}/sshproxy
 %{_sbindir}/sshproxy-dumpd
 %{_bindir}/sshproxy-replay
-%{_mandir}/man5/sshproxy.cfg.5*
+%{_mandir}/man5/sshproxy.yaml.5*
 %{_mandir}/man8/sshproxy.8*
 %{_mandir}/man8/sshproxy-dumpd.8*
 %{_mandir}/man8/sshproxy-replay.8*
