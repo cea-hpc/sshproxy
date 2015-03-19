@@ -6,37 +6,22 @@ import (
 	"regexp"
 	"time"
 
+	"sshproxy/route"
+	"sshproxy/utils"
+
 	"gopkg.in/yaml.v2"
 )
 
 var (
-	defaultRouteChoice = "ordered"
-	defaultSshExe      = "ssh"
-	defaultSshPort     = "22"
-	defaultSshArgs     = []string{"-q", "-Y"}
+	defaultSshExe  = "ssh"
+	defaultSshArgs = []string{"-q", "-Y"}
 )
-
-type duration time.Duration
-
-func (d *duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var text string
-	if err := unmarshal(&text); err != nil {
-		return err
-	}
-
-	td, err := time.ParseDuration(text)
-	if err != nil {
-		return err
-	}
-	*d = duration(td)
-	return nil
-}
 
 type sshProxyConfig struct {
 	Debug          bool
 	Log            string
 	Dump           string
-	Stats_Interval duration
+	Stats_Interval utils.Duration
 	Bg_Command     string
 	Route_Choice   string
 	Ssh            sshConfig
@@ -138,7 +123,7 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 	}
 
 	if config.Route_Choice == "" {
-		config.Route_Choice = defaultRouteChoice
+		config.Route_Choice = route.DefaultAlgorithm
 	}
 
 	if config.Ssh.Exe == "" {
@@ -167,7 +152,7 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 		config.Environment[k] = replace(v, patterns["{user}"])
 	}
 
-	if _, ok := routeChoosers[config.Route_Choice]; !ok {
+	if !route.IsAlgorithm(config.Route_Choice) {
 		return nil, fmt.Errorf("invalid value for `route_choice` option: %s", config.Route_Choice)
 	}
 

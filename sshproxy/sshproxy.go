@@ -4,19 +4,17 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
 	"os/exec"
 	"os/user"
-	"path"
 	"regexp"
 	"runtime"
 	"strconv"
 	"sync"
 	"time"
 
-	"sshproxy/group.go"
+	"sshproxy/route"
 	"sshproxy/utils"
 
 	"github.com/docker/docker/pkg/term"
@@ -25,159 +23,21 @@ import (
 
 var SSHPROXY_VERSION string
 
-type ChooseDestinationFunc func([]string) (string, string, error)
-
 var (
-	routeChoosers = map[string]ChooseDestinationFunc{
-		"ordered": chooseDestinationOrdered,
-		"random":  chooseDestinationRandom,
-	}
-
 	defaultConfig = "/etc/sshproxy.yaml"
 )
 
 // main logger for sshproxy
 var log = logging.MustGetLogger("sshproxy")
 
-// mustSetupLogging setups logging framework for sshproxy.
-//
-// logfile can be:
-//   - empty (""): logs will be written on stdout,
-//   - "syslog": logs will be sent to syslog(),
-//   - a filename: logs will be appended in this file (the subdirectories will
-//     be created if they do not exist).
-//
-// sid is a unique session id (calculated with utils.CalcSessionId) used to
-// identify a session in the logs.
-// Debug output is enabled if debug is true.
-func mustSetupLogging(logfile, sid string, debug bool) {
-	var logBackend logging.Backend
-	logFormat := fmt.Sprintf("%%{time:2006-01-02 15:04:05} %%{level} %s: %%{message}", sid)
-	if logfile == "syslog" {
-		var err error
-		logBackend, err = logging.NewSyslogBackend("sshproxy")
-		if err != nil {
-			log.Fatalf("error opening syslog: %s", err)
-		}
-		logFormat = fmt.Sprintf("%%{level} %s: %%{message}", sid)
-	} else {
-		var f *os.File
-		if logfile == "" {
-			f = os.Stderr
-		} else {
-			err := os.MkdirAll(path.Dir(logfile), 0755)
-			if err != nil {
-				log.Fatalf("creating directory %s: %s", path.Dir(logfile), err)
-			}
-
-			f, err = os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-			if err != nil {
-				log.Fatalf("error opening log file %s: %v", logfile, err)
-			}
-		}
-		logBackend = logging.NewLogBackend(f, "", 0)
-	}
-
-	logging.SetBackend(logBackend)
-	logging.SetFormatter(logging.MustStringFormatter(logFormat))
-	if debug {
-		logging.SetLevel(logging.DEBUG, "sshproxy")
-	} else {
-		logging.SetLevel(logging.NOTICE, "sshproxy")
-	}
-}
-
-// getGroups returns a map of group memberships for the current user.
-//
-// It can be used to quickly check if a user is in a specified group.
-func getGroups() (map[string]bool, error) {
-	gids, err := os.Getgroups()
-	if err != nil {
-		return nil, err
-	}
-
-	groups := make(map[string]bool)
-	for _, gid := range gids {
-		g, err := group.LookupId(gid)
-		if err != nil {
-			return nil, err
-		}
-
-		groups[g.Name] = true
-	}
-
-	return groups, nil
-}
-
-// splitHostPort splits a network address of the form "host:port" or
-// "host[:port]" into host and port. If the port is not specified the default
-// ssh port ("22") is returned.
-func splitHostPort(hostport string) (string, string, error) {
-	host, port, err := net.SplitHostPort(hostport)
-	if err != nil {
-		if err.(*net.AddrError).Err == "missing port in address" {
-			return hostport, defaultSshPort, nil
-		} else {
-			return hostport, defaultSshPort, err
-		}
-	}
-	return host, port, nil
-}
-
-// canConnect tests if a connection to host:port can be made (with a 1s timeout).
-func canConnect(host, port string) bool {
-	c, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 1*time.Second)
-	if err != nil {
-		log.Info("cannot connect to %s:%s: %s", host, port, err)
-		return false
-	}
-	c.Close()
-	return true
-}
-
-// chooseDestinationOrdered chooses the first reachable destination from a list
-// of destinations. It returns its host and port.
-func chooseDestinationOrdered(destinations []string) (string, string, error) {
-	for i, dst := range destinations {
-		host, port, err := splitHostPort(dst)
-		if err != nil {
-			return "", "", err
-		}
-
-		// always return the last destination without trying to connect
-		if i == len(destinations)-1 {
-			return host, port, nil
-		}
-		if canConnect(host, port) {
-			return host, port, nil
-		}
-	}
-	return "", "", fmt.Errorf("no valid destination found")
-}
-
-// chooseDestinationRandom randomizes the order of the provided list of
-// destinations and chooses the first reachable one. It returns its host and
-// port.
-func chooseDestinationRandom(destinations []string) (string, string, error) {
-	rand.Seed(time.Now().UnixNano())
-	// Fisher-Yates shuffle: http://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle
-	// In-place shuffle (instead of using rand.Perm()).
-	for i := len(destinations) - 1; i > 0; i-- {
-		j := rand.Intn(i)
-		destinations[i], destinations[j] = destinations[j], destinations[i]
-	}
-	log.Debug("randomized destinations: %v", destinations)
-	return chooseDestinationOrdered(destinations)
-}
-
 // findDestination finds a reachable destination for the sshd server according
 // to routes. route_choice specifies the algorithm used to choose the
 // destination (can be "ordered" or "random").
 func findDestination(routes map[string][]string, route_choice, sshd string) (string, string, error) {
 	if destinations, present := routes[sshd]; present {
-		return routeChoosers[route_choice](destinations)
+		return route.Chose(route_choice, destinations)
 	} else if destinations, present := routes["default"]; present {
-		return routeChoosers[route_choice](destinations)
+		return route.Chose(route_choice, destinations)
 	}
 	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd)
 }
@@ -299,7 +159,7 @@ func main() {
 
 	sid := utils.CalcSessionId(conninfo.User, conninfo.Start, conninfo.Ssh.SrcIP, conninfo.Ssh.SrcPort)
 
-	groups, err := getGroups()
+	groups, err := utils.GetGroups()
 	if err != nil {
 		log.Fatalf("Cannot find current user groups: %s", err)
 	}
@@ -309,13 +169,15 @@ func main() {
 		log.Fatalf("Reading configuration '%s': %s", config_file, err)
 	}
 
-	mustSetupLogging(config.Log, sid, config.Debug)
+	logformat := fmt.Sprintf("%%{time:2006-01-02 15:04:05} %%{level} %s: %%{message}", sid)
+	syslogformat := fmt.Sprintf("%%{level} %s: %%{message}", sid)
+	utils.MustSetupLogging("sshproxy", config.Log, logformat, syslogformat, config.Debug)
 
 	log.Debug("groups = %v", groups)
 	log.Debug("config.debug = %v", config.Debug)
 	log.Debug("config.log = %s", config.Log)
 	log.Debug("config.dump = %s", config.Dump)
-	log.Debug("config.stats_interval = %s", time.Duration(config.Stats_Interval))
+	log.Debug("config.stats_interval = %s", config.Stats_Interval.Duration())
 	log.Debug("config.bg_command = %s", config.Bg_Command)
 	log.Debug("config.environment = %v", config.Environment)
 	log.Debug("config.route_choice = %s", config.Route_Choice)
@@ -359,14 +221,14 @@ func main() {
 	// We assume the `sftp-server` binary is in the same directory on the
 	// gateway as on the target.
 	ssh_args := config.Ssh.Args
-	if port != defaultSshPort {
+	if port != utils.DefaultSshPort {
 		ssh_args = append(ssh_args, "-p", port)
 	}
 	ssh_args = append(ssh_args, host, original_cmd)
 	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
-	recorder, err := NewRecorder(conninfo, config.Dump, original_cmd, time.Duration(config.Stats_Interval), done)
+	recorder, err := NewRecorder(conninfo, config.Dump, original_cmd, config.Stats_Interval.Duration(), done)
 	if err != nil {
 		log.Fatalf("setting recorder: %s", err)
 	}
