@@ -27,7 +27,7 @@ OPTIONS
 INSTALLATION
 ------------
 
-* Configure '/etc/sshproxy.yaml' to suit your needs.
+* Configure '/etc/sshproxy/sshproxy.yaml' to suit your needs.
 
 * Modify the OpenSSH daemon configuration '/etc/ssh/sshd_config' by adding:
 
@@ -35,7 +35,7 @@ INSTALLATION
 
 FILES
 -----
-/etc/sshproxy.yaml::
+/etc/sshproxy/sshproxy.yaml::
 	Contains configuration (see *sshproxy.yaml*(5) for details).
 
 SEE ALSO

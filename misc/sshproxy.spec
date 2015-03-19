@@ -37,12 +37,12 @@ make
 
 %install
 make install DESTDIR=%{buildroot} prefix=%{_prefix} mandir=%{_mandir}
-install -d %{buildroot}%{_sysconfdir}
-install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}
+install -d %{buildroot}%{_sysconfdir}/sshproxy
+install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}/sshproxy
 
 %files
 %doc Licence_CeCILL-B_V1-en.txt Licence_CeCILL-B_V1-fr.txt
-%config(noreplace) %{_sysconfdir}/sshproxy.yaml
+%config(noreplace) %{_sysconfdir}/sshproxy/sshproxy.yaml
 %{_sbindir}/sshproxy
 %{_sbindir}/sshproxy-dumpd
 %{_bindir}/sshproxy-replay

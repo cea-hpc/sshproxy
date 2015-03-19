@@ -25,9 +25,9 @@ Compile everything:
 Installation
 ------------
 
-Copy 'sshproxy' binary to '/sbin' and 'sshproxy.yaml' to '/etc'.
+Copy 'sshproxy' binary to '/sbin' and 'sshproxy.yaml' to '/etc/sshproxy'.
 
-Configure '/etc/sshproxy.yaml' to suit your needs.
+Configure '/etc/sshproxy/sshproxy.yaml' to suit your needs.
 
 Modify the SSH daemon configuration '/etc/ssh/sshd_config' by adding:
 

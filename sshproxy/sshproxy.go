@@ -24,7 +24,7 @@ import (
 var SSHPROXY_VERSION string
 
 var (
-	defaultConfig = "/etc/sshproxy.yaml"
+	defaultConfig = "/etc/sshproxy/sshproxy.yaml"
 )
 
 // main logger for sshproxy
