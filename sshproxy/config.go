@@ -50,7 +50,7 @@ type subConfig struct {
 	Ssh            sshConfig
 }
 
-func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) {
+func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
 	if subconfig.Debug != nil {
 		config.Debug = subconfig.Debug.(bool)
 	}
@@ -61,6 +61,14 @@ func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) {
 
 	if subconfig.Dump != nil {
 		config.Dump = subconfig.Dump.(string)
+	}
+
+	if subconfig.Stats_Interval != nil {
+		var err error
+		config.Stats_Interval, err = utils.ParseDuration(subconfig.Stats_Interval.(string))
+		if err != nil {
+			return err
+		}
 	}
 
 	if subconfig.Bg_Command != nil {
@@ -87,6 +95,8 @@ func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) {
 	for k, v := range subconfig.Environment {
 		config.Environment[k] = v
 	}
+
+	return nil
 }
 
 type PatternReplacer struct {
@@ -136,12 +146,16 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 
 	for groupname, groupconfig := range config.Groups {
 		if groups[groupname] {
-			parseSubConfig(&config, &groupconfig)
+			if err := parseSubConfig(&config, &groupconfig); err != nil {
+				return nil, err
+			}
 		}
 	}
 
 	if userconfig, present := config.Users[username]; present {
-		parseSubConfig(&config, &userconfig)
+		if err := parseSubConfig(&config, &userconfig); err != nil {
+			return nil, err
+		}
 	}
 
 	if config.Log != "" {
