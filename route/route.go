@@ -13,7 +13,7 @@ import (
 
 var log = logging.MustGetLogger("sshproxy/route")
 
-type chooseDestinationFunc func([]string) (string, string, error)
+type chooseDestinationFunc func([]string, bool) (string, string, error)
 
 // default algorithm to find route
 var DefaultAlgorithm = "ordered"
@@ -25,8 +25,8 @@ var (
 	}
 )
 
-// canConnect tests if a connection to host:port can be made (with a 1s timeout).
-func canConnect(host, port string) bool {
+// CanConnect tests if a connection to host:port can be made (with a 1s timeout).
+func CanConnect(host, port string) bool {
 	c, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 1*time.Second)
 	if err != nil {
 		log.Info("cannot connect to %s:%s: %s", host, port, err)
@@ -38,7 +38,7 @@ func canConnect(host, port string) bool {
 
 // chooseDestinationOrdered chooses the first reachable destination from a list
 // of destinations. It returns its host and port.
-func chooseDestinationOrdered(destinations []string) (string, string, error) {
+func chooseDestinationOrdered(destinations []string, check_host bool) (string, string, error) {
 	for i, dst := range destinations {
 		host, port, err := utils.SplitHostPort(dst)
 		if err != nil {
@@ -49,7 +49,7 @@ func chooseDestinationOrdered(destinations []string) (string, string, error) {
 		if i == len(destinations)-1 {
 			return host, port, nil
 		}
-		if canConnect(host, port) {
+		if !check_host || CanConnect(host, port) {
 			return host, port, nil
 		}
 	}
@@ -59,7 +59,7 @@ func chooseDestinationOrdered(destinations []string) (string, string, error) {
 // chooseDestinationRandom randomizes the order of the provided list of
 // destinations and chooses the first reachable one. It returns its host and
 // port.
-func chooseDestinationRandom(destinations []string) (string, string, error) {
+func chooseDestinationRandom(destinations []string, check_host bool) (string, string, error) {
 	rand.Seed(time.Now().UnixNano())
 	rdestinations := make([]string, len(destinations))
 	perm := rand.Perm(len(destinations))
@@ -67,11 +67,11 @@ func chooseDestinationRandom(destinations []string) (string, string, error) {
 		rdestinations[i] = destinations[v]
 	}
 	log.Debug("randomized destinations: %v", rdestinations)
-	return chooseDestinationOrdered(rdestinations)
+	return chooseDestinationOrdered(rdestinations, check_host)
 }
 
-func Chose(route_choice string, destinations []string) (string, string, error) {
-	return routeChoosers[route_choice](destinations)
+func Chose(route_choice string, destinations []string, check_host bool) (string, string, error) {
+	return routeChoosers[route_choice](destinations, check_host)
 }
 
 func IsAlgorithm(algo string) bool {
