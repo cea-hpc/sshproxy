@@ -36,7 +36,7 @@ var log = logging.MustGetLogger("sshproxy")
 func findDestination(routes map[string][]string, route_select, sshd string) (string, string, error) {
 	if destinations, present := routes[sshd]; present {
 		return route.Select(route_select, destinations, true)
-	} else if destinations, present := routes["default"]; present {
+	} else if destinations, present := routes[route.DefaultRouteKeyword]; present {
 		return route.Select(route_select, destinations, true)
 	}
 	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd)

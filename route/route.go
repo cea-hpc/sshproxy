@@ -15,8 +15,12 @@ var log = logging.MustGetLogger("sshproxy/route")
 
 type selectDestinationFunc func([]string, bool) (string, string, error)
 
-// default algorithm to find route
-var DefaultAlgorithm = "ordered"
+var (
+	// default algorithm to find route
+	DefaultAlgorithm = "ordered"
+	// keyword for default route
+	DefaultRouteKeyword = "default"
+)
 
 var (
 	routeSelecters = map[string]selectDestinationFunc{
