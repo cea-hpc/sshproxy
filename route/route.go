@@ -13,15 +13,15 @@ import (
 
 var log = logging.MustGetLogger("sshproxy/route")
 
-type chooseDestinationFunc func([]string, bool) (string, string, error)
+type selectDestinationFunc func([]string, bool) (string, string, error)
 
 // default algorithm to find route
 var DefaultAlgorithm = "ordered"
 
 var (
-	routeChoosers = map[string]chooseDestinationFunc{
-		"ordered": chooseDestinationOrdered,
-		"random":  chooseDestinationRandom,
+	routeSelecters = map[string]selectDestinationFunc{
+		"ordered": selectDestinationOrdered,
+		"random":  selectDestinationRandom,
 	}
 )
 
@@ -36,9 +36,9 @@ func CanConnect(host, port string) bool {
 	return true
 }
 
-// chooseDestinationOrdered chooses the first reachable destination from a list
+// selectDestinationOrdered selects the first reachable destination from a list
 // of destinations. It returns its host and port.
-func chooseDestinationOrdered(destinations []string, check_host bool) (string, string, error) {
+func selectDestinationOrdered(destinations []string, check_host bool) (string, string, error) {
 	for i, dst := range destinations {
 		host, port, err := utils.SplitHostPort(dst)
 		if err != nil {
@@ -56,10 +56,10 @@ func chooseDestinationOrdered(destinations []string, check_host bool) (string, s
 	return "", "", fmt.Errorf("no valid destination found")
 }
 
-// chooseDestinationRandom randomizes the order of the provided list of
-// destinations and chooses the first reachable one. It returns its host and
+// selectDestinationRandom randomizes the order of the provided list of
+// destinations and selects the first reachable one. It returns its host and
 // port.
-func chooseDestinationRandom(destinations []string, check_host bool) (string, string, error) {
+func selectDestinationRandom(destinations []string, check_host bool) (string, string, error) {
 	rand.Seed(time.Now().UnixNano())
 	rdestinations := make([]string, len(destinations))
 	perm := rand.Perm(len(destinations))
@@ -67,14 +67,14 @@ func chooseDestinationRandom(destinations []string, check_host bool) (string, st
 		rdestinations[i] = destinations[v]
 	}
 	log.Debug("randomized destinations: %v", rdestinations)
-	return chooseDestinationOrdered(rdestinations, check_host)
+	return selectDestinationOrdered(rdestinations, check_host)
 }
 
-func Chose(route_choice string, destinations []string, check_host bool) (string, string, error) {
-	return routeChoosers[route_choice](destinations, check_host)
+func Select(route_select string, destinations []string, check_host bool) (string, string, error) {
+	return routeSelecters[route_select](destinations, check_host)
 }
 
 func IsAlgorithm(algo string) bool {
-	_, ok := routeChoosers[algo]
+	_, ok := routeSelecters[algo]
 	return ok
 }

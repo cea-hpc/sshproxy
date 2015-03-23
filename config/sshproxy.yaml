@@ -35,7 +35,7 @@
 # "random". If "ordered", the hosts are tried in the order listed until a
 # successful connection is made. The list is first randomly sorted if "random"
 # is specified (i.e. a poor-man load-balancing algorithm).
-#route_choice: ordered
+#route_select: ordered
 
 # Environment.
 # Environment variables can be set if needed. The '{user}' pattern will be
@@ -52,7 +52,7 @@
 # The key is the IP address of the listening SSH daemon and the value is an
 # array of destination hosts (with an optional port). The special key "default"
 # can be used to define a default route. The hosts are tried in the order
-# specified in the previously defined "route_choice" option.
+# specified in the previously defined "route_select" option.
 #routes:
 #    192.168.0.1: [host1, host2]
 #    192.168.0.2: [host3, host4]

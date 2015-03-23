@@ -31,13 +31,13 @@ var (
 var log = logging.MustGetLogger("sshproxy")
 
 // findDestination finds a reachable destination for the sshd server according
-// to routes. route_choice specifies the algorithm used to choose the
+// to routes. route_select specifies the algorithm used to select the
 // destination (can be "ordered" or "random").
-func findDestination(routes map[string][]string, route_choice, sshd string) (string, string, error) {
+func findDestination(routes map[string][]string, route_select, sshd string) (string, string, error) {
 	if destinations, present := routes[sshd]; present {
-		return route.Chose(route_choice, destinations, true)
+		return route.Select(route_select, destinations, true)
 	} else if destinations, present := routes["default"]; present {
-		return route.Chose(route_choice, destinations, true)
+		return route.Select(route_select, destinations, true)
 	}
 	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd)
 }
@@ -180,7 +180,7 @@ func main() {
 	log.Debug("config.stats_interval = %s", config.Stats_Interval.Duration())
 	log.Debug("config.bg_command = %s", config.Bg_Command)
 	log.Debug("config.environment = %v", config.Environment)
-	log.Debug("config.route_choice = %s", config.Route_Choice)
+	log.Debug("config.route_select = %s", config.Route_Select)
 	log.Debug("config.routes = %v", config.Routes)
 	log.Debug("config.ssh.exe = %s", config.Ssh.Exe)
 	log.Debug("config.ssh.args = %v", config.Ssh.Args)
@@ -190,7 +190,7 @@ func main() {
 	log.Notice("%s connected from %s:%d to sshd listening on %s:%d", username, ssh_infos.SrcIP, ssh_infos.SrcPort, ssh_infos.DstIP, ssh_infos.DstPort)
 	defer log.Notice("disconnected")
 
-	host, port, err := findDestination(config.Routes, config.Route_Choice, ssh_infos.DstIP.String())
+	host, port, err := findDestination(config.Routes, config.Route_Select, ssh_infos.DstIP.String())
 	if err != nil {
 		log.Fatalf("Finding destination: %s", err)
 	}

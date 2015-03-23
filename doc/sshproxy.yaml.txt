@@ -42,7 +42,7 @@ The following keys can be defined:
 	for the session duration. Its standard and error outputs are only
 	logged in debug mode. It is empty by default.
 
-*route_choice*::
+*route_select*::
 	a string specifying how the host destination will be chosen.  It can
 	be 'ordered' (the default) or 'random'.  If 'ordered', the hosts are
 	tried in the order listed until a successful connection is made.  The
@@ -87,7 +87,7 @@ listening IP address of the SSH daemon:
 Each key is a listening IP address of the SSH daemon and the values are a list
 of destination hosts (with an optional port). The special key 'default' can be
 used to define a default route. The hosts are tried in the order specified in
-the previously defined 'route_choice' option.
+the previously defined 'route_select' option.
 
 In the previous example, a client connected to '192.168.0.1' will be proxied
 to 'host1' and, if the host is not reachable, to 'host2'. If a client does not
@@ -170,7 +170,7 @@ stats_interval: 5m
 
 bg_command: krenew -K 60
 
-route_choice: random
+route_select: random
 
 environment:
     XAUTHORITY: /tmp/.Xauthority_{user}

@@ -23,7 +23,7 @@ type sshProxyConfig struct {
 	Dump           string
 	Stats_Interval utils.Duration
 	Bg_Command     string
-	Route_Choice   string
+	Route_Select   string
 	Ssh            sshConfig
 	Environment    map[string]string
 	Routes         map[string][]string
@@ -44,7 +44,7 @@ type subConfig struct {
 	Dump           interface{}
 	Stats_Interval interface{}
 	Bg_Command     interface{}
-	Route_Choice   interface{}
+	Route_Select   interface{}
 	Environment    map[string]string
 	Routes         map[string][]string
 	Ssh            sshConfig
@@ -75,8 +75,8 @@ func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
 		config.Bg_Command = subconfig.Bg_Command.(string)
 	}
 
-	if subconfig.Route_Choice != nil {
-		config.Route_Choice = subconfig.Route_Choice.(string)
+	if subconfig.Route_Select != nil {
+		config.Route_Select = subconfig.Route_Select.(string)
 	}
 
 	if subconfig.Ssh.Exe != "" {
@@ -132,8 +132,8 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 		return nil, fmt.Errorf("no routes specified")
 	}
 
-	if config.Route_Choice == "" {
-		config.Route_Choice = route.DefaultAlgorithm
+	if config.Route_Select == "" {
+		config.Route_Select = route.DefaultAlgorithm
 	}
 
 	if config.Ssh.Exe == "" {
@@ -166,8 +166,8 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 		config.Environment[k] = replace(v, patterns["{user}"])
 	}
 
-	if !route.IsAlgorithm(config.Route_Choice) {
-		return nil, fmt.Errorf("invalid value for `route_choice` option: %s", config.Route_Choice)
+	if !route.IsAlgorithm(config.Route_Select) {
+		return nil, fmt.Errorf("invalid value for `route_select` option: %s", config.Route_Select)
 	}
 
 	if config.Dump != "" {
