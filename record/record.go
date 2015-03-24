@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"time"
 )
 
@@ -108,6 +109,16 @@ type FileInfo struct {
 	DstPort int
 	User    string
 	Command string
+}
+
+// Src returns the source address with the format host:port.
+func (f *FileInfo) Src() string {
+	return net.JoinHostPort(f.SrcIP.String(), strconv.Itoa(f.SrcPort))
+}
+
+// Dst returns the destination address with the format host:port.
+func (f *FileInfo) Dst() string {
+	return net.JoinHostPort(f.DstIP.String(), strconv.Itoa(f.DstPort))
 }
 
 // FileHeader is the binary header of a record file.
