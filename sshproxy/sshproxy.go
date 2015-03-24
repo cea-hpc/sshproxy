@@ -101,6 +101,16 @@ func NewSSHInfo(s string) (*SSHInfo, error) {
 	}, nil
 }
 
+// Src returns the source address with the format host:port.
+func (s *SSHInfo) Src() string {
+	return net.JoinHostPort(s.SrcIP.String(), strconv.Itoa(s.SrcPort))
+}
+
+// Dst returns the destination address with the format host:port.
+func (s *SSHInfo) Dst() string {
+	return net.JoinHostPort(s.DstIP.String(), strconv.Itoa(s.DstPort))
+}
+
 // ConnInfo regroups specific information about a connection.
 type ConnInfo struct {
 	Start time.Time // start time
@@ -188,7 +198,7 @@ func main() {
 
 	setEnvironment(config.Environment)
 
-	log.Notice("%s connected from %s:%d to sshd listening on %s:%d", username, ssh_infos.SrcIP, ssh_infos.SrcPort, ssh_infos.DstIP, ssh_infos.DstPort)
+	log.Notice("%s connected from %s to sshd listening on %s", username, ssh_infos.Src(), ssh_infos.Dst())
 	defer log.Notice("disconnected")
 
 	host, port, err := findDestination(config.Routes, config.Route_Select, ssh_infos.DstIP.String())
