@@ -43,7 +43,7 @@ func acquire(c net.Conn) {
 		return
 	}
 
-	fn := fmt.Sprintf("%s-%s.dump", infos.Time.Format(time.RFC3339Nano), utils.CalcSessionId(infos.User, infos.Time, infos.SrcIP, infos.SrcPort))
+	fn := fmt.Sprintf("%s-%s.dump", infos.Time.Format(time.RFC3339Nano), utils.CalcSessionId(infos.User, infos.Time, infos.Src()))
 	dump := path.Join(outdir, fn)
 
 	f, err := os.Create(dump)

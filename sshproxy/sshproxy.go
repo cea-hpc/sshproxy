@@ -168,7 +168,7 @@ func main() {
 		Ssh:   ssh_infos,
 	}
 
-	sid := utils.CalcSessionId(conninfo.User, conninfo.Start, conninfo.Ssh.SrcIP, conninfo.Ssh.SrcPort)
+	sid := utils.CalcSessionId(conninfo.User, conninfo.Start, conninfo.Ssh.Src())
 
 	groups, err := utils.GetGroups()
 	if err != nil {
