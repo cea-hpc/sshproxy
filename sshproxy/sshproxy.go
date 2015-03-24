@@ -34,10 +34,11 @@ var log = logging.MustGetLogger("sshproxy")
 // to routes. route_select specifies the algorithm used to select the
 // destination (can be "ordered" or "random").
 func findDestination(routes map[string][]string, route_select, sshd string) (string, string, error) {
+	checker := new(route.BasicHostChecker)
 	if destinations, present := routes[sshd]; present {
-		return route.Select(route_select, destinations, true)
+		return route.Select(route_select, destinations, checker)
 	} else if destinations, present := routes[route.DefaultRouteKeyword]; present {
-		return route.Select(route_select, destinations, true)
+		return route.Select(route_select, destinations, checker)
 	}
 	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd)
 }
