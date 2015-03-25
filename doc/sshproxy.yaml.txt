@@ -42,6 +42,12 @@ The following keys can be defined:
 	for the session duration. Its standard and error outputs are only
 	logged in debug mode. It is empty by default.
 
+*manager*::
+	a string specifying a manager to find the destination for a
+	connection. The format is 'host:port'.  If the manager is unavailable
+	or does not return a response the routes defined in the configuration
+	will be used as a fallback.
+
 *route_select*::
 	a string specifying how the host destination will be chosen.  It can
 	be 'ordered' (the default) or 'random'.  If 'ordered', the hosts are

@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"sshproxy/manager"
 	"sshproxy/route"
 	"sshproxy/utils"
 
@@ -31,9 +32,21 @@ var (
 var log = logging.MustGetLogger("sshproxy")
 
 // findDestination finds a reachable destination for the sshd server according
-// to routes. route_select specifies the algorithm used to select the
-// destination (can be "ordered" or "random").
-func findDestination(routes map[string][]string, route_select, sshd_hostport string) (string, string, error) {
+// to the manager if available or the routes and route_select algorithm.
+// It returns host, port or an error if any.
+func findDestination(mclient *manager.Client, routes map[string][]string, route_select, sshd_hostport string) (string, string, error) {
+	if mclient != nil {
+		host, port, err := mclient.Connect()
+		if err != nil {
+			// disable manager in case of error
+			mclient = nil
+			log.Error("%s", err)
+		} else {
+			log.Debug("got response from manager: %s", net.JoinHostPort(host, port))
+			return host, port, nil
+		}
+	}
+
 	sshd_host, sshd_port, err := utils.SplitHostPort(sshd_hostport)
 	if err != nil {
 		return "", "", fmt.Errorf("invalid format for host '%s': %s", sshd_hostport, err)
@@ -197,6 +210,7 @@ func main() {
 	log.Debug("config.dump = %s", config.Dump)
 	log.Debug("config.stats_interval = %s", config.Stats_Interval.Duration())
 	log.Debug("config.bg_command = %s", config.Bg_Command)
+	log.Debug("config.manager = %s", config.Manager)
 	log.Debug("config.environment = %v", config.Environment)
 	log.Debug("config.route_select = %s", config.Route_Select)
 	log.Debug("config.routes = %v", config.Routes)
@@ -208,7 +222,17 @@ func main() {
 	log.Notice("%s connected from %s to sshd listening on %s", username, ssh_infos.Src(), ssh_infos.Dst())
 	defer log.Notice("disconnected")
 
-	host, port, err := findDestination(config.Routes, config.Route_Select, ssh_infos.Dst())
+	var mclient *manager.Client
+	if config.Manager != "" {
+		mclient = manager.NewClient(config.Manager, username, ssh_infos.Dst(), 500*time.Millisecond)
+		defer func() {
+			if mclient != nil {
+				mclient.Disconnect()
+			}
+		}()
+	}
+
+	host, port, err := findDestination(mclient, config.Routes, config.Route_Select, ssh_infos.Dst())
 	if err != nil {
 		log.Fatalf("Finding destination: %s", err)
 	}

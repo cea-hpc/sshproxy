@@ -23,6 +23,7 @@ type sshProxyConfig struct {
 	Dump           string
 	Stats_Interval utils.Duration
 	Bg_Command     string
+	Manager        string
 	Route_Select   string
 	Ssh            sshConfig
 	Environment    map[string]string
@@ -44,6 +45,7 @@ type subConfig struct {
 	Dump           interface{}
 	Stats_Interval interface{}
 	Bg_Command     interface{}
+	Manager        interface{}
 	Route_Select   interface{}
 	Environment    map[string]string
 	Routes         map[string][]string
@@ -73,6 +75,10 @@ func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
 
 	if subconfig.Bg_Command != nil {
 		config.Bg_Command = subconfig.Bg_Command.(string)
+	}
+
+	if subconfig.Manager != nil {
+		config.Manager = subconfig.Manager.(string)
 	}
 
 	if subconfig.Route_Select != nil {
@@ -126,10 +132,6 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 
 	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
 		return nil, err
-	}
-
-	if len(config.Routes) == 0 {
-		return nil, fmt.Errorf("no routes specified")
 	}
 
 	if config.Route_Select == "" {

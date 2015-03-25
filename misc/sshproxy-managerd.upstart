@@ -1,0 +1,19 @@
+# sshproxy-managerd
+#
+# sshproxy-managerd manages routing decisions for sshproxy
+
+description	"sshproxy-managerd"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+respawn limit 10 5
+umask 022
+
+pre-start script
+    test -x /usr/sbin/sshproxy-managerd || { stop; exit 0; }
+    grep -qs '^routes:' /etc/sshproxy/sshproxy-managerd.yaml || { stop; exit 0; }
+end script
+
+exec su -s /bin/sh -c /usr/sbin/sshproxy-managerd daemon

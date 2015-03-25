@@ -2,6 +2,11 @@
 # packages: http://fedoraproject.org/wiki/PackagingDrafts/Go#Debuginfo
 %global debug_package   %{nil}
 
+
+%if 0%{?rhel} >= 7
+%global _with_systemd 1
+%endif
+
 Name:           sshproxy
 Version:        0.2.0
 Release:        1%{?dist}
@@ -16,6 +21,18 @@ BuildRequires:  golang(github.com/kr/pty)
 BuildRequires:  golang(github.com/op/go-logging)
 BuildRequires:  golang(gopkg.in/yaml.v2)
 BuildRequires:  asciidoc
+
+%if 0%{?_with_systemd}
+Requires(post): systemd
+Requires(preun): systemd
+Requires(postun): systemd
+BuildRequires:  systemd
+%else
+Requires(post): upstart
+Requires(preun): upstart
+Requires(postun): upstart
+%endif
+
 Summary:        SSH proxy
 
 %description
@@ -37,19 +54,63 @@ make
 
 %install
 make install DESTDIR=%{buildroot} prefix=%{_prefix} mandir=%{_mandir}
-install -d %{buildroot}%{_sysconfdir}/sshproxy
+install -d -m0755 %{buildroot}%{_sysconfdir}/sshproxy
 install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}/sshproxy
+install -p -m 0644 config/sshproxy-managerd.yaml %{buildroot}%{_sysconfdir}/sshproxy
+%if 0%{?_with_systemd}
+install -d -m0755  %{buildroot}%{_unitdir}
+install -Dp -m0644 misc/sshproxy-managerd.service %{buildroot}%{_unitdir}/sshproxy-managerd.service
+%else
+install -d -m0755 %{buildroot}%{_sysconfdir}/init
+install -p -m 0644 misc/sshproxy-managerd.upstart %{buildroot}%{_sysconfdir}/init/sshproxy-managerd.conf
+%endif
 
 %files
 %doc Licence_CeCILL-B_V1-en.txt Licence_CeCILL-B_V1-fr.txt
+%if 0%{?_with_systemd}
+%{_unitdir}/sshproxy-managerd.service
+%else
+%config(noreplace) %{_sysconfdir}/init/sshproxy-managerd.conf
+%endif
 %config(noreplace) %{_sysconfdir}/sshproxy/sshproxy.yaml
+%config(noreplace) %{_sysconfdir}/sshproxy/sshproxy-managerd.yaml
 %{_sbindir}/sshproxy
 %{_sbindir}/sshproxy-dumpd
+%{_sbindir}/sshproxy-managerd
 %{_bindir}/sshproxy-replay
 %{_mandir}/man5/sshproxy.yaml.5*
+%{_mandir}/man5/sshproxy-managerd.yaml.5*
 %{_mandir}/man8/sshproxy.8*
 %{_mandir}/man8/sshproxy-dumpd.8*
+%{_mandir}/man8/sshproxy-managerd.8*
 %{_mandir}/man8/sshproxy-replay.8*
+
+%post
+%if 0%{?_with_systemd}
+%systemd_post sshproxy-managerd.service
+%else
+if [ "$1" -ge 1 ]; then
+  /sbin/stop sshproxy-managerd >/dev/null 2>&1
+  /sbin/start sshproxy-managerd
+fi
+%endif
+exit 0
+
+%preun
+%if 0%{?_with_systemd}
+%systemd_preun puppet.service
+%else
+if [ "$1" -eq 0 ]; then
+  /sbin/stop sshproxy-managerd >/dev/null 2>&1
+fi
+%endif
+exit 0
+
+%postun
+%if 0%{?_with_systemd}
+%systemd_postun_with_restart sshproxy-managerd.service
+%endif
+exit 0
 
 %changelog
 * Mon Mar 02 2015 Arnaud Guignard <arnaud.guignard@cea.fr> - 0.2.0-1

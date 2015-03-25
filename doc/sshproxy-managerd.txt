@@ -1,0 +1,69 @@
+sshproxy-managerd(8)
+====================
+:doctype:	manpage
+:man source:	sshproxy
+:man manual:	sshproxy manual
+:man version:	{sshproxy_version}
+
+NAME
+----
+sshproxy-managerd - manages routing decisions for sshproxy
+
+SYNOPSIS
+--------
+*sshproxy-managerd* ['OPTIONS'] ['config']
+
+DESCRIPTION
+-----------
+
+'sshproxy-managerd' is used with *sshproxy*(8) to choose the best destination
+for a user connection. It keeps tracks of already established connections and
+periodically checks if an host is alive.
+
+OPTIONS
+-------
+
+*-version*::
+	Show version number and exit.
+
+PROTOCOL
+--------
+
+'sshproxy-managerd' implements a simple text protocol. The following commands
+can be sent to the listening port, followed by a '\r\n':
+
+*connect user host:port*::
+	Asks for a destination when the 'user' is connected to 'host:port'. It
+	answers with an 'host:port' or closes the connection.
+
+*disconnect user host:port*::
+	Tells that the 'user' is going to be disconnected to 'host:port'.
+	There is no answer.
+
+*failure host:port*::
+	Tells that the 'host:port' is unavailable. There is no answer. It will
+	verify if the host is unreachable and clears its cache if it is the
+	case.
+
+*info <connections|checks>*::
+	Displays current internal connections or checks.
+
+FILES
+-----
+/etc/sshproxy/sshproxy-managerd.yaml::
+	Contains configuration (see *sshproxy-managerd.yaml*(5) for details).
+
+SEE ALSO
+--------
+*sshproxy-managerd.yaml*(5), *sshproxy*(8)
+
+AUTHORS
+-------
+sshproxy was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+
+COPYING
+-------
+Copyright (C) 2015 CEA. Free use of this software is granted under the term of
+the CeCILL-B license.
+
+// vim:tw=78:ft=asciidoc:

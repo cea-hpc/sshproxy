@@ -31,6 +31,12 @@
 # The standard and error outputs are only logged in debug mode.
 #bg_command: ""
 
+# A manager to find the destination for a connection. The format is
+# "host:port".
+# If the manager is unavailable or does not return a response the routes
+# defined in the configuration will be used as a fallback.
+#manager: ""
+
 # How the host destination will be chosen. It can be "ordered" (the default) or
 # "random". If "ordered", the hosts are tried in the order listed until a
 # successful connection is made. The list is first randomly sorted if "random"

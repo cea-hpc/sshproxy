@@ -5,6 +5,7 @@
 # binaries
 sshproxy/sshproxy
 sshproxy-dumpd/sshproxy-dumpd
+sshproxy-managerd/sshproxy-managerd
 sshproxy-replay/sshproxy-replay
 
 # generated doc

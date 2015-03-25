@@ -14,12 +14,13 @@ SSHPROXY_DUMPD_SRC	= $(wildcard sshproxy-dumpd/*.go)
 SSHPROXY_MANAGERD_SRC	= $(wildcard sshproxy-managerd/*.go)
 SSHPROXY_REPLAY_SRC	= $(wildcard sshproxy-replay/*.go)
 GROUPGO_SRC		= $(wildcard group.go/*.go)
+MANAGER_SRC		= $(wildcard manager/*.go)
 RECORD_SRC		= $(wildcard record/*.go)
 ROUTE_SRC		= $(wildcard route/*.go)
 UTILS_SRC		= $(wildcard utils/*.go)
 
 EXE	= sshproxy/sshproxy sshproxy-dumpd/sshproxy-dumpd sshproxy-managerd/sshproxy-managerd sshproxy-replay/sshproxy-replay
-MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8
+MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy-managerd.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-managerd.8 doc/sshproxy-replay.8
 
 all: $(EXE) $(MANDOC)
 
@@ -29,7 +30,7 @@ all: $(EXE) $(MANDOC)
 %.8: %.txt
 	a2x $(ASCIIDOC_OPTS) -f manpage $<
 
-sshproxy/sshproxy: $(SSHPROXY_SRC) $(GROUPGO_SRC) $(RECORD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
+sshproxy/sshproxy: $(SSHPROXY_SRC) $(GROUPGO_SRC) $(MANAGER_SRC) $(RECORD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
 	cd sshproxy && go build $(GO_OPTS)
 
 sshproxy-dumpd/sshproxy-dumpd: $(SSHPROXY_DUMPD_SRC) $(RECORD_SRC) $(UTILS_SRC)
