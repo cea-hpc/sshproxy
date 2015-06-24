@@ -257,6 +257,24 @@ func main() {
 		}()
 	}
 
+	// Launch goroutine which exits sshproxy if it's attached to PID 1
+	// (which means its ssh parent connection is dead).
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		for {
+			select {
+			case <-time.After(1 * time.Second):
+				if os.Getppid() == 1 {
+					log.Warning("SSH parent connection is dead")
+					os.Exit(0)
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+
 	original_cmd := os.Getenv("SSH_ORIGINAL_COMMAND")
 	log.Debug("original_cmd = %s", original_cmd)
 
