@@ -1,22 +1,45 @@
 sshproxy
 ========
 
+What is sshproxy?
+-----------------
+
+sshproxy is used on a gateway to transparently proxy a user SSH connection on
+the gateway to an internal host via SSH. scp, sftp, rsync, etc. are supported.
+
+sshproxy defines routes which bind an SSH listening address to a pool of
+destination hosts. It can then choose the first available destination or
+load-balance the connections with a simple round-robin algorithm.
+
+Because of its design sshproxy is stateless (it is launched as a
++ForceCommand+ by sshd). It can be made stateful by using the
++sshproxy-managerd+ daemon which:
+
+- remembers users connections and always connects a user to the same
+  destination while a connection to this destination is alive,
+- periodically checks if destination hosts are alive.
+
+sshproxy can be configured to monitor SSH sessions and either to save them in
+files or to send them to the very simple +sshproxy-dumpd+ daemon. Sessions can
+be replayed with the +sshproxy-replay+ command.
+
 Compilation
 -----------
 
 Install the Go compiler suite: see http://golang.org/doc/install for details.
 
-Unpack the source in '$HOME/go/src' (i.e. this file should be
-'$HOME/go/src/sshproxy/README').
+Define and export the +$GOPATH+ directory where the source code will be
+unpacked and the dependencies downloaded (e.g. '$HOME/go'):
+
+	$ export GOPATH=$HOME/go
+	$ mkdir -p $GOPATH/src
+	$ cd $GOPATH/src
+	$ tar xvJf sshproxy-X.Y.Z.tar.xz
 
 Fetch the dependencies (git and Internet access are required):
 
-	$ export GOPATH=$HOME/go
-	$ cd $HOME/go/src/sshproxy
-	$ go get -d
-
-The dependencies are in '$HOME/go' and you may want to add the 'GOPATH'
-directory to your '.bashrc'.
+	$ cd $GOPATH/src/sshproxy-X.Y.Z
+	$ go get -d ./...
 
 Compile everything:
 
@@ -25,17 +48,46 @@ Compile everything:
 Installation
 ------------
 
-Copy 'sshproxy' binary to '/sbin' and 'sshproxy.yaml' to '/etc/sshproxy'.
+Install binaries and manpages:
 
-Configure '/etc/sshproxy/sshproxy.yaml' to suit your needs.
+	# make install
 
-Modify the SSH daemon configuration '/etc/ssh/sshd_config' by adding:
++sshproxy+, +sshproxy-managerd+ and +sshproxy-dumpd+ are installed in
++/usr/sbin+ and +sshproxy-replay+ in +/usr/bin+.
 
-	ForceCommand /sbin/sshproxy
+Configuration
+-------------
+
+There are commented configuration files in the +config+ directory.
+
+If you want to use +sshproxy-managerd+ you need its configuration file
++/etc/sshproxy/sshproxy-managerd.yaml+. There are service files for +Upstart+
+and +systemd+ in the +misc+ directory to start +sshproxy-managerd+.
+
+Configure +/etc/sshproxy/sshproxy.yaml+ to suit your needs.
+
+Modify the SSH daemon configuration +/etc/ssh/sshd_config+ by adding:
+
+	ForceCommand /usr/sbin/sshproxy
+
+Copying
+-------
+
+Copyright (C) 2015 CEA
+
+sshproxy is distributed under the CeCILL-B, a French transposition of the BSD
+license. See the included files +Licence_CeCILL-B_V1-en.txt+ (English version)
+and +Licence_CeCILL-B_V1-fr.txt+ (French version) or visit
+http://www.cecill.info for details.
+
+Author
+------
+
+Arnaud Guignard <arnaud.guignard@cea.fr>
 
 Documentation
 -------------
 
-See files in 'doc' directory.
+See files in the +doc+ directory.
 
 // vim:tw=78:ft=asciidoc:
