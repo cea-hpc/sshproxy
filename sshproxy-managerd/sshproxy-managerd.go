@@ -230,8 +230,10 @@ var commandHandlers = map[string]commandHandler{
 	"failure":    failureHandler,
 }
 
-// connectHandler handles the "connect user host[:port]" command. It returns a
-// destination or an error.
+// connectHandler handles the "connect user host[:port]" command.
+//
+// It returns a destination as first value or an empty string in case of error
+// (with the error as second value).
 func connectHandler(args []string) (string, error) {
 	if len(args) != 2 {
 		return "", notEnoughArgumentsError
@@ -272,8 +274,10 @@ func connectHandler(args []string) (string, error) {
 	return dest, nil
 }
 
-// disconnectHandler handles the "disconnect user host[:port]" command. It
-// always returns an empty string but an error can be returned.
+// disconnectHandler handles the "disconnect user host[:port]" command.
+//
+// It always returns an empty string as first value.
+// In case of error, the error is returned as second value.
 func disconnectHandler(args []string) (string, error) {
 	if len(args) != 2 {
 		return "", notEnoughArgumentsError
@@ -294,8 +298,10 @@ func disconnectHandler(args []string) (string, error) {
 	return "", nil
 }
 
-// infoHandler handles the "info (connections|checks)" command. It returns the
-// infos or an error.
+// infoHandler handles the "info (connections|checks)" command.
+//
+// It returns the infos as first value or an empty string in case of error
+// (with the error as second value).
 func infoHandler(args []string) (string, error) {
 	if len(args) == 0 {
 		return "", notEnoughArgumentsError
@@ -328,8 +334,10 @@ func infoHandler(args []string) (string, error) {
 	return strings.Join(lines, "\r\n"), nil
 }
 
-// failureHandler handles the "failure host[:port]" command. It always returns
-// an empty string but an error can be returned.
+// failureHandler handles the "failure host[:port]" command.
+//
+// It always returns an empty string as first value.
+// In case of error, the error is returned as second value.
 func failureHandler(args []string) (string, error) {
 	if len(args) != 1 {
 		return "", notEnoughArgumentsError
