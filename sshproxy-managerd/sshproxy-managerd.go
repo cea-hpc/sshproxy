@@ -246,9 +246,15 @@ func connectHandler(args []string) (string, error) {
 	pc, ok := proxiedConnections[key]
 	if ok {
 		log.Info("found connection for %s: %s", key, pc.Dest)
-		pc.N++
-		pc.Ts = time.Now()
-		return pc.Dest, nil
+		host, port, _ := utils.SplitHostPort(pc.Dest)
+		if managerHostChecker.Check(host, port) {
+			pc.N++
+			pc.Ts = time.Now()
+			return pc.Dest, nil
+		} else {
+			log.Info("cannot connect %s to already existing connection(s) to %s: host down", key, pc.Dest)
+			managerHostChecker.Update(host, port, false, time.Now())
+		}
 	}
 
 	dest, err := selectRoute(user, hostport)
@@ -335,18 +341,13 @@ func failureHandler(args []string) (string, error) {
 		return "", invalidHostError
 	}
 
-	// Check host before removing it
+	// Check host before marking it down
 	ts := time.Now()
 	if route.CanConnect(host, port) {
 		managerHostChecker.Update(host, port, true, ts)
 		return "", fmt.Errorf("%s is alive", hostport)
 	} else {
 		managerHostChecker.Update(host, port, false, ts)
-		for k, pc := range proxiedConnections {
-			if pc.Dest == hostport {
-				delete(proxiedConnections, k)
-			}
-		}
 	}
 
 	return "", nil
