@@ -98,9 +98,25 @@ func loadConfig(config_file string) error {
 	return nil
 }
 
+// State of an host
+type State int
+
+const (
+	Up       State = iota // host is up
+	Down                  // host is down
+	Disabled              // host is disabled
+)
+
+// Names associated with states
+var StateNames = map[State]string{
+	Up:       "up",
+	Down:     "down",
+	Disabled: "disabled",
+}
+
 // hostState represents the result of an host check.
 type hostState struct {
-	Alive bool      // true is host is alive, false otherwise
+	State State     // host state (see State for available states)
 	Ts    time.Time // time of last check
 }
 
@@ -116,7 +132,7 @@ func NewHostChecker() *hostChecker {
 	return &hostChecker{make(map[string]*hostState)}
 }
 
-// Check checks if an host is alive.
+// Check checks if an host is enabled and alive.
 //
 // It looks for it in its internal view. If found and its last check is less
 // than config.Check_Interval duration it returns its known state. Otherwise it
@@ -125,27 +141,52 @@ func NewHostChecker() *hostChecker {
 func (hc *hostChecker) Check(host, port string) bool {
 	ts := time.Now()
 	dst := net.JoinHostPort(host, port)
+	var state State
 	s, ok := hc.States[dst]
 	switch {
 	case !ok:
+		state = hc.DoCheck(host, port)
+	case s.State == Disabled:
+		state = s.State
+	case ts.Sub(s.Ts) > config.Check_Interval.Duration():
+		state = hc.DoCheck(host, port)
+	default:
+		state = s.State
+	}
+	return state == Up
+}
+
+// DoCheck checks if an host is alive and updates the internal view.
+func (hc *hostChecker) DoCheck(host, port string) State {
+	state := Down
+	if route.CanConnect(host, port) {
+		state = Up
+	}
+	hc.Update(host, port, state, time.Now())
+	return state
+}
+
+// Update updates (or creates) the state of an host in the internal view.
+func (hc *hostChecker) Update(host, port string, state State, ts time.Time) {
+	dst := net.JoinHostPort(host, port)
+	if s, ok := hc.States[dst]; ok {
+		s.State = state
+		s.Ts = ts
+	} else {
 		s = &hostState{
-			Alive: route.CanConnect(host, port),
+			State: state,
 			Ts:    ts,
 		}
 		hc.States[dst] = s
-	case ts.Sub(s.Ts) > config.Check_Interval.Duration():
-		s.Alive = route.CanConnect(host, port)
-		s.Ts = ts
 	}
-	return s.Alive
 }
 
-// Update updates the state of an host if present in the internal view.
-func (hc *hostChecker) Update(host, port string, alive bool, ts time.Time) {
+// IsDisabled checks if an host is disabled.
+func (hc *hostChecker) IsDisabled(host, port string) bool {
 	if s, ok := hc.States[net.JoinHostPort(host, port)]; ok {
-		s.Alive = alive
-		s.Ts = ts
+		return s.State == Disabled
 	}
+	return false
 }
 
 // proxiedConn represents the details of a proxied connection for a couple
@@ -225,7 +266,9 @@ type commandHandler func([]string) (string, error)
 // commandHandlers associates available handlers for known commands.
 var commandHandlers = map[string]commandHandler{
 	"connect":    connectHandler,
+	"disable":    disableHandler,
 	"disconnect": disconnectHandler,
+	"enable":     enableHandler,
 	"info":       infoHandler,
 	"failure":    failureHandler,
 }
@@ -254,8 +297,10 @@ func connectHandler(args []string) (string, error) {
 			pc.Ts = time.Now()
 			return pc.Dest, nil
 		} else {
-			log.Info("cannot connect %s to already existing connection(s) to %s: host down", key, pc.Dest)
-			managerHostChecker.Update(host, port, false, time.Now())
+			log.Info("cannot connect %s to already existing connection(s) to %s: host down or disabled", key, pc.Dest)
+			if !managerHostChecker.IsDisabled(host, port) {
+				managerHostChecker.Update(host, port, Down, time.Now())
+			}
 		}
 	}
 
@@ -272,6 +317,25 @@ func connectHandler(args []string) (string, error) {
 
 	log.Info("new connection for %s: %s", key, dest)
 	return dest, nil
+}
+
+// disableHandler handles the "disable host:port command.
+//
+// It always returns an empty string as first value.
+// In case of error, the error is returned as second value.
+func disableHandler(args []string) (string, error) {
+	if len(args) != 1 {
+		return "", notEnoughArgumentsError
+	}
+
+	hostport := args[0]
+	host, port, err := utils.SplitHostPort(hostport)
+	if err != nil {
+		return "", invalidHostError
+	}
+	managerHostChecker.Update(host, port, Disabled, time.Now())
+
+	return "", nil
 }
 
 // disconnectHandler handles the "disconnect user host[:port]" command.
@@ -293,6 +357,30 @@ func disconnectHandler(args []string) (string, error) {
 	if pc.N == 0 {
 		log.Info("no more active connection for %s (to %s): removing", key, pc.Dest)
 		delete(proxiedConnections, key)
+	}
+
+	return "", nil
+}
+
+// enableHandler handles the "enable host:port" command.
+//
+// It always returns an empty string as first value.
+// In case of error, the error is returned as second value.
+func enableHandler(args []string) (string, error) {
+	if len(args) != 1 {
+		return "", notEnoughArgumentsError
+	}
+
+	hostport := args[0]
+	host, port, err := utils.SplitHostPort(hostport)
+	if err != nil {
+		return "", invalidHostError
+	}
+
+	if managerHostChecker.IsDisabled(host, port) {
+		managerHostChecker.DoCheck(host, port)
+	} else {
+		return "", fmt.Errorf("host %s is already enabled", hostport)
 	}
 
 	return "", nil
@@ -320,11 +408,7 @@ func infoHandler(args []string) (string, error) {
 		lines = make([]string, len(managerHostChecker.States))
 		i := 0
 		for k, v := range managerHostChecker.States {
-			state := "down"
-			if v.Alive {
-				state = "up"
-			}
-			lines[i] = fmt.Sprintf("host=%s state=%s ts=%s", k, state, v.Ts.Format(time.RFC3339Nano))
+			lines[i] = fmt.Sprintf("host=%s state=%s ts=%s", k, StateNames[v.State], v.Ts.Format(time.RFC3339Nano))
 			i++
 		}
 	default:
@@ -350,12 +434,12 @@ func failureHandler(args []string) (string, error) {
 	}
 
 	// Check host before marking it down
-	ts := time.Now()
-	if route.CanConnect(host, port) {
-		managerHostChecker.Update(host, port, true, ts)
-		return "", fmt.Errorf("%s is alive", hostport)
+	if !managerHostChecker.IsDisabled(host, port) {
+		if managerHostChecker.DoCheck(host, port) == Up {
+			return "", fmt.Errorf("%s is alive", hostport)
+		}
 	} else {
-		managerHostChecker.Update(host, port, false, ts)
+		return "", fmt.Errorf("%s is disabled")
 	}
 
 	return "", nil

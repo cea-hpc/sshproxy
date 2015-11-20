@@ -36,9 +36,18 @@ can be sent to the listening port, followed by a '\r\n':
 	Asks for a destination when the 'user' is connected to 'host:port'. It
 	answers with an 'host:port' or closes the connection.
 
+*disable host:port*::
+	Disables a host. A disabled host will not be proposed as a
+	destination. The only way to enable it again is to send the 'enable'
+	command. It could be used for host maintenance. There is no answer.
+
 *disconnect user host:port*::
 	Tells that the 'user' is going to be disconnected to 'host:port'.
 	There is no answer.
+
+*enable host:port*::
+	Enables a destination if it was previously disabled with the 'disable'
+	command. There is no answer.
 
 *failure host:port*::
 	Tells that the 'host:port' is unavailable. There is no answer. It will
