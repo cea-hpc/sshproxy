@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -33,7 +34,7 @@ func NewClient(manager, username, sshd string, timeout time.Duration) *Client {
 
 // sendCommand sends command to a manager (adding '\r\n').
 // It returns the response as a string or an error.
-func (c *Client) sendCommand(command string, expect_response bool) (string, error) {
+func (c *Client) sendCommand(command string) (string, error) {
 	var conn net.Conn
 	var err error
 	if c.Timeout == 0 {
@@ -58,21 +59,47 @@ func (c *Client) sendCommand(command string, expect_response bool) (string, erro
 		return "", fmt.Errorf("partial write to %s", c.Manager)
 	}
 
-	if expect_response {
-		buf := new(bytes.Buffer)
-		if _, err := io.Copy(buf, conn); err != nil {
-			return "", fmt.Errorf("reading from %s: %s", c.Manager, err)
-		}
-		return buf.String(), nil
+	buf := new(bytes.Buffer)
+	if _, err := io.Copy(buf, conn); err != nil {
+		return "", fmt.Errorf("reading from %s: %s", c.Manager, err)
 	}
 
-	return "", nil
+	resp := buf.String()
+	if strings.TrimSpace(resp) == "" {
+		return "", fmt.Errorf("received empty response from %s", c.Manager)
+	}
+
+	fields := strings.SplitN(resp, "\r\n", 2)
+	header := fields[0]
+
+	switch {
+	case header[0] == '+':
+		return header[1:], nil
+	case header[0] == '-':
+		errmsg := header[1:]
+		if strings.HasPrefix(header, "-ERR ") {
+			errmsg = header[5:]
+		}
+		return "", fmt.Errorf("received error from %s: %s", c.Manager, errmsg)
+	case header[0] == '$':
+		datalen, err := strconv.Atoi(header[1:])
+		if err != nil {
+			return "", fmt.Errorf("invalid response from %s: %s", c.Manager, resp)
+		}
+		data = fields[1][:datalen]
+		if len(data) != datalen {
+			return "", fmt.Errorf("missing data from %s: %s", c.Manager, resp)
+		}
+		return data, nil
+	}
+
+	return "", fmt.Errorf("unknown response from %s: %s", c.Manager, resp)
 }
 
 // Connect sends a connection request to the manager.
 // It returns an IP address with a port or an error.
 func (c *Client) Connect() (string, string, error) {
-	line, err := c.sendCommand(fmt.Sprintf("connect %s %s", c.Username, c.Sshd), true)
+	hostport, err := c.sendCommand(fmt.Sprintf("connect %s %s", c.Username, c.Sshd))
 	if err != nil {
 		return "", "", err
 	}
@@ -87,13 +114,13 @@ func (c *Client) Connect() (string, string, error) {
 // Disconnect sends a disconnection request to the manager.
 // It returns an error if any.
 func (c *Client) Disconnect() error {
-	_, err := c.sendCommand(fmt.Sprintf("disconnect %s %s", c.Username, c.Sshd), false)
+	_, err := c.sendCommand(fmt.Sprintf("disconnect %s %s", c.Username, c.Sshd))
 	return err
 }
 
 // Disconnect sends a failure request to the manager for the specified destination.
 // It returns an error if any.
 func (c *Client) Failure(dest string) error {
-	_, err := c.sendCommand(fmt.Sprintf("failure %s", dest), false)
+	_, err := c.sendCommand(fmt.Sprintf("failure %s", dest))
 	return err
 }

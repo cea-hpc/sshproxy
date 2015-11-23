@@ -273,10 +273,22 @@ var commandHandlers = map[string]commandHandler{
 	"failure":    failureHandler,
 }
 
+// The protocol for communicating with the managerd is simple and based on the
+// Redis protocol (http://redis.io/topics/protocol):
+//   - all commands and responses are terminated with CRLF
+//   - the client sends an ASCII command
+//   - the server ASCII response begins with:
+//     * '+' followed by a string for simple strings
+//     * '-' followed by an error message in case of error
+//     * '$' for bulk strings (i.e. strings with CRLF or binary data):
+//       . the '$' is followed by the number of bytes of the string terminated with CRLF
+//       . the string itself
+//       . the mandatory CRLF
+//       For example: '$6\r\nHELLO!\r\n' (which could also be sent as '+HELLO!\r\n')
+
 // connectHandler handles the "connect user host[:port]" command.
 //
-// It returns a destination as first value or an empty string in case of error
-// (with the error as second value).
+// It returns a destination or an error message.
 func connectHandler(args []string) (string, error) {
 	if len(args) != 2 {
 		return "", notEnoughArgumentsError
@@ -295,7 +307,7 @@ func connectHandler(args []string) (string, error) {
 		if managerHostChecker.Check(host, port) {
 			pc.N++
 			pc.Ts = time.Now()
-			return pc.Dest, nil
+			return fmt.Sprintf("+%s", pc.Dest), nil
 		} else {
 			log.Info("cannot connect %s to already existing connection(s) to %s: host down or disabled", key, pc.Dest)
 			if !managerHostChecker.IsDisabled(host, port) {
@@ -316,13 +328,12 @@ func connectHandler(args []string) (string, error) {
 	}
 
 	log.Info("new connection for %s: %s", key, dest)
-	return dest, nil
+	return fmt.Sprintf("+%s", dest), nil
 }
 
 // disableHandler handles the "disable host:port command.
 //
-// It always returns an empty string as first value.
-// In case of error, the error is returned as second value.
+// It returns "+OK" or an error message.
 func disableHandler(args []string) (string, error) {
 	if len(args) != 1 {
 		return "", notEnoughArgumentsError
@@ -335,13 +346,12 @@ func disableHandler(args []string) (string, error) {
 	}
 	managerHostChecker.Update(host, port, Disabled, time.Now())
 
-	return "", nil
+	return "+OK", nil
 }
 
 // disconnectHandler handles the "disconnect user host[:port]" command.
 //
-// It always returns an empty string as first value.
-// In case of error, the error is returned as second value.
+// It returns "+OK" or an error message.
 func disconnectHandler(args []string) (string, error) {
 	if len(args) != 2 {
 		return "", notEnoughArgumentsError
@@ -350,7 +360,7 @@ func disconnectHandler(args []string) (string, error) {
 	key := genKey(args[0], args[1])
 	pc, ok := proxiedConnections[key]
 	if !ok {
-		return "", fmt.Errorf("key is not present: %s", key)
+		return "+OK", fmt.Errorf("key is not present: %s", key)
 	}
 
 	pc.N--
@@ -359,13 +369,12 @@ func disconnectHandler(args []string) (string, error) {
 		delete(proxiedConnections, key)
 	}
 
-	return "", nil
+	return "+OK", nil
 }
 
 // enableHandler handles the "enable host:port" command.
 //
-// It always returns an empty string as first value.
-// In case of error, the error is returned as second value.
+// It returns "+OK" or an error message.
 func enableHandler(args []string) (string, error) {
 	if len(args) != 1 {
 		return "", notEnoughArgumentsError
@@ -380,16 +389,15 @@ func enableHandler(args []string) (string, error) {
 	if managerHostChecker.IsDisabled(host, port) {
 		managerHostChecker.DoCheck(host, port)
 	} else {
-		return "", fmt.Errorf("host %s is already enabled", hostport)
+		return "+OK", fmt.Errorf("host %s is already enabled", hostport)
 	}
 
-	return "", nil
+	return "+OK", nil
 }
 
 // infoHandler handles the "info (connections|checks)" command.
 //
-// It returns the infos as first value or an empty string in case of error
-// (with the error as second value).
+// It returns the infos or an error message.
 func infoHandler(args []string) (string, error) {
 	if len(args) == 0 {
 		return "", notEnoughArgumentsError
@@ -415,13 +423,13 @@ func infoHandler(args []string) (string, error) {
 		return "", fmt.Errorf("unknown parameter: %s", args[0])
 	}
 
-	return strings.Join(lines, "\r\n"), nil
+	msg := strings.Join(lines, "\r\n")
+	return fmt.Sprintf("$%d\r\n%s", len(msg), msg), nil
 }
 
 // failureHandler handles the "failure host[:port]" command.
 //
-// It always returns an empty string as first value.
-// In case of error, the error is returned as second value.
+// It returns "+OK" or an error message.
 func failureHandler(args []string) (string, error) {
 	if len(args) != 1 {
 		return "", notEnoughArgumentsError
@@ -436,13 +444,13 @@ func failureHandler(args []string) (string, error) {
 	// Check host before marking it down
 	if !managerHostChecker.IsDisabled(host, port) {
 		if managerHostChecker.DoCheck(host, port) == Up {
-			return "", fmt.Errorf("%s is alive", hostport)
+			return "+OK", fmt.Errorf("%s is alive", hostport)
 		}
 	} else {
-		return "", fmt.Errorf("%s is disabled")
+		return "+OK", fmt.Errorf("%s is disabled")
 	}
 
-	return "", nil
+	return "+OK", nil
 }
 
 // request represents a request from a client.
@@ -494,6 +502,20 @@ func serve(queue <-chan *request, done <-chan struct{}) {
 	}
 }
 
+// formatError returns an error message string according to sshproxy-managerd
+// protocol (i.e. '-ERR error message')
+func formatError(err error) string {
+	return fmt.Sprintf("-ERR %s", err)
+}
+
+// writeResponse writes a response to a client.
+func writeResponse(c net.Conn, response string) {
+	writer := bufio.NewWriter(c)
+	writer.WriteString(response)
+	writer.WriteString("\r\n")
+	writer.Flush()
+}
+
 // acquire reads a command from a client, writes the request to the queue
 // channel and waits for a response or an error.
 //
@@ -527,13 +549,11 @@ func acquire(c net.Conn, queue chan *request) {
 	select {
 	case err := <-r.errc:
 		log.Error("handling request '%s' from %s: %s", req, addr, err)
+		writeResponse(c, formatError(err))
 		return
 	case response := <-r.response:
 		if response != "" {
-			writer := bufio.NewWriter(c)
-			writer.WriteString(response)
-			writer.WriteString("\r\n")
-			writer.Flush()
+			writeResponse(c, response)
 		}
 	}
 }
