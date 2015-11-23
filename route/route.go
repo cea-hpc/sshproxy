@@ -65,12 +65,7 @@ func CanConnect(hostport string) bool {
 // selectDestinationOrdered selects the first reachable destination from a list
 // of destinations. It returns a string "host:port" or an error.
 func selectDestinationOrdered(destinations []string, checker HostChecker) (string, error) {
-	for i, dst := range destinations {
-		// always return the last destination without trying to connect
-		if i == len(destinations)-1 {
-			return dst, nil
-		}
-
+	for _, dst := range destinations {
 		if checker == nil || checker.Check(dst) {
 			return dst, nil
 		}
