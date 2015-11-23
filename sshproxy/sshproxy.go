@@ -42,34 +42,27 @@ var log = logging.MustGetLogger("sshproxy")
 
 // findDestination finds a reachable destination for the sshd server according
 // to the manager if available or the routes and route_select algorithm.
-// It returns host, port or an error if any.
-func findDestination(mclient *manager.Client, routes map[string][]string, route_select, sshd_hostport string) (string, string, error) {
+// It returns a string with host:port or an error if any.
+func findDestination(mclient *manager.Client, routes map[string][]string, route_select, sshd_hostport string) (string, error) {
 	if mclient != nil {
-		host, port, err := mclient.Connect()
+		dst, err := mclient.Connect()
 		if err != nil {
 			// disable manager in case of error
 			mclient = nil
 			log.Error("%s", err)
 		} else {
-			log.Debug("got response from manager: %s", net.JoinHostPort(host, port))
-			return host, port, nil
+			log.Debug("got response from manager: %s", dst)
+			return dst, nil
 		}
-	}
-
-	sshd_host, sshd_port, err := utils.SplitHostPort(sshd_hostport)
-	if err != nil {
-		return "", "", fmt.Errorf("invalid format for host '%s': %s", sshd_hostport, err)
 	}
 
 	checker := new(route.BasicHostChecker)
 	if destinations, present := routes[sshd_hostport]; present {
 		return route.Select(route_select, destinations, checker)
-	} else if destinations, present := routes[sshd_host]; sshd_port == utils.DefaultSshPort && present {
-		return route.Select(route_select, destinations, checker)
 	} else if destinations, present := routes[route.DefaultRouteKeyword]; present {
 		return route.Select(route_select, destinations, checker)
 	}
-	return "", "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_hostport)
+	return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_hostport)
 }
 
 // setEnvironment sets environment variables from a map whose keys are the
@@ -241,9 +234,13 @@ func main() {
 		}()
 	}
 
-	host, port, err := findDestination(mclient, config.Routes, config.Route_Select, ssh_infos.Dst())
+	hostport, err := findDestination(mclient, config.Routes, config.Route_Select, ssh_infos.Dst())
 	if err != nil {
 		log.Fatalf("Finding destination: %s", err)
+	}
+	host, port, err := utils.SplitHostPort(hostport)
+	if err != nil {
+		log.Fatalf("Invalid destination '%s': %s", hostport, err)
 	}
 
 	// waitgroup and channel to stop our background command when exiting.
@@ -308,7 +305,7 @@ func main() {
 		recorder.Run()
 	}()
 
-	log.Notice("proxied to %s:%s", host, port)
+	log.Notice("proxied to %s", hostport)
 
 	if term.IsTerminal(os.Stdout.Fd()) {
 		err = runTtyCommand(cmd, done, recorder)

@@ -97,18 +97,16 @@ func (c *Client) sendCommand(command string) (string, error) {
 }
 
 // Connect sends a connection request to the manager.
-// It returns an IP address with a port or an error.
-func (c *Client) Connect() (string, string, error) {
+// It returns a string "host:port" or an error.
+func (c *Client) Connect() (string, error) {
 	hostport, err := c.sendCommand(fmt.Sprintf("connect %s %s", c.Username, c.Sshd))
 	if err != nil {
-		return "", "", err
+		return "", err
 	}
-	hostport := strings.TrimSpace(line)
-	host, port, err := net.SplitHostPort(hostport)
-	if err != nil {
-		return "", "", fmt.Errorf("invalid response from %s [=%s]: %s", c.Manager, hostport, err)
+	if _, _, err = net.SplitHostPort(hostport); err != nil {
+		return "", fmt.Errorf("invalid response from %s [=%s]: %s", c.Manager, hostport, err)
 	}
-	return host, port, nil
+	return hostport, nil
 }
 
 // Disconnect sends a disconnection request to the manager.

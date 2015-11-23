@@ -15,14 +15,12 @@ import (
 	"net"
 	"time"
 
-	"sshproxy/utils"
-
 	"github.com/op/go-logging"
 )
 
 var log = logging.MustGetLogger("sshproxy/route")
 
-type selectDestinationFunc func([]string, HostChecker) (string, string, error)
+type selectDestinationFunc func([]string, HostChecker) (string, error)
 
 var (
 	// default algorithm to find route
@@ -35,15 +33,15 @@ var (
 //
 // Check tests if a connection to host:port can be made.
 type HostChecker interface {
-	Check(host, port string) bool
+	Check(hostport string) bool
 }
 
 // BasicHostChecker implements the HostChecker interface.
 type BasicHostChecker struct{}
 
 // Check tests if a conneciton to host:port can be made with a 1s timeout.
-func (bhc *BasicHostChecker) Check(host, port string) bool {
-	return CanConnect(host, port)
+func (bhc *BasicHostChecker) Check(hostport string) bool {
+	return CanConnect(hostport)
 }
 
 var (
@@ -54,10 +52,10 @@ var (
 )
 
 // CanConnect tests if a connection to host:port can be made (with a 1s timeout).
-func CanConnect(host, port string) bool {
-	c, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 1*time.Second)
+func CanConnect(hostport string) bool {
+	c, err := net.DialTimeout("tcp", hostport, 1*time.Second)
 	if err != nil {
-		log.Info("cannot connect to %s: %s", net.JoinHostPort(host, port), err)
+		log.Info("cannot connect to %s: %s", hostport, err)
 		return false
 	}
 	c.Close()
@@ -65,30 +63,25 @@ func CanConnect(host, port string) bool {
 }
 
 // selectDestinationOrdered selects the first reachable destination from a list
-// of destinations. It returns its host and port.
-func selectDestinationOrdered(destinations []string, checker HostChecker) (string, string, error) {
+// of destinations. It returns a string "host:port" or an error.
+func selectDestinationOrdered(destinations []string, checker HostChecker) (string, error) {
 	for i, dst := range destinations {
-		host, port, err := utils.SplitHostPort(dst)
-		if err != nil {
-			return "", "", err
-		}
-
 		// always return the last destination without trying to connect
 		if i == len(destinations)-1 {
-			return host, port, nil
+			return dst, nil
 		}
 
-		if checker == nil || checker.Check(host, port) {
-			return host, port, nil
+		if checker == nil || checker.Check(dst) {
+			return dst, nil
 		}
 	}
-	return "", "", fmt.Errorf("no valid destination found")
+	return "", fmt.Errorf("no valid destination found")
 }
 
 // selectDestinationRandom randomizes the order of the provided list of
 // destinations and selects the first reachable one. It returns its host and
 // port.
-func selectDestinationRandom(destinations []string, checker HostChecker) (string, string, error) {
+func selectDestinationRandom(destinations []string, checker HostChecker) (string, error) {
 	rand.Seed(time.Now().UnixNano())
 	rdestinations := make([]string, len(destinations))
 	perm := rand.Perm(len(destinations))
@@ -99,7 +92,7 @@ func selectDestinationRandom(destinations []string, checker HostChecker) (string
 	return selectDestinationOrdered(rdestinations, checker)
 }
 
-func Select(route_select string, destinations []string, checker HostChecker) (string, string, error) {
+func Select(route_select string, destinations []string, checker HostChecker) (string, error) {
 	return routeSelecters[route_select](destinations, checker)
 }
 

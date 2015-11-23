@@ -142,18 +142,17 @@ func NewHostChecker() *hostChecker {
 // than config.Check_Interval duration it returns its known state. Otherwise it
 // performs a check and updates (or adds a state to) the internal view
 // accordingly.
-func (hc *hostChecker) Check(host, port string) bool {
+func (hc *hostChecker) Check(hostport string) bool {
 	ts := time.Now()
-	dst := net.JoinHostPort(host, port)
 	var state State
-	s, ok := hc.States[dst]
+	s, ok := hc.States[hostport]
 	switch {
 	case !ok:
-		state = hc.DoCheck(host, port)
+		state = hc.DoCheck(hostport)
 	case s.State == Disabled:
 		state = s.State
 	case ts.Sub(s.Ts) > config.Check_Interval.Duration():
-		state = hc.DoCheck(host, port)
+		state = hc.DoCheck(hostport)
 	default:
 		state = s.State
 	}
@@ -161,19 +160,18 @@ func (hc *hostChecker) Check(host, port string) bool {
 }
 
 // DoCheck checks if an host is alive and updates the internal view.
-func (hc *hostChecker) DoCheck(host, port string) State {
+func (hc *hostChecker) DoCheck(hostport string) State {
 	state := Down
-	if route.CanConnect(host, port) {
+	if route.CanConnect(hostport) {
 		state = Up
 	}
-	hc.Update(host, port, state, time.Now())
+	hc.Update(hostport, state, time.Now())
 	return state
 }
 
 // Update updates (or creates) the state of an host in the internal view.
-func (hc *hostChecker) Update(host, port string, state State, ts time.Time) {
-	dst := net.JoinHostPort(host, port)
-	if s, ok := hc.States[dst]; ok {
+func (hc *hostChecker) Update(hostport string, state State, ts time.Time) {
+	if s, ok := hc.States[hostport]; ok {
 		s.State = state
 		s.Ts = ts
 	} else {
@@ -181,13 +179,13 @@ func (hc *hostChecker) Update(host, port string, state State, ts time.Time) {
 			State: state,
 			Ts:    ts,
 		}
-		hc.States[dst] = s
+		hc.States[hostport] = s
 	}
 }
 
 // IsDisabled checks if an host is disabled.
-func (hc *hostChecker) IsDisabled(host, port string) bool {
-	if s, ok := hc.States[net.JoinHostPort(host, port)]; ok {
+func (hc *hostChecker) IsDisabled(hostport string) bool {
+	if s, ok := hc.States[hostport]; ok {
 		return s.State == Disabled
 	}
 	return false
@@ -227,15 +225,12 @@ func getAlgorithmAndRoutes(user, hostport string, groups map[string]bool) (strin
 
 	algo := ""
 	dests := []string{}
-	host, port, _ := utils.SplitHostPort(hostport)
 
 	for _, cfg := range configs {
 		if cfg.Route_Select != "" {
 			algo = cfg.Route_Select
 		}
 		if d, ok := cfg.Routes[hostport]; ok {
-			dests = d
-		} else if d, ok := cfg.Routes[host]; port == utils.DefaultSshPort && ok {
 			dests = d
 		} else if d, ok := cfg.Routes[route.DefaultRouteKeyword]; ok {
 			dests = d
@@ -256,12 +251,20 @@ func selectRoute(user, hostport string) (string, error) {
 
 	algo, dests := getAlgorithmAndRoutes(user, hostport, groups)
 
-	dhost, dport, err := route.Select(algo, dests, managerHostChecker)
+	dst, err := route.Select(algo, dests, managerHostChecker)
 	if err != nil {
 		return "", fmt.Errorf("cannot select route for user '%s': %s", user, err)
 	}
 
-	return net.JoinHostPort(dhost, dport), nil
+	return dst, nil
+}
+
+func checkHostPort(hostport string) (string, error) {
+	host, port, err := utils.SplitHostPort(hostport)
+	if err != nil {
+		return "", err
+	}
+	return net.JoinHostPort(host, port), nil
 }
 
 // commandHandler represents an handler for a protocol command.
@@ -298,8 +301,9 @@ func connectHandler(args []string) (string, error) {
 		return "", notEnoughArgumentsError
 	}
 
-	user, hostport := args[0], args[1]
-	if _, _, err := utils.SplitHostPort(hostport); err != nil {
+	user := args[0]
+	hostport, err := checkHostPort(args[1])
+	if err != nil {
 		return "", invalidHostError
 	}
 
@@ -307,15 +311,14 @@ func connectHandler(args []string) (string, error) {
 	pc, ok := proxiedConnections[key]
 	if ok {
 		log.Info("found connection for %s: %s", key, pc.Dest)
-		host, port, _ := utils.SplitHostPort(pc.Dest)
-		if managerHostChecker.Check(host, port) {
+		if managerHostChecker.Check(pc.Dest) {
 			pc.N++
 			pc.Ts = time.Now()
 			return fmt.Sprintf("+%s", pc.Dest), nil
 		} else {
 			log.Info("cannot connect %s to already existing connection(s) to %s: host down or disabled", key, pc.Dest)
-			if !managerHostChecker.IsDisabled(host, port) {
-				managerHostChecker.Update(host, port, Down, time.Now())
+			if !managerHostChecker.IsDisabled(pc.Dest) {
+				managerHostChecker.Update(pc.Dest, Down, time.Now())
 			}
 		}
 	}
@@ -335,7 +338,7 @@ func connectHandler(args []string) (string, error) {
 	return fmt.Sprintf("+%s", dst), nil
 }
 
-// disableHandler handles the "disable host:port command.
+// disableHandler handles the "disable host[:port] command.
 //
 // It returns "+OK" or an error message.
 func disableHandler(args []string) (string, error) {
@@ -343,12 +346,12 @@ func disableHandler(args []string) (string, error) {
 		return "", notEnoughArgumentsError
 	}
 
-	hostport := args[0]
-	host, port, err := utils.SplitHostPort(hostport)
+	hostport, err := checkHostPort(args[0])
 	if err != nil {
 		return "", invalidHostError
 	}
-	managerHostChecker.Update(host, port, Disabled, time.Now())
+
+	managerHostChecker.Update(hostport, Disabled, time.Now())
 
 	return "+OK", nil
 }
@@ -361,7 +364,13 @@ func disconnectHandler(args []string) (string, error) {
 		return "", notEnoughArgumentsError
 	}
 
-	key := genKey(args[0], args[1])
+	user := args[0]
+	hostport, err := checkHostPort(args[1])
+	if err != nil {
+		return "", invalidHostError
+	}
+
+	key := genKey(user, hostport)
 	pc, ok := proxiedConnections[key]
 	if !ok {
 		return "+OK", fmt.Errorf("key is not present: %s", key)
@@ -376,7 +385,7 @@ func disconnectHandler(args []string) (string, error) {
 	return "+OK", nil
 }
 
-// enableHandler handles the "enable host:port" command.
+// enableHandler handles the "enable host[:port]" command.
 //
 // It returns "+OK" or an error message.
 func enableHandler(args []string) (string, error) {
@@ -384,16 +393,15 @@ func enableHandler(args []string) (string, error) {
 		return "", notEnoughArgumentsError
 	}
 
-	hostport := args[0]
-	host, port, err := utils.SplitHostPort(hostport)
+	hostport, err := checkHostPort(args[0])
 	if err != nil {
 		return "", invalidHostError
 	}
 
-	if managerHostChecker.IsDisabled(host, port) {
-		managerHostChecker.DoCheck(host, port)
+	if managerHostChecker.IsDisabled(hostport) {
+		managerHostChecker.DoCheck(hostport)
 	} else {
-		return "+OK", fmt.Errorf("host %s is already enabled", hostport)
+		log.Warning("host %s is already enabled", hostport)
 	}
 
 	return "+OK", nil
@@ -439,15 +447,14 @@ func failureHandler(args []string) (string, error) {
 		return "", notEnoughArgumentsError
 	}
 
-	hostport := args[0]
-	host, port, err := utils.SplitHostPort(hostport)
+	hostport, err := checkHostPort(args[0])
 	if err != nil {
 		return "", invalidHostError
 	}
 
 	// Check host before marking it down
-	if !managerHostChecker.IsDisabled(host, port) {
-		if managerHostChecker.DoCheck(host, port) == Up {
+	if !managerHostChecker.IsDisabled(hostport) {
+		if managerHostChecker.DoCheck(hostport) == Up {
 			return "+OK", fmt.Errorf("%s is alive", hostport)
 		}
 	} else {
