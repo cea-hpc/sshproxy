@@ -120,7 +120,7 @@ func (c *Client) Disconnect() error {
 
 // Disconnect sends a failure request to the manager for the specified destination.
 // It returns an error if any.
-func (c *Client) Failure(dest string) error {
-	_, err := c.sendCommand(fmt.Sprintf("failure %s", dest))
+func (c *Client) Failure(dst string) error {
+	_, err := c.sendCommand(fmt.Sprintf("failure %s", dst))
 	return err
 }

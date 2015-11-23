@@ -320,19 +320,19 @@ func connectHandler(args []string) (string, error) {
 		}
 	}
 
-	dest, err := selectRoute(user, hostport)
+	dst, err := selectRoute(user, hostport)
 	if err != nil {
 		return "", err
 	}
 
 	proxiedConnections[key] = &proxiedConn{
-		Dest: dest,
+		Dest: dst,
 		N:    1,
 		Ts:   time.Now(),
 	}
 
-	log.Info("new connection for %s: %s", key, dest)
-	return fmt.Sprintf("+%s", dest), nil
+	log.Info("new connection for %s: %s", key, dst)
+	return fmt.Sprintf("+%s", dst), nil
 }
 
 // disableHandler handles the "disable host:port command.
