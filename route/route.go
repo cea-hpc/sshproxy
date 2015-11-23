@@ -10,7 +10,6 @@
 package route
 
 import (
-	"fmt"
 	"math/rand"
 	"net"
 	"time"
@@ -63,14 +62,15 @@ func CanConnect(hostport string) bool {
 }
 
 // selectDestinationOrdered selects the first reachable destination from a list
-// of destinations. It returns a string "host:port" or an error.
+// of destinations. It returns a string "host:port", an empty string (if no
+// destination is found) or an error.
 func selectDestinationOrdered(destinations []string, checker HostChecker) (string, error) {
 	for _, dst := range destinations {
 		if checker == nil || checker.Check(dst) {
 			return dst, nil
 		}
 	}
-	return "", fmt.Errorf("no valid destination found")
+	return "", nil
 }
 
 // selectDestinationRandom randomizes the order of the provided list of

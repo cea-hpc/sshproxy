@@ -42,7 +42,8 @@ var log = logging.MustGetLogger("sshproxy")
 
 // findDestination finds a reachable destination for the sshd server according
 // to the manager if available or the routes and route_select algorithm.
-// It returns a string with host:port or an error if any.
+// It returns a string with host:port, an empty string if no destination is
+// found or an error if any.
 func findDestination(mclient *manager.Client, routes map[string][]string, route_select, sshd_hostport string) (string, error) {
 	if mclient != nil {
 		dst, err := mclient.Connect()
@@ -51,7 +52,11 @@ func findDestination(mclient *manager.Client, routes map[string][]string, route_
 			mclient = nil
 			log.Error("%s", err)
 		} else {
-			log.Debug("got response from manager: %s", dst)
+			if dst == "" {
+				log.Debug("got empty response from manager")
+			} else {
+				log.Debug("got response from manager: %s", dst)
+			}
 			return dst, nil
 		}
 	}
@@ -235,8 +240,11 @@ func main() {
 	}
 
 	hostport, err := findDestination(mclient, config.Routes, config.Route_Select, ssh_infos.Dst())
-	if err != nil {
+	switch {
+	case err != nil:
 		log.Fatalf("Finding destination: %s", err)
+	case hostport == "":
+		log.Fatal("Cannot find a valid destination")
 	}
 	host, port, err := utils.SplitHostPort(hostport)
 	if err != nil {

@@ -86,6 +86,9 @@ func (c *Client) sendCommand(command string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("invalid response from %s: %s", c.Manager, resp)
 		}
+		if datalen == -1 {
+			return "", nil
+		}
 		data = fields[1][:datalen]
 		if len(data) != datalen {
 			return "", fmt.Errorf("missing data from %s: %s", c.Manager, resp)
@@ -102,6 +105,9 @@ func (c *Client) Connect() (string, error) {
 	hostport, err := c.sendCommand(fmt.Sprintf("connect %s %s", c.Username, c.Sshd))
 	if err != nil {
 		return "", err
+	}
+	if hostport == "" {
+		return "", nil
 	}
 	if _, _, err = net.SplitHostPort(hostport); err != nil {
 		return "", fmt.Errorf("invalid response from %s [=%s]: %s", c.Manager, hostport, err)

@@ -46,7 +46,10 @@ protocol (http://redis.io/topics/protocol):
 ** the string itself
 ** the mandatory CRLF
 
-For example: `$6\r\nHELLO!\r\n` (which could also be sent as `+HELLO!\r\n`)
+For example: `$6\r\nHELLO!\r\n` (which could also be sent as `+HELLO!\r\n`).
+
+A bulk string can also be used to represent a NULL value when the length is
+-1: `$-1\r\n`.
 --
 
 The following commands can be sent to the listening port:

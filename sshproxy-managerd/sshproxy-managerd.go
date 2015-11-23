@@ -241,8 +241,7 @@ func getAlgorithmAndRoutes(user, hostport string, groups map[string]bool) (strin
 }
 
 // selectRoute returns a destination for a user connected to an hostport. The
-// destination may or may not be available (e.g. if there is only one possible
-// destination, its connectivity is not checked).
+// destination is available before returning it.
 func selectRoute(user, hostport string) (string, error) {
 	groups, err := utils.GetGroupList(user)
 	if err != nil {
@@ -292,10 +291,12 @@ var commandHandlers = map[string]commandHandler{
 //       . the string itself
 //       . the mandatory CRLF
 //       For example: '$6\r\nHELLO!\r\n' (which could also be sent as '+HELLO!\r\n')
+//       A bulk string can also be used to represent a NULL value when the
+//       length is -1: '$-1\r\n'.
 
 // connectHandler handles the "connect user host[:port]" command.
 //
-// It returns a destination or an error message.
+// It returns a destination (which can be empty) or an error message.
 func connectHandler(args []string) (string, error) {
 	if len(args) != 2 {
 		return "", notEnoughArgumentsError
@@ -326,6 +327,11 @@ func connectHandler(args []string) (string, error) {
 	dst, err := selectRoute(user, hostport)
 	if err != nil {
 		return "", err
+	}
+
+	if dst == "" {
+		log.Warning("no valid or available connection found for %s", key)
+		return "$-1\r\n", nil
 	}
 
 	proxiedConnections[key] = &proxiedConn{
