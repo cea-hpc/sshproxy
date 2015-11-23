@@ -64,3 +64,27 @@ func GetGroups() (map[string]bool, error) {
 
 	return groups, nil
 }
+
+// CheckRoutes checks and replaces all hosts defined in a map of routes with
+// their "host:port" value (in case the host is defined without a port).
+func CheckRoutes(routes map[string][]string) error {
+	for source, destinations := range routes {
+		host, port, err := SplitHostPort(source)
+		if err != nil {
+			return fmt.Errorf("invalid source address '%s': %s", source, err)
+		}
+
+		full_source := net.JoinHostPort(host, port)
+		delete(routes, source)
+
+		for i, dst := range destinations {
+			host, port, err := SplitHostPort(dst)
+			if err != nil {
+				return fmt.Errorf("invalid destination '%s' for source address '%s': %s", dst, source, err)
+			}
+			destinations[i] = net.JoinHostPort(host, port)
+		}
+		routes[full_source] = destinations
+	}
+	return nil
+}

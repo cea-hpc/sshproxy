@@ -181,6 +181,11 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 		return nil, fmt.Errorf("invalid value for `route_select` option: %s", config.Route_Select)
 	}
 
+	// replace sources and destinations (with possible missing port) with host:port.
+	if err := utils.CheckRoutes(config.Routes); err != nil {
+		return nil, fmt.Errorf("invalid value in `routes` option: %s", err)
+	}
+
 	if config.Dump != "" {
 		for _, repl := range patterns {
 			config.Dump = replace(config.Dump, repl)

@@ -87,6 +87,10 @@ func loadConfig(config_file string) error {
 		return fmt.Errorf("no routes specified")
 	}
 
+	if err := utils.CheckRoutes(config.Routes); err != nil {
+		return fmt.Errorf("invalid value in `routes` option: %s", err)
+	}
+
 	if config.Listen == "" {
 		config.Listen = defaultListenAddr
 	}
