@@ -6,6 +6,8 @@ sbindir		?= $(prefix)/sbin
 datarootdir	?= $(prefix)/share
 mandir		?= $(datarootdir)/man
 
+GO		?= go
+
 ASCIIDOC_OPTS	= -asshproxy_version=$(SSHPROXY_VERSION)
 GO_OPTS		= -ldflags "-X main.SSHPROXY_VERSION $(SSHPROXY_VERSION)"
 
@@ -31,16 +33,16 @@ all: $(EXE) $(MANDOC)
 	a2x $(ASCIIDOC_OPTS) -f manpage $<
 
 sshproxy/sshproxy: $(SSHPROXY_SRC) $(GROUPGO_SRC) $(MANAGER_SRC) $(RECORD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
-	cd sshproxy && go build $(GO_OPTS)
+	cd sshproxy && $(GO) build $(GO_OPTS)
 
 sshproxy-dumpd/sshproxy-dumpd: $(SSHPROXY_DUMPD_SRC) $(RECORD_SRC) $(UTILS_SRC)
-	cd sshproxy-dumpd && go build $(GO_OPTS)
+	cd sshproxy-dumpd && $(GO) build $(GO_OPTS)
 
 sshproxy-managerd/sshproxy-managerd: $(SSHPROXY_MANAGERD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
-	cd sshproxy-managerd && go build $(GO_OPTS)
+	cd sshproxy-managerd && $(GO) build $(GO_OPTS)
 
 sshproxy-replay/sshproxy-replay: $(SSHPROXY_REPLAY_SRC) $(RECORD_SRC)
-	cd sshproxy-replay && go build $(GO_OPTS)
+	cd sshproxy-replay && $(GO) build $(GO_OPTS)
 
 install: install-binaries install-doc-man
 
