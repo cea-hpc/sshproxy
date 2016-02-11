@@ -12,7 +12,7 @@ Version:        0.4.1
 Release:        1%{?dist}
 Summary:        SSH proxy
 License:        CeCILL-B
-Source:         %{name}-%{version}.tar.xz
+Source:         https://github.com/cea-hpc/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
 BuildArch:      %{ix86} x86_64 %{arm}
 
 BuildRequires:  golang >= 1.3
@@ -98,7 +98,7 @@ exit 0
 
 %preun
 %if 0%{?_with_systemd}
-%systemd_preun puppet.service
+%systemd_preun sshproxy-managerd.service
 %else
 if [ "$1" -eq 0 ]; then
   /sbin/stop sshproxy-managerd >/dev/null 2>&1
