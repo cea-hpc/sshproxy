@@ -25,7 +25,7 @@ var (
 	// default algorithm to find route
 	DefaultAlgorithm = "ordered"
 	// keyword for default route
-	DefaultRouteKeyword = "default"
+	DefaultRouteKeyword = "default:22"
 )
 
 // HostChecker is the interface that wraps the Check method.
