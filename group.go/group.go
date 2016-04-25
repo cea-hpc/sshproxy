@@ -10,8 +10,8 @@ var implemented = true // set to false by lookup_stub.go's init
 
 // Group represents a user group.
 type Group struct {
-	Gid  int // group id
-	Name string
+	Gid     int // group id
+	Name    string
 	Members []string
 }
 
