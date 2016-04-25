@@ -27,8 +27,8 @@ import (
 	"sshproxy/route"
 	"sshproxy/utils"
 
-	"github.com/docker/docker/pkg/term"
-	"github.com/op/go-logging"
+	"sshproxy/Godeps/_workspace/src/github.com/docker/docker/pkg/term"
+	"sshproxy/Godeps/_workspace/src/github.com/op/go-logging"
 )
 
 var SSHPROXY_VERSION string

@@ -16,10 +16,6 @@ Source:         https://github.com/cea-hpc/%{name}/archive/v%{version}/%{name}-%
 BuildArch:      %{ix86} x86_64 %{arm}
 
 BuildRequires:  golang >= 1.3
-BuildRequires:  golang(github.com/docker/docker/pkg/term)
-BuildRequires:  golang(github.com/kr/pty)
-BuildRequires:  golang(github.com/op/go-logging)
-BuildRequires:  golang(gopkg.in/yaml.v2)
 BuildRequires:  asciidoc
 
 %if 0%{?_with_systemd}

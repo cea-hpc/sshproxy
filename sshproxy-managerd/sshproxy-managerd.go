@@ -23,8 +23,8 @@ import (
 	"sshproxy/route"
 	"sshproxy/utils"
 
-	"github.com/op/go-logging"
-	"gopkg.in/yaml.v2"
+	"sshproxy/Godeps/_workspace/src/github.com/op/go-logging"
+	"sshproxy/Godeps/_workspace/src/gopkg.in/yaml.v2"
 )
 
 var SSHPROXY_VERSION string

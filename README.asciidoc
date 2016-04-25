@@ -29,17 +29,12 @@ Compilation
 Install the Go compiler suite: see http://golang.org/doc/install for details.
 
 Define and export the +$GOPATH+ directory where the source code will be
-unpacked and the dependencies downloaded (e.g. '$HOME/go'):
+unpacked (e.g. '$HOME/go'):
 
 	$ export GOPATH=$HOME/go
 	$ mkdir -p $GOPATH/src
 	$ cd $GOPATH/src
 	$ tar xvJf sshproxy-X.Y.Z.tar.xz
-
-Fetch the dependencies (git and Internet access are required):
-
-	$ cd $GOPATH/src/sshproxy-X.Y.Z
-	$ go get -d ./...
 
 Compile everything:
 
