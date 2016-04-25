@@ -1,4 +1,4 @@
-SSHPROXY_VERSION = 0.4.1
+SSHPROXY_VERSION = 0.4.2
 
 prefix		?= /usr
 bindir		?= $(prefix)/bin
