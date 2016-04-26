@@ -1,7 +1,7 @@
 // +build linux
 // +build cgo
 
-// Copyright 2015 CEA/DAM/DIF
+// Copyright 2015-2016 CEA/DAM/DIF
 //  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and
