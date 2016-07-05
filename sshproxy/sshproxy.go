@@ -18,7 +18,6 @@ import (
 	"os/exec"
 	"os/user"
 	"regexp"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -146,9 +145,6 @@ type ConnInfo struct {
 }
 
 func main() {
-	// use all processor cores
-	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	defer func() {
 		// log error in case of panic()
 		if err := recover(); err != nil {
