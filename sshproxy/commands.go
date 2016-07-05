@@ -89,7 +89,6 @@ func runTtyCommand(cmd *exec.Cmd, done <-chan struct{}, rec *Recorder) error {
 
 	go io.Copy(p, rec.Stdin)
 	go io.Copy(rec.Stdout, p)
-	go io.Copy(rec.Stderr, p)
 
 	return runCommand(cmd, true, done)
 }
