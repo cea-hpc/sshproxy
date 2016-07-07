@@ -97,7 +97,7 @@ type SSHInfo struct {
 // NewSSHInfo parse a string with the same format as the environment variable
 // SSH_CONNECTION.
 func NewSSHInfo(s string) (*SSHInfo, error) {
-	infos := regexp.MustCompile(`([0-9\.]+) ([0-9]+) ([0-9\.]+) ([0-9]+)`).FindStringSubmatch(s)
+	infos := regexp.MustCompile(`([0-9a-f\.:]+) ([0-9]+) ([0-9a-f\.:]+) ([0-9]+)`).FindStringSubmatch(s)
 	if len(infos) != 5 {
 		return nil, errors.New("bad value")
 	}

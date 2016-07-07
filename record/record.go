@@ -134,9 +134,9 @@ func (f *FileInfo) Dst() string {
 type FileHeader struct {
 	Version uint16
 	Size    uint16
-	SrcIP   [4]byte
+	SrcIP   [16]byte
 	SrcPort uint16
-	DstIP   [4]byte
+	DstIP   [16]byte
 	DstPort uint16
 	Time    uint64
 }
@@ -165,9 +165,9 @@ func ReadHeader(r *bufio.Reader) (*FileInfo, error) {
 	return &FileInfo{
 		Version: int(hdr.Version),
 		Time:    time.Unix(0, int64(hdr.Time)),
-		SrcIP:   net.IPv4(hdr.SrcIP[0], hdr.SrcIP[1], hdr.SrcIP[2], hdr.SrcIP[3]),
+		SrcIP:   net.IP(hdr.SrcIP[:]),
 		SrcPort: int(hdr.SrcPort),
-		DstIP:   net.IPv4(hdr.DstIP[0], hdr.DstIP[1], hdr.DstIP[2], hdr.DstIP[3]),
+		DstIP:   net.IP(hdr.DstIP[:]),
 		DstPort: int(hdr.DstPort),
 		// remove trailing \0,
 		User:    user[:len(user)-1],
@@ -186,12 +186,8 @@ func WriteHeader(w io.Writer, infos *FileInfo) error {
 
 	hdr.Size = uint16(binary.Size(hdr) + len(infos.User) + len(infos.Command) + 2) // + 2 for the '\0'
 
-	srcip := infos.SrcIP.To4()
-	dstip := infos.DstIP.To4()
-	for i := 0; i < 4; i++ {
-		hdr.SrcIP[i] = srcip[i]
-		hdr.DstIP[i] = dstip[i]
-	}
+	copy(hdr.SrcIP[:], infos.SrcIP.To16())
+	copy(hdr.DstIP[:], infos.DstIP.To16())
 
 	buf := new(bytes.Buffer)
 	if err := binary.Write(buf, binary.BigEndian, &hdr); err != nil {
