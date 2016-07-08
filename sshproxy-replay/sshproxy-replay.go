@@ -47,8 +47,8 @@ func replay(filename string) {
 	fmt.Printf("--> Version: %d\n", reader.Info.Version)
 	fmt.Printf("--> Start:   %s\n", reader.Info.Time)
 	fmt.Printf("--> User:    %s\n", reader.Info.User)
-	fmt.Printf("--> From:    %s:%d\n", reader.Info.SrcIP, reader.Info.SrcPort)
-	fmt.Printf("--> To:      %s:%d\n", reader.Info.DstIP, reader.Info.DstPort)
+	fmt.Printf("--> From:    %s\n", reader.Info.Src())
+	fmt.Printf("--> To:      %s\n", reader.Info.Dst())
 	fmt.Printf("--> Command: %s\n", reader.Info.Command)
 
 	var rec record.Record
