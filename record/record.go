@@ -20,9 +20,9 @@
 // - an unsigned 16 bits integer for the version number,
 // - an unsigned 16 bits integer indicating the header size (from byte 0 to the
 //   start of the first record),
-// - an unsigned 32 bits integer for the source IP address,
+// - an unsigned 128 bits integer for the source IP address,
 // - an unsigned 16 bits integer for the source port,
-// - an unsigned 32 bits integer for the destination IP address,
+// - an unsigned 128 bits integer for the destination IP address,
 // - an unsigned 16 bits integer for the destination port,
 // - an unsigned 64 bits integer for the start of connection (in ns),
 // - a NULL terminated string with the user name,
