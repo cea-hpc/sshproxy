@@ -8,7 +8,7 @@
 // "http://www.cecill.info".
 
 // Package record provides a representation for the data read from or written
-// to a file descriptor with functions to serialize/unserialized it.
+// to a file descriptor with functions to serialize/unserialize it.
 //
 // The binary representation of a recording is:
 // - an unsigned 64 bits integer indicating the received time (in ns),
