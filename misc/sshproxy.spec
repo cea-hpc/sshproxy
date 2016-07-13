@@ -8,7 +8,7 @@
 %endif
 
 Name:           sshproxy
-Version:        0.4.2
+Version:        0.4.3
 Release:        1%{?dist}
 Summary:        SSH proxy
 License:        CeCILL-B
@@ -109,6 +109,9 @@ exit 0
 exit 0
 
 %changelog
+* Wed Jul 13 2016 Arnaud Guignard <arnaud.guignard@cea.fr> - 0.4.3-1
+- sshproxy 0.4.3
+
 * Mon Apr 25 2016 Arnaud Guignard <arnaud.guignard@cea.fr> - 0.4.2-1
 - sshproxy 0.4.2
 
