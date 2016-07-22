@@ -227,7 +227,7 @@ func main() {
 
 	var mclient *manager.Client
 	if config.Manager != "" {
-		mclient = manager.NewClient(config.Manager, username, ssh_infos.Dst(), 500*time.Millisecond)
+		mclient = manager.NewClient(config.Manager, username, ssh_infos.Dst(), 2*time.Second)
 		defer func() {
 			if mclient != nil {
 				mclient.Disconnect()
