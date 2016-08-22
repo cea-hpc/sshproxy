@@ -9,7 +9,7 @@ mandir		?= $(datarootdir)/man
 GO		?= go
 
 ASCIIDOC_OPTS	= -asshproxy_version=$(SSHPROXY_VERSION)
-GO_OPTS		= -ldflags "-X main.SSHPROXY_VERSION $(SSHPROXY_VERSION)"
+GO_OPTS		= -ldflags "-X main.SSHPROXY_VERSION=$(SSHPROXY_VERSION)"
 
 SSHPROXY_SRC		= $(wildcard sshproxy/*.go)
 SSHPROXY_DUMPD_SRC	= $(wildcard sshproxy-dumpd/*.go)
