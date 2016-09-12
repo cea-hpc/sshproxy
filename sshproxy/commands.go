@@ -72,25 +72,33 @@ func runStdCommand(cmd *exec.Cmd, done <-chan struct{}, rec *Recorder) error {
 //
 // From: https://github.com/9seconds/ah/blob/master/app/utils/exec.go
 func runTtyCommand(cmd *exec.Cmd, done <-chan struct{}, rec *Recorder) error {
-	p, err := pty.Start(cmd)
-	if err != nil {
-		return err
+	commandStarted := false
+	if rec != nil {
+		p, err := pty.Start(cmd)
+		if err != nil {
+			return err
+		}
+		defer p.Close()
+
+		hostFd := os.Stdin.Fd()
+		oldState, err := term.SetRawTerminal(hostFd)
+		if err != nil {
+			return err
+		}
+		defer term.RestoreTerminal(hostFd, oldState)
+
+		monitorTtyResize(hostFd, p.Fd())
+
+		go io.Copy(p, rec.Stdin)
+		go io.Copy(rec.Stdout, p)
+		commandStarted = true
+	} else {
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 	}
-	defer p.Close()
 
-	hostFd := os.Stdin.Fd()
-	oldState, err := term.SetRawTerminal(hostFd)
-	if err != nil {
-		return err
-	}
-	defer term.RestoreTerminal(hostFd, oldState)
-
-	monitorTtyResize(hostFd, p.Fd())
-
-	go io.Copy(p, rec.Stdin)
-	go io.Copy(rec.Stdout, p)
-
-	return runCommand(cmd, true, done)
+	return runCommand(cmd, commandStarted, done)
 }
 
 // monitorTtyResize resizes the guestFd TTY to the hostFd TTY size and checks

@@ -294,24 +294,33 @@ func main() {
 	if port != utils.DefaultSshPort {
 		ssh_args = append(ssh_args, "-p", port)
 	}
-	ssh_args = append(ssh_args, host, original_cmd)
+	if original_cmd != "" {
+		ssh_args = append(ssh_args, host, original_cmd)
+	} else {
+		ssh_args = append(ssh_args, host)
+	}
 	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
-	recorder, err := NewRecorder(conninfo, config.Dump, original_cmd, config.Stats_Interval.Duration(), done)
-	if err != nil {
-		log.Fatalf("setting recorder: %s", err)
-	}
+	interactiveCommand := term.IsTerminal(os.Stdout.Fd())
 
-	go func() {
-		wg.Add(1)
-		defer wg.Done()
-		recorder.Run()
-	}()
+	var recorder *Recorder
+	if !interactiveCommand || config.Dump != "" {
+		recorder, err = NewRecorder(conninfo, config.Dump, original_cmd, config.Stats_Interval.Duration(), done)
+		if err != nil {
+			log.Fatalf("setting recorder: %s", err)
+		}
+
+		go func() {
+			wg.Add(1)
+			defer wg.Done()
+			recorder.Run()
+		}()
+	}
 
 	log.Notice("proxied to %s", hostport)
 
-	if term.IsTerminal(os.Stdout.Fd()) {
+	if interactiveCommand {
 		err = runTtyCommand(cmd, done, recorder)
 	} else {
 		err = runStdCommand(cmd, done, recorder)
