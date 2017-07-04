@@ -14,7 +14,7 @@ import (
 	"os"
 	"path"
 
-	"sshproxy/Godeps/_workspace/src/github.com/op/go-logging"
+	"github.com/op/go-logging"
 )
 
 // MustSetupLogging setups logging framework.

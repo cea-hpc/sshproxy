@@ -18,7 +18,7 @@ import (
 	"sshproxy/route"
 	"sshproxy/utils"
 
-	"sshproxy/Godeps/_workspace/src/gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 var (

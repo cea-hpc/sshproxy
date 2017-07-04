@@ -1,0 +1,15 @@
+hash: 601f64ab14c1b19add8182b8197305008dbde7de1feaf9c76ca6074e75c6bcef
+updated: 2017-07-04T14:36:38.287955155+02:00
+imports:
+- name: github.com/docker/docker
+  version: 89658bed64c2a8fe05a978e5b87dbec409d57a0f
+  subpackages:
+  - pkg/term
+- name: github.com/kr/pty
+  version: 2c10821df3c3cf905230d078702dfbe9404c9b23
+- name: github.com/op/go-logging
+  version: b2cb9fa56473e98db8caba80237377e83fe44db5
+- name: gopkg.in/yaml.v2
+  version: cd8b52f8269e0feb286dfeef29f8fe4d5b397e0b
+  repo: https://github.com/go-yaml/yaml.git
+testImports: []

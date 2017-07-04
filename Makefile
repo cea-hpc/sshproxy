@@ -60,5 +60,9 @@ install-binaries: $(EXE)
 	install -d $(DESTDIR)$(bindir)
 	install -p -m 0755 sshproxy-replay/sshproxy-replay $(DESTDIR)$(bindir)
 
+glide:
+	glide update --strip-vendor
+	glide vc --use-lock-file
+
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml

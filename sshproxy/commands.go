@@ -20,8 +20,8 @@ import (
 	"syscall"
 	"time"
 
-	"sshproxy/Godeps/_workspace/src/github.com/docker/docker/pkg/term"
-	"sshproxy/Godeps/_workspace/src/github.com/kr/pty"
+	"github.com/docker/docker/pkg/term"
+	"github.com/kr/pty"
 )
 
 // runCommand executes the *exec.Cmd command and waits for its completion,

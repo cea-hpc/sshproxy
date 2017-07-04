@@ -14,7 +14,7 @@ import (
 	"net"
 	"time"
 
-	"sshproxy/Godeps/_workspace/src/github.com/op/go-logging"
+	"github.com/op/go-logging"
 )
 
 var log = logging.MustGetLogger("sshproxy/route")
