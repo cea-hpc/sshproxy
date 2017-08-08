@@ -21,11 +21,10 @@ import (
 	"github.com/cea-hpc/sshproxy/record"
 )
 
-var SSHPROXY_VERSION string
-
 var (
-	replayFlag  = flag.Bool("replay", false, "live replay a session (as the user did it)")
-	versionFlag = flag.Bool("version", false, "show version number and exit")
+	SSHPROXY_VERSION = "0.0.0+notproperlybuilt"
+	replayFlag       = flag.Bool("replay", false, "live replay a session (as the user did it)")
+	versionFlag      = flag.Bool("version", false, "show version number and exit")
 )
 
 func replay(filename string) {

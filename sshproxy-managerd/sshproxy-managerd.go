@@ -27,9 +27,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var SSHPROXY_VERSION string
-
 var (
+	SSHPROXY_VERSION  = "0.0.0+notproperlybuilt"
 	defaultConfig     = "/etc/sshproxy/sshproxy-managerd.yaml"
 	defaultListenAddr = "127.0.0.1:55555"
 )

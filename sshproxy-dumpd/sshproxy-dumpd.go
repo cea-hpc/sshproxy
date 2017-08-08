@@ -24,12 +24,11 @@ import (
 	"github.com/cea-hpc/sshproxy/utils"
 )
 
-var SSHPROXY_VERSION string
-
 var (
-	versionFlag = flag.Bool("version", false, "show version number and exit")
-	listenAddr  = flag.String("listen", ":5555", "listen on this address ([host]:port)")
-	outputDir   = flag.String("output", "", "output directory where dumps will be written")
+	SSHPROXY_VERSION = "0.0.0+notproperlybuilt"
+	versionFlag      = flag.Bool("version", false, "show version number and exit")
+	listenAddr       = flag.String("listen", ":5555", "listen on this address ([host]:port)")
+	outputDir        = flag.String("output", "", "output directory where dumps will be written")
 )
 
 func acquire(c net.Conn) {

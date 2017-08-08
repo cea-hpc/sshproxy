@@ -31,10 +31,9 @@ import (
 	"github.com/op/go-logging"
 )
 
-var SSHPROXY_VERSION string
-
 var (
-	defaultConfig = "/etc/sshproxy/sshproxy.yaml"
+	SSHPROXY_VERSION = "0.0.0+notproperlybuilt"
+	defaultConfig    = "/etc/sshproxy/sshproxy.yaml"
 )
 
 // main logger for sshproxy
