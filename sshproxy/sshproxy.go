@@ -20,6 +20,7 @@ import (
 	"regexp"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/cea-hpc/sshproxy/manager"
@@ -145,6 +146,10 @@ type ConnInfo struct {
 }
 
 func main() {
+	os.Exit(mainExitCode())
+}
+
+func mainExitCode() int {
 	defer func() {
 		// log error in case of panic()
 		if err := recover(); err != nil {
@@ -161,7 +166,7 @@ func main() {
 
 	if *versionFlag {
 		fmt.Fprintf(os.Stderr, "sshproxy version %s\n", SSHPROXY_VERSION)
-		os.Exit(0)
+		return 0
 	}
 
 	config_file := defaultConfig
@@ -328,4 +333,7 @@ func main() {
 	if err != nil {
 		log.Error("error executing proxied ssh command: %s", err)
 	}
+
+	// return commmand exit code
+	return cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 }
