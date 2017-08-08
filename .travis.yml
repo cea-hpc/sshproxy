@@ -1,0 +1,17 @@
+language: go
+
+addons:
+  apt:
+    packages:
+      - asciidoc
+
+matrix:
+  include:
+    - go: 1.7.x
+    - go: 1.8.x
+    - go: tip
+  allow_failures:
+    - go: tip
+
+notifications:
+  email: false
