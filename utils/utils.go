@@ -16,7 +16,7 @@ import (
 	"os"
 	"time"
 
-	"sshproxy/group.go"
+	"github.com/cea-hpc/sshproxy/group.go"
 )
 
 const DefaultSshPort = "22"

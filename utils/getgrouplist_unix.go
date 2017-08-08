@@ -29,7 +29,7 @@ import (
 	"strconv"
 	"unsafe"
 
-	"sshproxy/group.go"
+	"github.com/cea-hpc/sshproxy/group.go"
 )
 
 // GetGroupList returns a map of group memberships for the specified user.

@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"sshproxy/record"
+	"github.com/cea-hpc/sshproxy/record"
 )
 
 // Dup duplicates a []byte slice.

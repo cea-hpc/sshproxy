@@ -32,8 +32,8 @@ Define and export the +$GOPATH+ directory where the source code will be
 unpacked (e.g. '$HOME/go'):
 
 	$ export GOPATH=$HOME/go
-	$ mkdir -p $GOPATH/src
-	$ cd $GOPATH/src
+	$ mkdir -p $GOPATH/src/github.com/cea-hpc
+	$ cd $GOPATH/src/github.com/cea-hpc
 	$ tar xvJf sshproxy-X.Y.Z.tar.xz
 
 Compile everything:

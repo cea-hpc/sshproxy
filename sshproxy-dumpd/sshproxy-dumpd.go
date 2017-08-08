@@ -20,8 +20,8 @@ import (
 	"path"
 	"time"
 
-	"sshproxy/record"
-	"sshproxy/utils"
+	"github.com/cea-hpc/sshproxy/record"
+	"github.com/cea-hpc/sshproxy/utils"
 )
 
 var SSHPROXY_VERSION string

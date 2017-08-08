@@ -22,9 +22,9 @@ import (
 	"sync"
 	"time"
 
-	"sshproxy/manager"
-	"sshproxy/route"
-	"sshproxy/utils"
+	"github.com/cea-hpc/sshproxy/manager"
+	"github.com/cea-hpc/sshproxy/route"
+	"github.com/cea-hpc/sshproxy/utils"
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/op/go-logging"

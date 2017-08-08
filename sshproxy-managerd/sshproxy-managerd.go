@@ -20,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	"sshproxy/route"
-	"sshproxy/utils"
+	"github.com/cea-hpc/sshproxy/route"
+	"github.com/cea-hpc/sshproxy/utils"
 
 	"github.com/op/go-logging"
 	"gopkg.in/yaml.v2"
