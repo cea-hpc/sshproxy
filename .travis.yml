@@ -4,6 +4,7 @@ addons:
   apt:
     packages:
       - asciidoc
+      - libxml2-utils
 
 matrix:
   include:
