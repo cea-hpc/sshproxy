@@ -5,7 +5,9 @@ addons:
     packages:
       - asciidoc
       - docbook-utils
+      - docbook-xml
       - libxml2-utils
+      - xsltproc
 
 matrix:
   include:
