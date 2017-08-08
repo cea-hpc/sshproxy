@@ -4,6 +4,7 @@ addons:
   apt:
     packages:
       - asciidoc
+      - docbook-utils
       - libxml2-utils
 
 matrix:
