@@ -12,9 +12,11 @@ package route
 import (
 	"math/rand"
 	"net"
+	"regexp"
 	"time"
 
 	"github.com/op/go-logging"
+	"golang.org/x/crypto/ssh"
 )
 
 var log = logging.MustGetLogger("sshproxy/route")
@@ -29,6 +31,8 @@ var (
 	// route.
 	DefaultRouteKeyword = "default:22"
 )
+
+var unableToAuthenticateRegexp = regexp.MustCompile(`handshake failed: ssh: unable to authenticate`)
 
 // HostChecker is the interface that wraps the Check method.
 //
@@ -60,6 +64,28 @@ func CanConnect(hostport string) bool {
 		return false
 	}
 	c.Close()
+	return true
+}
+
+// MightAuthenticate tests if a connection to host:port can initiate an handshake.
+func MightAuthenticate(hostport string, user string) bool {
+	sshConfig := &ssh.ClientConfig{
+		User: user,
+		Auth: []ssh.AuthMethod{
+			ssh.Password("ThisIsNotIntendedToBeAValidPasswordButWeDontReallyCare"),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	}
+	log.Debug("Dialing %s with user %s", hostport, user)
+	client, err := ssh.Dial("tcp", hostport, sshConfig)
+	if err != nil {
+		if unableToAuthenticateRegexp.MatchString(err.Error()) {
+			return true
+		}
+		log.Warning("Error while dialing %v", err)
+		return false
+	}
+	client.Close()
 	return true
 }
 

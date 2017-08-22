@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"os/signal"
@@ -186,8 +187,40 @@ func (hc *hostChecker) DoCheck(hostport string) State {
 	if route.CanConnect(hostport) {
 		state = Up
 	}
+	canaryUser, err := pickUser()
+	if err == nil && canaryUser != "" && state == Up {
+		if route.MightAuthenticate(hostport, canaryUser) {
+			log.Debug("Succefully tried to authenticate to %s as %s", hostport, canaryUser)
+		} else {
+			log.Debug("Unable to try to authenticate against %s as %s", hostport, canaryUser)
+			state = Down
+		}
+	} else if err != nil {
+		log.Debugf("Unable to try to authenticate, found no user to spoof (%s)", err)
+	}
 	hc.Update(hostport, state, time.Now())
 	return state
+}
+
+func pickUser() (string, error) {
+	chosenUser := ""
+	if len(proxiedConnections) > 0 {
+		chosenItem := rand.Intn(len(proxiedConnections))
+		for k := range proxiedConnections {
+			if chosenItem == 0 {
+				user, err := getUserFromKey(k)
+				if err != nil {
+					return "", err
+				}
+				chosenUser = user
+				break
+			}
+			chosenItem--
+		}
+	} else {
+		return "", errors.New("no proxied connections, unable to pick a random user")
+	}
+	return chosenUser, nil
 }
 
 // Update updates (or creates) the state of an host in the internal view.
@@ -671,6 +704,8 @@ func main() {
 		log.Fatalf("error: listening: %s\n", err)
 	}
 	defer l.Close()
+
+	rand.Seed(time.Now().Unix()) // initialize global pseudo random generator
 
 	log.Info("listening on %s\n", config.Listen)
 
