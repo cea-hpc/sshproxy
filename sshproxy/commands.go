@@ -156,10 +156,10 @@ func prepareBackgroundCommand(command string, debug bool) *exec.Cmd {
 	cmd := exec.Command(args[0], args[1:]...)
 
 	if debug {
-		stdout_log := &BackgroundCommandLogger{"bg_command.stdout"}
-		stderr_log := &BackgroundCommandLogger{"bg_command.stderr"}
-		cmd.Stdout = stdout_log
-		cmd.Stderr = stderr_log
+		stdout := &BackgroundCommandLogger{"bg_command.stdout"}
+		stderr := &BackgroundCommandLogger{"bg_command.stderr"}
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
 	}
 
 	return cmd

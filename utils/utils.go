@@ -19,11 +19,12 @@ import (
 	"github.com/cea-hpc/sshproxy/group.go"
 )
 
-const DefaultSshPort = "22"
+// DefaultSSHPort is the default SSH server port.
+const DefaultSSHPort = "22"
 
-// CalcSessionId returns a unique 10 hexadecimal characters string from
+// CalcSessionID returns a unique 10 hexadecimal characters string from
 // a user name, time, ip address and port.
-func CalcSessionId(user string, t time.Time, hostport string) string {
+func CalcSessionID(user string, t time.Time, hostport string) string {
 	sum := sha1.Sum([]byte(fmt.Sprintf("%s@%s@%d", user, hostport, t.UnixNano())))
 	return fmt.Sprintf("%X", sum[:5])
 }
@@ -35,10 +36,9 @@ func SplitHostPort(hostport string) (string, string, error) {
 	host, port, err := net.SplitHostPort(hostport)
 	if err != nil {
 		if err.(*net.AddrError).Err == "missing port in address" {
-			return hostport, DefaultSshPort, nil
-		} else {
-			return hostport, DefaultSshPort, err
+			return hostport, DefaultSSHPort, nil
 		}
+		return hostport, DefaultSSHPort, err
 	}
 	return host, port, nil
 }
@@ -74,7 +74,7 @@ func CheckRoutes(routes map[string][]string) error {
 			return fmt.Errorf("invalid source address '%s': %s", source, err)
 		}
 
-		full_source := net.JoinHostPort(host, port)
+		hostport := net.JoinHostPort(host, port)
 		delete(routes, source)
 
 		for i, dst := range destinations {
@@ -84,7 +84,7 @@ func CheckRoutes(routes map[string][]string) error {
 			}
 			destinations[i] = net.JoinHostPort(host, port)
 		}
-		routes[full_source] = destinations
+		routes[hostport] = destinations
 	}
 	return nil
 }

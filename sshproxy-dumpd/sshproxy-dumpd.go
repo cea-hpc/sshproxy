@@ -25,6 +25,7 @@ import (
 )
 
 var (
+	// SSHPROXY_VERSION is set in the Makefile.
 	SSHPROXY_VERSION = "0.0.0+notproperlybuilt"
 	versionFlag      = flag.Bool("version", false, "show version number and exit")
 	listenAddr       = flag.String("listen", ":5555", "listen on this address ([host]:port)")
@@ -51,7 +52,7 @@ func acquire(c net.Conn) {
 		return
 	}
 
-	fn := fmt.Sprintf("%s-%s.dump", infos.Time.Format(time.RFC3339Nano), utils.CalcSessionId(infos.User, infos.Time, infos.Src()))
+	fn := fmt.Sprintf("%s-%s.dump", infos.Time.Format(time.RFC3339Nano), utils.CalcSessionID(infos.User, infos.Time, infos.Src()))
 	dump := path.Join(outdir, fn)
 
 	f, err := os.Create(dump)

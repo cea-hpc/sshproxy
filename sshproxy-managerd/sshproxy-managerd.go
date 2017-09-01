@@ -28,14 +28,15 @@ import (
 )
 
 var (
+	// SSHPROXY_VERSION is set in the Makefile.
 	SSHPROXY_VERSION  = "0.0.0+notproperlybuilt"
 	defaultConfig     = "/etc/sshproxy/sshproxy-managerd.yaml"
 	defaultListenAddr = "127.0.0.1:55555"
 )
 
 var (
-	invalidHostError        = errors.New("invalid host specified")
-	notEnoughArgumentsError = errors.New("not enough arguments")
+	errInvalidHost        = errors.New("invalid host specified")
+	errNotEnoughArguments = errors.New("not enough arguments")
 )
 
 var (
@@ -46,7 +47,7 @@ var (
 	config managerdConfig
 
 	// host checker keeping a pool of alive hosts.
-	managerHostChecker = NewHostChecker()
+	managerHostChecker = newHostChecker()
 
 	// map of proxied connections (keys are user@host)
 	proxiedConnections = make(map[string]*proxiedConn)
@@ -54,26 +55,26 @@ var (
 
 // Configuration
 type managerdConfig struct {
-	Debug          bool                 // Debug mode
-	Listen         string               // Listen address [host]:port
-	Log            string               // Where to log: empty is for stdout, "syslog" or a file
-	Check_Interval utils.Duration       // Minimum interval between host checks
-	Route_Select   string               // Algorithm used to select a destination
-	Routes         map[string][]string  // Routes definition
-	Groups         map[string]subConfig // Groups overriden options
-	Users          map[string]subConfig // Users overriden options
+	Debug         bool                 // Debug mode
+	Listen        string               // Listen address [host]:port
+	Log           string               // Where to log: empty is for stdout, "syslog" or a file
+	CheckInterval utils.Duration       `yaml:"check_interval"` // Minimum interval between host checks
+	RouteSelect   string               `yaml:"route_select"`   // Algorithm used to select a destination
+	Routes        map[string][]string  // Routes definition
+	Groups        map[string]subConfig // Groups overriden options
+	Users         map[string]subConfig // Users overriden options
 }
 
 // sub-configuration for users/groups
 type subConfig struct {
-	Route_Select string
-	Routes       map[string][]string
+	RouteSelect string `yaml:"route_select"`
+	Routes      map[string][]string
 }
 
 // loadConfig loads configuration from a file name and saves it in the config
 // global variable.
-func loadConfig(config_file string) error {
-	yamlFile, err := ioutil.ReadFile(config_file)
+func loadConfig(filename string) error {
+	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return err
 	}
@@ -94,8 +95,8 @@ func loadConfig(config_file string) error {
 		config.Listen = defaultListenAddr
 	}
 
-	if config.Route_Select == "" {
-		config.Route_Select = route.DefaultAlgorithm
+	if config.RouteSelect == "" {
+		config.RouteSelect = route.DefaultAlgorithm
 	}
 
 	return nil
@@ -104,14 +105,17 @@ func loadConfig(config_file string) error {
 // State of an host
 type State int
 
+// These are the possible states of an host:
+//   Up: the host is up,
+//   Down: the host is down,
+//   Disable: the host was disabled by an admin.
 const (
-	Up       State = iota // host is up
-	Down                  // host is down
-	Disabled              // host is disabled
+	Up State = iota
+	Down
+	Disabled
 )
 
-// Names associated with states
-var StateNames = map[State]string{
+var stateNames = map[State]string{
 	Up:       "up",
 	Down:     "down",
 	Disabled: "disabled",
@@ -125,20 +129,20 @@ type hostState struct {
 
 // hostChecker implements the sshproxy.route.HostChecker interface. It is used
 // to keep a view of hosts state and to check their availability only after a
-// defined duration (set in the config.Check_Interval global variable).
+// defined duration (set in the config.CheckInterval global variable).
 type hostChecker struct {
 	States map[string]*hostState // map with "host:port" as keys and their associated state
 }
 
-// NewHostChecker creates a new hostChecker.
-func NewHostChecker() *hostChecker {
+// newHostChecker creates a new hostChecker.
+func newHostChecker() *hostChecker {
 	return &hostChecker{make(map[string]*hostState)}
 }
 
 // Check checks if an host is enabled and alive.
 //
 // It looks for it in its internal view. If found and its last check is less
-// than config.Check_Interval duration it returns its known state. Otherwise it
+// than config.CheckInterval duration it returns its known state. Otherwise it
 // performs a check and updates (or adds a state to) the internal view
 // accordingly.
 func (hc *hostChecker) Check(hostport string) bool {
@@ -150,7 +154,7 @@ func (hc *hostChecker) Check(hostport string) bool {
 		state = hc.DoCheck(hostport)
 	case s.State == Disabled:
 		state = s.State
-	case ts.Sub(s.Ts) > config.Check_Interval.Duration():
+	case ts.Sub(s.Ts) > config.CheckInterval.Duration():
 		state = hc.DoCheck(hostport)
 	default:
 		state = s.State
@@ -210,7 +214,7 @@ func getAlgorithmAndRoutes(user, hostport string, groups map[string]bool) (strin
 	configs := []*subConfig{}
 
 	// add main config
-	configs = append(configs, &subConfig{Route_Select: config.Route_Select, Routes: config.Routes})
+	configs = append(configs, &subConfig{RouteSelect: config.RouteSelect, Routes: config.Routes})
 	// add group configs
 	for g, cfg := range config.Groups {
 		if groups[g] {
@@ -226,8 +230,8 @@ func getAlgorithmAndRoutes(user, hostport string, groups map[string]bool) (strin
 	dests := []string{}
 
 	for _, cfg := range configs {
-		if cfg.Route_Select != "" {
-			algo = cfg.Route_Select
+		if cfg.RouteSelect != "" {
+			algo = cfg.RouteSelect
 		}
 		if d, ok := cfg.Routes[hostport]; ok {
 			dests = d
@@ -298,13 +302,13 @@ var commandHandlers = map[string]commandHandler{
 // It returns a destination (which can be empty) or an error message.
 func connectHandler(args []string) (string, error) {
 	if len(args) != 2 {
-		return "", notEnoughArgumentsError
+		return "", errNotEnoughArguments
 	}
 
 	user := args[0]
 	hostport, err := checkHostPort(args[1])
 	if err != nil {
-		return "", invalidHostError
+		return "", errInvalidHost
 	}
 
 	key := genKey(user, hostport)
@@ -315,11 +319,10 @@ func connectHandler(args []string) (string, error) {
 			pc.N++
 			pc.Ts = time.Now()
 			return fmt.Sprintf("+%s", pc.Dest), nil
-		} else {
-			log.Info("cannot connect %s to already existing connection(s) to %s: host down or disabled", key, pc.Dest)
-			if !managerHostChecker.IsDisabled(pc.Dest) {
-				managerHostChecker.Update(pc.Dest, Down, time.Now())
-			}
+		}
+		log.Info("cannot connect %s to already existing connection(s) to %s: host down or disabled", key, pc.Dest)
+		if !managerHostChecker.IsDisabled(pc.Dest) {
+			managerHostChecker.Update(pc.Dest, Down, time.Now())
 		}
 	}
 
@@ -348,12 +351,12 @@ func connectHandler(args []string) (string, error) {
 // It returns "+OK" or an error message.
 func disableHandler(args []string) (string, error) {
 	if len(args) != 1 {
-		return "", notEnoughArgumentsError
+		return "", errNotEnoughArguments
 	}
 
 	hostport, err := checkHostPort(args[0])
 	if err != nil {
-		return "", invalidHostError
+		return "", errInvalidHost
 	}
 
 	managerHostChecker.Update(hostport, Disabled, time.Now())
@@ -366,13 +369,13 @@ func disableHandler(args []string) (string, error) {
 // It returns "+OK" or an error message.
 func disconnectHandler(args []string) (string, error) {
 	if len(args) != 2 {
-		return "", notEnoughArgumentsError
+		return "", errNotEnoughArguments
 	}
 
 	user := args[0]
 	hostport, err := checkHostPort(args[1])
 	if err != nil {
-		return "", invalidHostError
+		return "", errInvalidHost
 	}
 
 	key := genKey(user, hostport)
@@ -395,12 +398,12 @@ func disconnectHandler(args []string) (string, error) {
 // It returns "+OK" or an error message.
 func enableHandler(args []string) (string, error) {
 	if len(args) != 1 {
-		return "", notEnoughArgumentsError
+		return "", errNotEnoughArguments
 	}
 
 	hostport, err := checkHostPort(args[0])
 	if err != nil {
-		return "", invalidHostError
+		return "", errInvalidHost
 	}
 
 	if managerHostChecker.IsDisabled(hostport) {
@@ -417,7 +420,7 @@ func enableHandler(args []string) (string, error) {
 // It returns the infos or an error message.
 func infoHandler(args []string) (string, error) {
 	if len(args) == 0 {
-		return "", notEnoughArgumentsError
+		return "", errNotEnoughArguments
 	}
 
 	var lines []string
@@ -433,7 +436,7 @@ func infoHandler(args []string) (string, error) {
 		lines = make([]string, len(managerHostChecker.States))
 		i := 0
 		for k, v := range managerHostChecker.States {
-			lines[i] = fmt.Sprintf("host=%s state=%s ts=%s", k, StateNames[v.State], v.Ts.Format(time.RFC3339Nano))
+			lines[i] = fmt.Sprintf("host=%s state=%s ts=%s", k, stateNames[v.State], v.Ts.Format(time.RFC3339Nano))
 			i++
 		}
 	default:
@@ -449,12 +452,12 @@ func infoHandler(args []string) (string, error) {
 // It returns "+OK" or an error message.
 func failureHandler(args []string) (string, error) {
 	if len(args) != 1 {
-		return "", notEnoughArgumentsError
+		return "", errNotEnoughArguments
 	}
 
 	hostport, err := checkHostPort(args[0])
 	if err != nil {
-		return "", invalidHostError
+		return "", errInvalidHost
 	}
 
 	// Check host before marking it down
@@ -591,13 +594,13 @@ func main() {
 		os.Exit(0)
 	}
 
-	config_file := defaultConfig
+	configFile := defaultConfig
 	if flag.NArg() != 0 {
-		config_file = flag.Arg(0)
+		configFile = flag.Arg(0)
 	}
 
-	if err := loadConfig(config_file); err != nil {
-		log.Fatalf("ERROR: reading configuration '%s': %s", config_file, err)
+	if err := loadConfig(configFile); err != nil {
+		log.Fatalf("ERROR: reading configuration '%s': %s", configFile, err)
 	}
 
 	logformat := "%{time:2006-01-02 15:04:05} %{level}: %{message}"
@@ -607,8 +610,8 @@ func main() {
 	log.Debug("config.debug = %v", config.Debug)
 	log.Debug("config.listen = %s", config.Listen)
 	log.Debug("config.log = %s", config.Log)
-	log.Debug("config.check_interval = %s", config.Check_Interval.Duration())
-	log.Debug("config.route_select = %s", config.Route_Select)
+	log.Debug("config.check_interval = %s", config.CheckInterval.Duration())
+	log.Debug("config.route_select = %s", config.RouteSelect)
 	log.Debug("config.routes = %v", config.Routes)
 	log.Debug("config.groups = %v", config.Groups)
 	log.Debug("config.users = %v", config.Users)

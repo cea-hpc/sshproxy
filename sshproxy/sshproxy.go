@@ -32,6 +32,7 @@ import (
 )
 
 var (
+	// SSHPROXY_VERSION is set in the Makefile.
 	SSHPROXY_VERSION = "0.0.0+notproperlybuilt"
 	defaultConfig    = "/etc/sshproxy/sshproxy.yaml"
 )
@@ -43,7 +44,7 @@ var log = logging.MustGetLogger("sshproxy")
 // to the manager if available or the routes and route_select algorithm.
 // It returns a string with host:port, an empty string if no destination is
 // found or an error if any.
-func findDestination(mclient *manager.Client, routes map[string][]string, route_select, sshd_hostport string) (string, error) {
+func findDestination(mclient *manager.Client, routes map[string][]string, routeSelect, sshdHostport string) (string, error) {
 	if mclient != nil {
 		dst, err := mclient.Connect()
 		if err != nil {
@@ -61,12 +62,12 @@ func findDestination(mclient *manager.Client, routes map[string][]string, route_
 	}
 
 	checker := new(route.BasicHostChecker)
-	if destinations, present := routes[sshd_hostport]; present {
-		return route.Select(route_select, destinations, checker)
+	if destinations, present := routes[sshdHostport]; present {
+		return route.Select(routeSelect, destinations, checker)
 	} else if destinations, present := routes[route.DefaultRouteKeyword]; present {
-		return route.Select(route_select, destinations, checker)
+		return route.Select(routeSelect, destinations, checker)
 	}
-	return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshd_hostport)
+	return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshdHostport)
 }
 
 // setEnvironment sets environment variables from a map whose keys are the
@@ -141,7 +142,7 @@ func (s *SSHInfo) Dst() string {
 type ConnInfo struct {
 	Start time.Time // start time
 	User  string    // user name
-	Ssh   *SSHInfo  // SSH source and destination (from SSH_CONNECTION)
+	SSH   *SSHInfo  // SSH source and destination (from SSH_CONNECTION)
 }
 
 func main() {
@@ -168,43 +169,43 @@ func mainExitCode() int {
 		return 0
 	}
 
-	config_file := defaultConfig
+	configFile := defaultConfig
 	if flag.NArg() != 0 {
-		config_file = flag.Arg(0)
+		configFile = flag.Arg(0)
 	}
 
-	current_user, err := user.Current()
+	currentUser, err := user.Current()
 	if err != nil {
 		log.Fatalf("Cannot find current user: %s", err)
 	}
-	username := current_user.Username
+	username := currentUser.Username
 
-	ssh_connection := os.Getenv("SSH_CONNECTION")
-	if ssh_connection == "" {
+	sshConnection := os.Getenv("SSH_CONNECTION")
+	if sshConnection == "" {
 		log.Fatal("No SSH_CONNECTION environment variable")
 	}
 
-	ssh_infos, err := NewSSHInfo(ssh_connection)
+	sshInfos, err := NewSSHInfo(sshConnection)
 	if err != nil {
-		log.Fatalf("parsing SSH_CONNECTION '%s': %s", ssh_connection, err)
+		log.Fatalf("parsing SSH_CONNECTION '%s': %s", sshConnection, err)
 	}
 
 	conninfo := &ConnInfo{
 		Start: start,
 		User:  username,
-		Ssh:   ssh_infos,
+		SSH:   sshInfos,
 	}
 
-	sid := utils.CalcSessionId(conninfo.User, conninfo.Start, conninfo.Ssh.Src())
+	sid := utils.CalcSessionID(conninfo.User, conninfo.Start, conninfo.SSH.Src())
 
 	groups, err := utils.GetGroups()
 	if err != nil {
 		log.Fatalf("Cannot find current user groups: %s", err)
 	}
 
-	config, err := loadConfig(config_file, username, sid, start, groups)
+	config, err := loadConfig(configFile, username, sid, start, groups)
 	if err != nil {
-		log.Fatalf("Reading configuration '%s': %s", config_file, err)
+		log.Fatalf("Reading configuration '%s': %s", configFile, err)
 	}
 
 	logformat := fmt.Sprintf("%%{time:2006-01-02 15:04:05} %%{level} %s: %%{message}", sid)
@@ -215,23 +216,23 @@ func mainExitCode() int {
 	log.Debug("config.debug = %v", config.Debug)
 	log.Debug("config.log = %s", config.Log)
 	log.Debug("config.dump = %s", config.Dump)
-	log.Debug("config.stats_interval = %s", config.Stats_Interval.Duration())
-	log.Debug("config.bg_command = %s", config.Bg_Command)
+	log.Debug("config.stats_interval = %s", config.StatsInterval.Duration())
+	log.Debug("config.bg_command = %s", config.BgCommand)
 	log.Debug("config.manager = %s", config.Manager)
 	log.Debug("config.environment = %v", config.Environment)
-	log.Debug("config.route_select = %s", config.Route_Select)
+	log.Debug("config.route_select = %s", config.RouteSelect)
 	log.Debug("config.routes = %v", config.Routes)
-	log.Debug("config.ssh.exe = %s", config.Ssh.Exe)
-	log.Debug("config.ssh.args = %v", config.Ssh.Args)
+	log.Debug("config.ssh.exe = %s", config.SSH.Exe)
+	log.Debug("config.ssh.args = %v", config.SSH.Args)
 
 	setEnvironment(config.Environment)
 
-	log.Notice("%s connected from %s to sshd listening on %s", username, ssh_infos.Src(), ssh_infos.Dst())
+	log.Notice("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
 	defer log.Notice("disconnected")
 
 	var mclient *manager.Client
 	if config.Manager != "" {
-		mclient = manager.NewClient(config.Manager, username, ssh_infos.Dst(), 2*time.Second)
+		mclient = manager.NewClient(config.Manager, username, sshInfos.Dst(), 2*time.Second)
 		defer func() {
 			if mclient != nil {
 				mclient.Disconnect()
@@ -239,7 +240,7 @@ func mainExitCode() int {
 		}()
 	}
 
-	hostport, err := findDestination(mclient, config.Routes, config.Route_Select, ssh_infos.Dst())
+	hostport, err := findDestination(mclient, config.Routes, config.RouteSelect, sshInfos.Dst())
 	switch {
 	case err != nil:
 		log.Fatalf("Finding destination: %s", err)
@@ -260,11 +261,11 @@ func mainExitCode() int {
 	}()
 
 	// launch background command
-	if config.Bg_Command != "" {
+	if config.BgCommand != "" {
 		go func() {
 			wg.Add(1)
 			defer wg.Done()
-			cmd := prepareBackgroundCommand(config.Bg_Command, config.Debug)
+			cmd := prepareBackgroundCommand(config.BgCommand, config.Debug)
 			if err := runCommand(cmd, false, done); err != nil {
 				log.Error("error running background command: %s", err)
 			}
@@ -289,28 +290,28 @@ func mainExitCode() int {
 		}
 	}()
 
-	original_cmd := os.Getenv("SSH_ORIGINAL_COMMAND")
-	log.Debug("original_cmd = %s", original_cmd)
+	originalCmd := os.Getenv("SSH_ORIGINAL_COMMAND")
+	log.Debug("original command = %s", originalCmd)
 
 	// We assume the `sftp-server` binary is in the same directory on the
 	// gateway as on the target.
-	ssh_args := config.Ssh.Args
-	if port != utils.DefaultSshPort {
-		ssh_args = append(ssh_args, "-p", port)
+	sshArgs := config.SSH.Args
+	if port != utils.DefaultSSHPort {
+		sshArgs = append(sshArgs, "-p", port)
 	}
-	if original_cmd != "" {
-		ssh_args = append(ssh_args, host, original_cmd)
+	if originalCmd != "" {
+		sshArgs = append(sshArgs, host, originalCmd)
 	} else {
-		ssh_args = append(ssh_args, host)
+		sshArgs = append(sshArgs, host)
 	}
-	cmd := exec.Command(config.Ssh.Exe, ssh_args...)
+	cmd := exec.Command(config.SSH.Exe, sshArgs...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
 
 	interactiveCommand := term.IsTerminal(os.Stdout.Fd())
 
 	var recorder *Recorder
 	if !interactiveCommand || config.Dump != "" {
-		recorder, err = NewRecorder(conninfo, config.Dump, original_cmd, config.Stats_Interval.Duration(), done)
+		recorder, err = NewRecorder(conninfo, config.Dump, originalCmd, config.StatsInterval.Duration(), done)
 		if err != nil {
 			log.Fatalf("setting recorder: %s", err)
 		}

@@ -11,8 +11,11 @@ package utils
 
 import "time"
 
+// Duration is a type used in configuration file to unmarshal a duration from a
+// YAML string.
 type Duration time.Duration
 
+// ParseDuration parses a YAML string into a Duration or returns an error.
 func ParseDuration(text string) (Duration, error) {
 	d, err := time.ParseDuration(text)
 	if err != nil {
@@ -21,6 +24,8 @@ func ParseDuration(text string) (Duration, error) {
 	return Duration(d), nil
 }
 
+// UnmarshalYAML is used by the YAML library to unmarshal a string. See go-yaml
+// documentation for details.
 func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var text string
 	if err := unmarshal(&text); err != nil {
@@ -36,6 +41,7 @@ func (d *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+// Duration returns a time.Duration object.
 func (d *Duration) Duration() time.Duration {
 	return time.Duration(*d)
 }

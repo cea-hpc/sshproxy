@@ -69,14 +69,14 @@ func GetGroupList(username string) (map[string]bool, error) {
 	}
 
 	// Create a slice over the C groups gid_t* array
-	var raw_gr_mem []C.gid_t
-	sliceHeader := (*reflect.SliceHeader)((unsafe.Pointer(&raw_gr_mem)))
+	var rawGrMem []C.gid_t
+	sliceHeader := (*reflect.SliceHeader)((unsafe.Pointer(&rawGrMem)))
 	sliceHeader.Cap = int(ngroups)
 	sliceHeader.Len = int(ngroups)
 	sliceHeader.Data = uintptr(unsafe.Pointer(groups))
 
 	grps := make(map[string]bool)
-	for _, gid := range raw_gr_mem {
+	for _, gid := range rawGrMem {
 		g, err := group.LookupId(int(gid))
 		if err != nil {
 			return nil, err

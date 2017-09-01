@@ -51,8 +51,8 @@ type Record struct {
 	Data []byte    // data
 }
 
-// Binary header of a record
-type RecordHeader struct {
+// Header represents the binary header of a record.
+type Header struct {
 	Time uint64
 	Fd   uint8
 	Size uint32
@@ -65,7 +65,7 @@ type RecordHeader struct {
 // struct for performance reason: it tries to reuse the already allocated Data
 // field.
 func Decode(rd io.Reader, rec *Record) error {
-	var hdr RecordHeader
+	var hdr Header
 	if err := binary.Read(rd, binary.BigEndian, &hdr); err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func Decode(rd io.Reader, rec *Record) error {
 // Encode writes a *Record struct into its binary representation in the
 // provided io.Writer.
 func Encode(wd io.Writer, rec *Record) error {
-	hdr := RecordHeader{
+	hdr := Header{
 		uint64(rec.Time.UnixNano()),
 		uint8(rec.Fd),
 		uint32(rec.Size),
@@ -234,7 +234,7 @@ func (r *Reader) Next(rec *Record) error {
 	return Decode(r.reader, rec)
 }
 
-// Writers writes records into a file.
+// Writer writes records into a file.
 type Writer struct {
 	writer io.Writer
 }

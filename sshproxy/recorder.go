@@ -77,7 +77,7 @@ func (s *Splitter) Write(p []byte) (int, error) {
 type Recorder struct {
 	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors.
 	start                 time.Time          // when the Recorder was started
-	stats_interval        time.Duration      // interval at which basic statistics of transferred bytes are logged
+	statsInterval         time.Duration      // interval at which basic statistics of transferred bytes are logged
 	totals                map[int]int        // total of bytes for each recorded file descriptor
 	ch                    chan record.Record // channel to read record.Record structs
 	conninfo              *ConnInfo          // specific SSH connection information
@@ -90,23 +90,23 @@ type Recorder struct {
 // NewRecorder returns a new Recorder struct.
 //
 // If dumpfile is not empty, the intercepted raw data will be written in this
-// file. Logging of basic statistics will be done every stats_interval seconds.
+// file. Logging of basic statistics will be done every statsInterval seconds.
 // It will stop recording when the done channel is closed.
-func NewRecorder(conninfo *ConnInfo, dumpfile, command string, stats_interval time.Duration, done <-chan struct{}) (*Recorder, error) {
+func NewRecorder(conninfo *ConnInfo, dumpfile, command string, statsInterval time.Duration, done <-chan struct{}) (*Recorder, error) {
 	ch := make(chan record.Record)
 
 	return &Recorder{
-		Stdin:          NewSplitter(os.Stdin, ch),
-		Stdout:         NewSplitter(os.Stdout, ch),
-		Stderr:         NewSplitter(os.Stderr, ch),
-		stats_interval: stats_interval,
-		totals:         map[int]int{0: 0, 1: 0, 2: 0},
-		ch:             ch,
-		conninfo:       conninfo,
-		command:        command,
-		dumpfile:       dumpfile,
-		writer:         nil,
-		done:           done,
+		Stdin:         NewSplitter(os.Stdin, ch),
+		Stdout:        NewSplitter(os.Stdout, ch),
+		Stderr:        NewSplitter(os.Stderr, ch),
+		statsInterval: statsInterval,
+		totals:        map[int]int{0: 0, 1: 0, 2: 0},
+		ch:            ch,
+		conninfo:      conninfo,
+		command:       command,
+		dumpfile:      dumpfile,
+		writer:        nil,
+		done:          done,
 	}, nil
 }
 
@@ -156,10 +156,10 @@ func (r *Recorder) Run() {
 			infos := &record.FileInfo{
 				Version: 1,
 				Time:    r.conninfo.Start,
-				SrcIP:   r.conninfo.Ssh.SrcIP,
-				SrcPort: r.conninfo.Ssh.SrcPort,
-				DstIP:   r.conninfo.Ssh.DstIP,
-				DstPort: r.conninfo.Ssh.DstPort,
+				SrcIP:   r.conninfo.SSH.SrcIP,
+				SrcPort: r.conninfo.SSH.SrcPort,
+				DstIP:   r.conninfo.SSH.DstIP,
+				DstPort: r.conninfo.SSH.DstPort,
 				User:    r.conninfo.User,
 				Command: r.command,
 			}
@@ -180,11 +180,11 @@ func (r *Recorder) Run() {
 
 	r.start = time.Now()
 
-	if r.stats_interval != 0 {
+	if r.statsInterval != 0 {
 		go func() {
 			for {
 				select {
-				case <-time.After(r.stats_interval):
+				case <-time.After(r.statsInterval):
 					r.log()
 				case <-r.done:
 					return

@@ -22,23 +22,23 @@ import (
 )
 
 var (
-	defaultSshExe  = "ssh"
-	defaultSshArgs = []string{"-q", "-Y"}
+	defaultSSHExe  = "ssh"
+	defaultSSHArgs = []string{"-q", "-Y"}
 )
 
 type sshProxyConfig struct {
-	Debug          bool
-	Log            string
-	Dump           string
-	Stats_Interval utils.Duration
-	Bg_Command     string
-	Manager        string
-	Route_Select   string
-	Ssh            sshConfig
-	Environment    map[string]string
-	Routes         map[string][]string
-	Users          map[string]subConfig
-	Groups         map[string]subConfig
+	Debug         bool
+	Log           string
+	Dump          string
+	StatsInterval utils.Duration `yaml:"stats_interval"`
+	BgCommand     string         `yaml:"bg_command"`
+	Manager       string
+	RouteSelect   string `yaml:"route_select"`
+	SSH           sshConfig
+	Environment   map[string]string
+	Routes        map[string][]string
+	Users         map[string]subConfig
+	Groups        map[string]subConfig
 }
 
 type sshConfig struct {
@@ -49,16 +49,16 @@ type sshConfig struct {
 // We use interface{} instead of real type to check if the option was specified
 // or not.
 type subConfig struct {
-	Debug          interface{}
-	Log            interface{}
-	Dump           interface{}
-	Stats_Interval interface{}
-	Bg_Command     interface{}
-	Manager        interface{}
-	Route_Select   interface{}
-	Environment    map[string]string
-	Routes         map[string][]string
-	Ssh            sshConfig
+	Debug         interface{}
+	Log           interface{}
+	Dump          interface{}
+	StatsInterval interface{} `yaml:"stats_interval"`
+	BgCommand     interface{} `yaml:"bg_command"`
+	Manager       interface{}
+	RouteSelect   interface{} `yaml:"route_select"`
+	Environment   map[string]string
+	Routes        map[string][]string
+	SSH           sshConfig
 }
 
 func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
@@ -74,32 +74,32 @@ func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
 		config.Dump = subconfig.Dump.(string)
 	}
 
-	if subconfig.Stats_Interval != nil {
+	if subconfig.StatsInterval != nil {
 		var err error
-		config.Stats_Interval, err = utils.ParseDuration(subconfig.Stats_Interval.(string))
+		config.StatsInterval, err = utils.ParseDuration(subconfig.StatsInterval.(string))
 		if err != nil {
 			return err
 		}
 	}
 
-	if subconfig.Bg_Command != nil {
-		config.Bg_Command = subconfig.Bg_Command.(string)
+	if subconfig.BgCommand != nil {
+		config.BgCommand = subconfig.BgCommand.(string)
 	}
 
 	if subconfig.Manager != nil {
 		config.Manager = subconfig.Manager.(string)
 	}
 
-	if subconfig.Route_Select != nil {
-		config.Route_Select = subconfig.Route_Select.(string)
+	if subconfig.RouteSelect != nil {
+		config.RouteSelect = subconfig.RouteSelect.(string)
 	}
 
-	if subconfig.Ssh.Exe != "" {
-		config.Ssh.Exe = subconfig.Ssh.Exe
+	if subconfig.SSH.Exe != "" {
+		config.SSH.Exe = subconfig.SSH.Exe
 	}
 
-	if subconfig.Ssh.Args != nil {
-		config.Ssh.Args = subconfig.Ssh.Args
+	if subconfig.SSH.Args != nil {
+		config.SSH.Args = subconfig.SSH.Args
 	}
 
 	if subconfig.Routes != nil {
@@ -114,23 +114,23 @@ func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
 	return nil
 }
 
-type PatternReplacer struct {
+type patternReplacer struct {
 	Regexp *regexp.Regexp
 	Text   string
 }
 
-func replace(src string, replacer *PatternReplacer) string {
+func replace(src string, replacer *patternReplacer) string {
 	return replacer.Regexp.ReplaceAllString(src, replacer.Text)
 }
 
-func loadConfig(config_file, username, sid string, start time.Time, groups map[string]bool) (*sshProxyConfig, error) {
-	patterns := map[string]*PatternReplacer{
-		"{user}": &PatternReplacer{regexp.MustCompile(`{user}`), username},
-		"{sid}":  &PatternReplacer{regexp.MustCompile(`{sid}`), sid},
-		"{time}": &PatternReplacer{regexp.MustCompile(`{time}`), start.Format(time.RFC3339Nano)},
+func loadConfig(filename, username, sid string, start time.Time, groups map[string]bool) (*sshProxyConfig, error) {
+	patterns := map[string]*patternReplacer{
+		"{user}": &patternReplacer{regexp.MustCompile(`{user}`), username},
+		"{sid}":  &patternReplacer{regexp.MustCompile(`{sid}`), sid},
+		"{time}": &patternReplacer{regexp.MustCompile(`{time}`), start.Format(time.RFC3339Nano)},
 	}
 
-	yamlFile, err := ioutil.ReadFile(config_file)
+	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -143,16 +143,16 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 		return nil, err
 	}
 
-	if config.Route_Select == "" {
-		config.Route_Select = route.DefaultAlgorithm
+	if config.RouteSelect == "" {
+		config.RouteSelect = route.DefaultAlgorithm
 	}
 
-	if config.Ssh.Exe == "" {
-		config.Ssh.Exe = defaultSshExe
+	if config.SSH.Exe == "" {
+		config.SSH.Exe = defaultSSHExe
 	}
 
-	if config.Ssh.Args == nil {
-		config.Ssh.Args = defaultSshArgs
+	if config.SSH.Args == nil {
+		config.SSH.Args = defaultSSHArgs
 	}
 
 	for groupname, groupconfig := range config.Groups {
@@ -177,8 +177,8 @@ func loadConfig(config_file, username, sid string, start time.Time, groups map[s
 		config.Environment[k] = replace(v, patterns["{user}"])
 	}
 
-	if !route.IsAlgorithm(config.Route_Select) {
-		return nil, fmt.Errorf("invalid value for `route_select` option: %s", config.Route_Select)
+	if !route.IsAlgorithm(config.RouteSelect) {
+		return nil, fmt.Errorf("invalid value for `route_select` option: %s", config.RouteSelect)
 	}
 
 	// replace sources and destinations (with possible missing port) with host:port.

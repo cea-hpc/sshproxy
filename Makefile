@@ -64,5 +64,8 @@ glide:
 	glide update --strip-vendor
 	glide vc --use-lock-file
 
+lint:
+	golint sshproxy sshproxy-dumpd sshproxy-managerd sshproxy-replay manager record route utils
+
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml

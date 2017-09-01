@@ -22,9 +22,11 @@ var log = logging.MustGetLogger("sshproxy/route")
 type selectDestinationFunc func([]string, HostChecker) (string, error)
 
 var (
-	// default algorithm to find route
+	// DefaultAlgorithm is the default algorithm used to find a route if no
+	// other algorithm is specified in configuration.
 	DefaultAlgorithm = "ordered"
-	// keyword for default route
+	// DefaultRouteKeyword is the keyword used to specify the default
+	// route.
 	DefaultRouteKeyword = "default:22"
 )
 
@@ -87,10 +89,14 @@ func selectDestinationRandom(destinations []string, checker HostChecker) (string
 	return selectDestinationOrdered(rdestinations, checker)
 }
 
-func Select(route_select string, destinations []string, checker HostChecker) (string, error) {
-	return routeSelecters[route_select](destinations, checker)
+// Select returns a destination among the destinations according to the
+// specified algo. The destination was successfully checked by the specified
+// checker.
+func Select(algo string, destinations []string, checker HostChecker) (string, error) {
+	return routeSelecters[algo](destinations, checker)
 }
 
+// IsAlgorithm checks if the specified algo is valid.
 func IsAlgorithm(algo string) bool {
 	_, ok := routeSelecters[algo]
 	return ok
