@@ -293,6 +293,9 @@ func mainExitCode() int {
 	originalCmd := os.Getenv("SSH_ORIGINAL_COMMAND")
 	log.Debug("original command = %s", originalCmd)
 
+	interactiveCommand := term.IsTerminal(os.Stdout.Fd())
+	log.Debug("interactiveCommand = %v", interactiveCommand)
+
 	// We assume the `sftp-server` binary is in the same directory on the
 	// gateway as on the target.
 	sshArgs := config.SSH.Args
@@ -300,14 +303,16 @@ func mainExitCode() int {
 		sshArgs = append(sshArgs, "-p", port)
 	}
 	if originalCmd != "" {
+		if interactiveCommand {
+			// Force TTY allocation because the user probably asked for it.
+			sshArgs = append(sshArgs, "-t")
+		}
 		sshArgs = append(sshArgs, host, originalCmd)
 	} else {
 		sshArgs = append(sshArgs, host)
 	}
 	cmd := exec.Command(config.SSH.Exe, sshArgs...)
 	log.Debug("command = %s %q", cmd.Path, cmd.Args)
-
-	interactiveCommand := term.IsTerminal(os.Stdout.Fd())
 
 	var recorder *Recorder
 	if !interactiveCommand || config.Dump != "" {
