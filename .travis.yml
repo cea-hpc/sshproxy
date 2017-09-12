@@ -1,14 +1,5 @@
 language: go
 
-addons:
-  apt:
-    packages:
-      - asciidoc
-      - docbook-utils
-      - docbook-xml
-      - libxml2-utils
-      - xsltproc
-
 matrix:
   include:
     - go: 1.7.x
@@ -19,3 +10,5 @@ matrix:
 
 notifications:
   email: false
+
+script: make exe

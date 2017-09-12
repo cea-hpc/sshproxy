@@ -26,6 +26,10 @@ MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy-managerd.yaml.5 doc/sshproxy.8 doc/ssh
 
 all: $(EXE) $(MANDOC)
 
+exe: $(EXE)
+
+doc: $(MANDOC)
+
 %.5: %.txt
 	a2x $(ASCIIDOC_OPTS) -f manpage $<
 
