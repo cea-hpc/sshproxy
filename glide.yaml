@@ -1,4 +1,4 @@
-package:  sshproxy
+package:  github.com/cea-hpc/sshproxy
 homepage: https://github.com/cea-hpc/sshproxy
 license:  CECILL-B
 owners:
