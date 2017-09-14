@@ -466,7 +466,7 @@ func failureHandler(args []string) (string, error) {
 			return "+OK", fmt.Errorf("%s is alive", hostport)
 		}
 	} else {
-		return "+OK", fmt.Errorf("%s is disabled")
+		return "+OK", fmt.Errorf("%s is disabled", hostport)
 	}
 
 	return "+OK", nil
