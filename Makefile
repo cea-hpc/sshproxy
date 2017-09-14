@@ -73,7 +73,7 @@ format:
 	$(GO) fmt $(PKGS)
 
 lint:
-	golint sshproxy sshproxy-dumpd sshproxy-managerd sshproxy-replay manager record route utils
+	golint $(PKGS)
 
 vet:
 	$(GO) vet $(PKGS)
