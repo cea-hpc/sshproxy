@@ -25,7 +25,7 @@ PKGS	= $(shell $(GO) list ./... | grep -v /vendor/ | grep -v -F /group.go)
 EXE	= sshproxy/sshproxy sshproxy-dumpd/sshproxy-dumpd sshproxy-managerd/sshproxy-managerd sshproxy-replay/sshproxy-replay
 MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy-managerd.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-managerd.8 doc/sshproxy-replay.8
 
-all: $(EXE) $(MANDOC)
+all: format exe doc
 
 exe: $(EXE)
 
