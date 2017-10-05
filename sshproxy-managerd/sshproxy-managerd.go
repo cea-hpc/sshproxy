@@ -91,6 +91,18 @@ func loadConfig(filename string) error {
 		return fmt.Errorf("invalid value in `routes` option: %s", err)
 	}
 
+	for g, cfg := range config.Groups {
+		if err := utils.CheckRoutes(cfg.Routes); err != nil {
+			return fmt.Errorf("invalid value for group %s in `routes` option: %s", g, err)
+		}
+	}
+
+	for u, cfg := range config.Users {
+		if err := utils.CheckRoutes(cfg.Routes); err != nil {
+			return fmt.Errorf("invalid value for user %s in `routes` option: %s", u, err)
+		}
+	}
+
 	if config.Listen == "" {
 		config.Listen = defaultListenAddr
 	}
