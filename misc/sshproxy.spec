@@ -42,8 +42,8 @@ automatically connect a remote user to a defined internal host.
 
 %build
 # set up temporary build gopath, and put our directory there
-mkdir -p ./_build/src
-ln -s $(pwd) ./_build/src/sshproxy
+mkdir -p ./_build/src/github.com/cea-hpc
+ln -s $(pwd) ./_build/src/github.com/cea-hpc/sshproxy
 
 export GOPATH=$(pwd)/_build:%{gopath}
 make

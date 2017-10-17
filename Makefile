@@ -1,4 +1,5 @@
 SSHPROXY_VERSION ?= 0.4.4
+SSHPROXY_GIT_URL ?= github.com/cea-hpc/sshproxy
 
 prefix		?= /usr
 bindir		?= $(prefix)/bin
@@ -22,10 +23,10 @@ ROUTE_SRC		= $(wildcard route/*.go)
 UTILS_SRC		= $(wildcard utils/*.go)
 
 PKGS	= $(shell $(GO) list ./... | grep -v /vendor/ | grep -v -F /group.go)
-EXE	= sshproxy/sshproxy sshproxy-dumpd/sshproxy-dumpd sshproxy-managerd/sshproxy-managerd sshproxy-replay/sshproxy-replay
+EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-managerd sshproxy-replay)
 MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy-managerd.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-managerd.8 doc/sshproxy-replay.8
 
-all: format exe doc
+all: exe doc
 
 exe: $(EXE)
 
@@ -37,17 +38,17 @@ doc: $(MANDOC)
 %.8: %.txt
 	a2x $(ASCIIDOC_OPTS) -f manpage $<
 
-sshproxy/sshproxy: $(SSHPROXY_SRC) $(GROUPGO_SRC) $(MANAGER_SRC) $(RECORD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
-	cd sshproxy && $(GO) build $(GO_OPTS)
+bin/sshproxy: $(SSHPROXY_SRC) $(GROUPGO_SRC) $(MANAGER_SRC) $(RECORD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
+	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/sshproxy
 
-sshproxy-dumpd/sshproxy-dumpd: $(SSHPROXY_DUMPD_SRC) $(RECORD_SRC) $(UTILS_SRC)
-	cd sshproxy-dumpd && $(GO) build $(GO_OPTS)
+bin/sshproxy-dumpd: $(SSHPROXY_DUMPD_SRC) $(RECORD_SRC) $(UTILS_SRC)
+	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/sshproxy-dumpd
 
-sshproxy-managerd/sshproxy-managerd: $(SSHPROXY_MANAGERD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
-	cd sshproxy-managerd && $(GO) build $(GO_OPTS)
+bin/sshproxy-managerd: $(SSHPROXY_MANAGERD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
+	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/sshproxy-managerd
 
-sshproxy-replay/sshproxy-replay: $(SSHPROXY_REPLAY_SRC) $(RECORD_SRC)
-	cd sshproxy-replay && $(GO) build $(GO_OPTS)
+bin/sshproxy-replay: $(SSHPROXY_REPLAY_SRC) $(RECORD_SRC)
+	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/sshproxy-replay
 
 install: install-binaries install-doc-man
 
@@ -59,11 +60,11 @@ install-doc-man: $(MANDOC)
 
 install-binaries: $(EXE)
 	install -d $(DESTDIR)$(sbindir)
-	install -p -m 0755 sshproxy/sshproxy $(DESTDIR)$(sbindir)
-	install -p -m 0755 sshproxy-dumpd/sshproxy-dumpd $(DESTDIR)$(sbindir)
-	install -p -m 0755 sshproxy-managerd/sshproxy-managerd $(DESTDIR)$(sbindir)
+	install -p -m 0755 bin/sshproxy $(DESTDIR)$(sbindir)
+	install -p -m 0755 bin/sshproxy-dumpd $(DESTDIR)$(sbindir)
+	install -p -m 0755 bin/sshproxy-managerd $(DESTDIR)$(sbindir)
 	install -d $(DESTDIR)$(bindir)
-	install -p -m 0755 sshproxy-replay/sshproxy-replay $(DESTDIR)$(bindir)
+	install -p -m 0755 bin/sshproxy-replay $(DESTDIR)$(bindir)
 
 glide:
 	glide update --strip-vendor
