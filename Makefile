@@ -1,4 +1,4 @@
-SSHPROXY_VERSION ?= 0.4.4
+SSHPROXY_VERSION ?= 0.4.5
 SSHPROXY_GIT_URL ?= github.com/cea-hpc/sshproxy
 
 prefix		?= /usr
