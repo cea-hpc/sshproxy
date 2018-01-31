@@ -42,7 +42,7 @@ func MustSetupLogging(module, logfile, logformat, syslogformat string, debug boo
 	} else {
 		var f *os.File
 		if logfile == "" {
-			f = os.Stderr
+			f = os.Stdout
 		} else {
 			err := os.MkdirAll(path.Dir(logfile), 0755)
 			if err != nil {
