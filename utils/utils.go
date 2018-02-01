@@ -13,10 +13,8 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"net"
-	"os"
+	"os/user"
 	"time"
-
-	"github.com/cea-hpc/sshproxy/group.go"
 )
 
 // DefaultSSHPort is the default SSH server port.
@@ -43,23 +41,57 @@ func SplitHostPort(hostport string) (string, string, error) {
 	return host, port, nil
 }
 
-// GetGroups returns a map of group memberships for the current user.
+// GetGroupUser returns a map of group memberships for the specifised user.
 //
 // It can be used to quickly check if a user is in a specified group.
-func GetGroups() (map[string]bool, error) {
-	gids, err := os.Getgroups()
+func GetGroupUser(u *user.User) (map[string]bool, error) {
+	groupids, err := u.GroupIds()
 	if err != nil {
 		return nil, err
 	}
 
 	groups := make(map[string]bool)
-	for _, gid := range gids {
-		g, err := group.LookupId(gid)
+	for _, gid := range groupids {
+		g, err := user.LookupGroupId(gid)
 		if err != nil {
 			return nil, err
 		}
 
 		groups[g.Name] = true
+	}
+
+	return groups, nil
+}
+
+// GetGroups returns a map of group memberships for the current user.
+//
+// It can be used to quickly check if a user is in a specified group.
+func GetGroups() (map[string]bool, error) {
+	u, err := user.Current()
+	if err != nil {
+		return nil, err
+	}
+
+	groups, err := GetGroupUser(u)
+	if err != nil {
+		return nil, err
+	}
+
+	return groups, nil
+}
+
+// GetGroupList returns a map of group memberships for the specified user.
+//
+// It can be used to quickly check if a user is in a specified group.
+func GetGroupList(username string) (map[string]bool, error) {
+	u, err := user.Lookup(username)
+	if err != nil {
+		return nil, err
+	}
+
+	groups, err := GetGroupUser(u)
+	if err != nil {
+		return nil, err
 	}
 
 	return groups, nil
