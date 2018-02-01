@@ -10,6 +10,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -84,15 +85,15 @@ type Recorder struct {
 	command               string             // initial user command
 	dumpfile              string             // path to filename where the raw records are dumped.
 	writer                *record.Writer     // *record.Writer where the raw records are dumped.
-	done                  <-chan struct{}    // control channel to stop recording when it's closed
+	ctx                   context.Context    // context to stop recording when it's cancelled
 }
 
 // NewRecorder returns a new Recorder struct.
 //
 // If dumpfile is not empty, the intercepted raw data will be written in this
 // file. Logging of basic statistics will be done every statsInterval seconds.
-// It will stop recording when the done channel is closed.
-func NewRecorder(conninfo *ConnInfo, dumpfile, command string, statsInterval time.Duration, done <-chan struct{}) (*Recorder, error) {
+// It will stop recording when the context is cancelled.
+func NewRecorder(ctx context.Context, conninfo *ConnInfo, dumpfile, command string, statsInterval time.Duration) (*Recorder, error) {
 	ch := make(chan record.Record)
 
 	return &Recorder{
@@ -106,7 +107,7 @@ func NewRecorder(conninfo *ConnInfo, dumpfile, command string, statsInterval tim
 		command:       command,
 		dumpfile:      dumpfile,
 		writer:        nil,
-		done:          done,
+		ctx:           ctx,
 	}, nil
 }
 
@@ -186,7 +187,7 @@ func (r *Recorder) Run() {
 				select {
 				case <-time.After(r.statsInterval):
 					r.log()
-				case <-r.done:
+				case <-r.ctx.Done():
 					return
 				}
 			}
@@ -200,7 +201,7 @@ func (r *Recorder) Run() {
 			if r.writer != nil {
 				r.dump(rec)
 			}
-		case <-r.done:
+		case <-r.ctx.Done():
 			return
 		}
 	}

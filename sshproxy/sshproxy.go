@@ -10,6 +10,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -254,9 +255,9 @@ func mainExitCode() int {
 
 	// waitgroup and channel to stop our background command when exiting.
 	var wg sync.WaitGroup
-	done := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
 	defer func() {
-		close(done)
+		cancel()
 		wg.Wait()
 	}()
 
@@ -266,7 +267,7 @@ func mainExitCode() int {
 			wg.Add(1)
 			defer wg.Done()
 			cmd := prepareBackgroundCommand(config.BgCommand, config.Debug)
-			if err := runCommand(cmd, false, done); err != nil {
+			if err := runCommand(ctx, cmd, false); err != nil {
 				log.Error("error running background command: %s", err)
 			}
 		}()
@@ -284,7 +285,7 @@ func mainExitCode() int {
 					log.Warning("SSH parent connection is dead")
 					os.Exit(0)
 				}
-			case <-done:
+			case <-ctx.Done():
 				return
 			}
 		}
@@ -316,7 +317,7 @@ func mainExitCode() int {
 
 	var recorder *Recorder
 	if !interactiveCommand || config.Dump != "" {
-		recorder, err = NewRecorder(conninfo, config.Dump, originalCmd, config.StatsInterval.Duration(), done)
+		recorder, err = NewRecorder(ctx, conninfo, config.Dump, originalCmd, config.StatsInterval.Duration())
 		if err != nil {
 			log.Fatalf("setting recorder: %s", err)
 		}
@@ -331,9 +332,9 @@ func mainExitCode() int {
 	log.Notice("proxied to %s", hostport)
 
 	if interactiveCommand {
-		err = runTtyCommand(cmd, done, recorder)
+		err = runTtyCommand(ctx, cmd, recorder)
 	} else {
-		err = runStdCommand(cmd, done, recorder)
+		err = runStdCommand(ctx, cmd, recorder)
 	}
 	if err != nil {
 		log.Error("error executing proxied ssh command: %s", err)

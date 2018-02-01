@@ -11,6 +11,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -25,10 +26,10 @@ import (
 )
 
 // runCommand executes the *exec.Cmd command and waits for its completion,
-// unless the done channel is closed in which case the command is killed.
+// unless the context is cancelled in which case the command is killed.
 //
 // The command can already be started if the started boolean is true.
-func runCommand(cmd *exec.Cmd, started bool, done <-chan struct{}) error {
+func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) error {
 	if !started {
 		if err := cmd.Start(); err != nil {
 			return err
@@ -45,7 +46,7 @@ func runCommand(cmd *exec.Cmd, started bool, done <-chan struct{}) error {
 				}
 				return nil
 			}
-		case <-done:
+		case <-ctx.Done():
 			cmd.Process.Kill()
 			return nil
 		}
@@ -56,22 +57,22 @@ func runCommand(cmd *exec.Cmd, started bool, done <-chan struct{}) error {
 
 // runStdCommand launches a command without the need for a PTY.
 //
-// The command will be stopped when the done channel is closed and the session
+// The command will be stopped when the context is cancelled and the session
 // recorded by rec.
-func runStdCommand(cmd *exec.Cmd, done <-chan struct{}, rec *Recorder) error {
+func runStdCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) error {
 	cmd.Stdin = rec.Stdin
 	cmd.Stdout = rec.Stdout
 	cmd.Stderr = rec.Stderr
-	return runCommand(cmd, false, done)
+	return runCommand(ctx, cmd, false)
 }
 
 // runTtyCommand launches a command in a PTY.
 //
-// The command will be stopped when the done channel is closed and the session
+// The command will be stopped when the context is cancelled and the session
 // recorded by rec.
 //
 // From: https://github.com/9seconds/ah/blob/master/app/utils/exec.go
-func runTtyCommand(cmd *exec.Cmd, done <-chan struct{}, rec *Recorder) error {
+func runTtyCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) error {
 	commandStarted := false
 	if rec != nil {
 		p, err := pty.Start(cmd)
@@ -98,7 +99,7 @@ func runTtyCommand(cmd *exec.Cmd, done <-chan struct{}, rec *Recorder) error {
 		cmd.Stderr = os.Stderr
 	}
 
-	return runCommand(cmd, commandStarted, done)
+	return runCommand(ctx, cmd, commandStarted)
 }
 
 // monitorTtyResize resizes the guestFd TTY to the hostFd TTY size and checks

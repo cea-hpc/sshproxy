@@ -11,6 +11,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -523,13 +524,13 @@ func handle(r *request) {
 }
 
 // serve processes requests written in the queue channel and quits when the
-// done channel is closed.
-func serve(queue <-chan *request, done <-chan struct{}) {
+// context is cancelled.
+func serve(ctx context.Context, queue <-chan *request) {
 	for {
 		select {
 		case req := <-queue:
 			handle(req)
-		case <-done:
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -662,9 +663,10 @@ func main() {
 	log.Info("listening on %s\n", config.Listen)
 
 	queue := make(chan *request)
-	done := make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	go serve(queue, done)
+	go serve(ctx, queue)
 
 	for {
 		conn, err := l.Accept()
@@ -674,6 +676,4 @@ func main() {
 
 		go acquire(conn, queue)
 	}
-
-	close(done)
 }
