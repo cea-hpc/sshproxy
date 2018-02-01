@@ -33,9 +33,9 @@ import (
 )
 
 var (
-	// SSHPROXY_VERSION is set in the Makefile.
-	SSHPROXY_VERSION = "0.0.0+notproperlybuilt"
-	defaultConfig    = "/etc/sshproxy/sshproxy.yaml"
+	// SshproxyVersion is set in the Makefile.
+	SshproxyVersion = "0.0.0+notproperlybuilt"
+	defaultConfig   = "/etc/sshproxy/sshproxy.yaml"
 )
 
 // main logger for sshproxy
@@ -166,7 +166,7 @@ func mainExitCode() int {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Fprintf(os.Stderr, "sshproxy version %s\n", SSHPROXY_VERSION)
+		fmt.Fprintf(os.Stderr, "sshproxy version %s\n", SshproxyVersion)
 		return 0
 	}
 

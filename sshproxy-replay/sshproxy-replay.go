@@ -22,10 +22,10 @@ import (
 )
 
 var (
-	// SSHPROXY_VERSION is set in the Makefile.
-	SSHPROXY_VERSION = "0.0.0+notproperlybuilt"
-	replayFlag       = flag.Bool("replay", false, "live replay a session (as the user did it)")
-	versionFlag      = flag.Bool("version", false, "show version number and exit")
+	// SshproxyVersion is set in the Makefile.
+	SshproxyVersion = "0.0.0+notproperlybuilt"
+	replayFlag      = flag.Bool("replay", false, "live replay a session (as the user did it)")
+	versionFlag     = flag.Bool("version", false, "show version number and exit")
 )
 
 func replay(filename string) {
@@ -111,7 +111,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Fprintf(os.Stderr, "sshproxy-replay version %s\n", SSHPROXY_VERSION)
+		fmt.Fprintf(os.Stderr, "sshproxy-replay version %s\n", SshproxyVersion)
 		os.Exit(0)
 	}
 

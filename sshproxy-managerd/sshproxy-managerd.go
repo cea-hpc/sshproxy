@@ -31,8 +31,8 @@ import (
 )
 
 var (
-	// SSHPROXY_VERSION is set in the Makefile.
-	SSHPROXY_VERSION  = "0.0.0+notproperlybuilt"
+	// SshproxyVersion is set in the Makefile.
+	SshproxyVersion   = "0.0.0+notproperlybuilt"
 	defaultConfig     = "/etc/sshproxy/sshproxy-managerd.yaml"
 	defaultListenAddr = "127.0.0.1:55555"
 )
@@ -605,7 +605,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Fprintf(os.Stderr, "sshproxy-managerd version %s\n", SSHPROXY_VERSION)
+		fmt.Fprintf(os.Stderr, "sshproxy-managerd version %s\n", SshproxyVersion)
 		os.Exit(0)
 	}
 

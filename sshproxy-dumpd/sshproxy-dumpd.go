@@ -25,11 +25,11 @@ import (
 )
 
 var (
-	// SSHPROXY_VERSION is set in the Makefile.
-	SSHPROXY_VERSION = "0.0.0+notproperlybuilt"
-	versionFlag      = flag.Bool("version", false, "show version number and exit")
-	listenAddr       = flag.String("listen", ":5555", "listen on this address ([host]:port)")
-	outputDir        = flag.String("output", "", "output directory where dumps will be written")
+	// SshproxyVersion is set in the Makefile.
+	SshproxyVersion = "0.0.0+notproperlybuilt"
+	versionFlag     = flag.Bool("version", false, "show version number and exit")
+	listenAddr      = flag.String("listen", ":5555", "listen on this address ([host]:port)")
+	outputDir       = flag.String("output", "", "output directory where dumps will be written")
 )
 
 func acquire(c net.Conn) {
@@ -76,7 +76,7 @@ func main() {
 	flag.Parse()
 
 	if *versionFlag {
-		fmt.Fprintf(os.Stderr, "sshproxy-dumpd version %s\n", SSHPROXY_VERSION)
+		fmt.Fprintf(os.Stderr, "sshproxy-dumpd version %s\n", SshproxyVersion)
 		os.Exit(0)
 	}
 

@@ -52,7 +52,7 @@ func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) error {
 		}
 	}
 
-	return nil // not reached
+	// not reached
 }
 
 // runStdCommand launches a command without the need for a PTY.
@@ -113,7 +113,7 @@ func monitorTtyResize(hostFd uintptr, guestFd uintptr) {
 	signal.Notify(winchChan, syscall.SIGWINCH)
 
 	go func() {
-		for _ = range winchChan {
+		for range winchChan {
 			resizeTty(hostFd, guestFd)
 		}
 	}()

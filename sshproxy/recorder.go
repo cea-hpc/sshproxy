@@ -55,7 +55,12 @@ func (s *Splitter) Close() error {
 func (s *Splitter) Read(p []byte) (int, error) {
 	n, err := s.f.Read(p)
 	pp := Dup(p, n)
-	s.ch <- record.Record{time.Now(), s.fd, n, pp}
+	s.ch <- record.Record{
+		Time: time.Now(),
+		Fd:   s.fd,
+		Size: n,
+		Data: pp,
+	}
 	return n, err
 }
 
@@ -63,7 +68,12 @@ func (s *Splitter) Read(p []byte) (int, error) {
 // slice to its internal channel.
 func (s *Splitter) Write(p []byte) (int, error) {
 	pp := Dup(p, len(p))
-	s.ch <- record.Record{time.Now(), s.fd, len(p), pp}
+	s.ch <- record.Record{
+		Time: time.Now(),
+		Fd:   s.fd,
+		Size: len(p),
+		Data: pp,
+	}
 	return s.f.Write(p)
 }
 
