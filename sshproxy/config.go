@@ -125,9 +125,9 @@ func replace(src string, replacer *patternReplacer) string {
 
 func loadConfig(filename, username, sid string, start time.Time, groups map[string]bool) (*sshProxyConfig, error) {
 	patterns := map[string]*patternReplacer{
-		"{user}": &patternReplacer{regexp.MustCompile(`{user}`), username},
-		"{sid}":  &patternReplacer{regexp.MustCompile(`{sid}`), sid},
-		"{time}": &patternReplacer{regexp.MustCompile(`{time}`), start.Format(time.RFC3339Nano)},
+		"{user}": {regexp.MustCompile(`{user}`), username},
+		"{sid}":  {regexp.MustCompile(`{sid}`), sid},
+		"{time}": {regexp.MustCompile(`{time}`), start.Format(time.RFC3339Nano)},
 	}
 
 	yamlFile, err := ioutil.ReadFile(filename)
