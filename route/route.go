@@ -40,7 +40,7 @@ type HostChecker interface {
 // BasicHostChecker implements the HostChecker interface.
 type BasicHostChecker struct{}
 
-// Check tests if a conneciton to host:port can be made with a 1s timeout.
+// Check tests if a connection to host:port can be made with a 1s timeout.
 func (bhc *BasicHostChecker) Check(hostport string) bool {
 	return CanConnect(hostport)
 }

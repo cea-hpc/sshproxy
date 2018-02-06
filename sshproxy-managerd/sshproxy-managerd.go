@@ -64,8 +64,8 @@ type managerdConfig struct {
 	CheckInterval utils.Duration       `yaml:"check_interval"` // Minimum interval between host checks
 	RouteSelect   string               `yaml:"route_select"`   // Algorithm used to select a destination
 	Routes        map[string][]string  // Routes definition
-	Groups        map[string]subConfig // Groups overriden options
-	Users         map[string]subConfig // Users overriden options
+	Groups        map[string]subConfig // Groups overridden options
+	Users         map[string]subConfig // Users overridden options
 }
 
 // sub-configuration for users/groups

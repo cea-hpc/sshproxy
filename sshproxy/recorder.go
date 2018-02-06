@@ -78,7 +78,7 @@ func (s *Splitter) Write(p []byte) (int, error) {
 }
 
 // A Recorder intercepts data read from standard input and written to standard
-// ouput or standard error.
+// output or standard error.
 //
 // It logs periodically basic statistics of transferred bytes and can save
 // intercepted raw data in a file.
