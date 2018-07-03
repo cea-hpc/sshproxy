@@ -43,6 +43,10 @@ ignored = [
   version = "1.0.0"
 
 [[constraint]]
+  name = "github.com/prometheus/client_golang"
+  version = "~0.9.0-pre1"
+
+[[constraint]]
   name = "gopkg.in/yaml.v2"
   branch = "v2"
   source = "https://github.com/go-yaml/yaml.git"
