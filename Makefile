@@ -65,10 +65,6 @@ install-binaries: $(EXE)
 	install -d $(DESTDIR)$(bindir)
 	install -p -m 0755 bin/sshproxy-replay $(DESTDIR)$(bindir)
 
-glide:
-	glide update --strip-vendor
-	glide vc --use-lock-file
-
 format:
 	$(GO) fmt $(PKGS)
 
@@ -81,4 +77,4 @@ vet:
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml
 
-.PHONY: all exe doc install install-doc-man install-binaries glide format lint clean vet
+.PHONY: all exe doc install install-doc-man install-binaries format lint clean vet
