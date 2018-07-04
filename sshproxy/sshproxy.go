@@ -20,6 +20,7 @@ import (
 	"os/user"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -300,6 +301,10 @@ func mainExitCode() int {
 	// We assume the `sftp-server` binary is in the same directory on the
 	// gateway as on the target.
 	sshArgs := config.SSH.Args
+	envSshproxyArgs := strings.Fields(os.Getenv("SSHPROXY_ARGS"))
+	if len(envSshproxyArgs) != 0 {
+		sshArgs = append(sshArgs, envSshproxyArgs...)
+	}
 	if port != utils.DefaultSSHPort {
 		sshArgs = append(sshArgs, "-p", port)
 	}
