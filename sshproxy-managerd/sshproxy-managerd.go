@@ -19,6 +19,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -220,6 +221,15 @@ type proxiedConn struct {
 // genKey returns the key used in the proxiedConnections global variable.
 func genKey(user, host string) string {
 	return fmt.Sprintf("%s@%s", user, host)
+}
+
+// getUserFromKey returns the user from the key used in the proxiedConnections global variable.
+func getUserFromKey(key string) (string, error) {
+	match := regexp.MustCompile(`^(\w*)@`).FindStringSubmatch(key)
+	if len(match) < 2 {
+		return "", fmt.Errorf("Unable to extract user from given key (%s)", key)
+	}
+	return match[1], nil
 }
 
 // getAlgorithmAndRoutes returns the selection algorithm and a slice with the
