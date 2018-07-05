@@ -55,6 +55,8 @@ var (
 
 	// map of proxied connections (keys are user@host)
 	proxiedConnections = make(map[string]*proxiedConn)
+
+	findUserRegexp = regexp.MustCompile(`^(\w*)@`)
 )
 
 // Configuration
@@ -225,7 +227,7 @@ func genKey(user, host string) string {
 
 // getUserFromKey returns the user from the key used in the proxiedConnections global variable.
 func getUserFromKey(key string) (string, error) {
-	match := regexp.MustCompile(`^(\w*)@`).FindStringSubmatch(key)
+	match := findUserRegexp.FindStringSubmatch(key)
 	if len(match) < 2 {
 		return "", fmt.Errorf("Unable to extract user from given key (%s)", key)
 	}
