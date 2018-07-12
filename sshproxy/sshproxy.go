@@ -229,8 +229,8 @@ func mainExitCode() int {
 
 	setEnvironment(config.Environment)
 
-	log.Notice("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
-	defer log.Notice("disconnected")
+	log.Info("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
+	defer log.Info("disconnected")
 
 	var mclient *manager.Client
 	if config.Manager != "" {
@@ -334,7 +334,7 @@ func mainExitCode() int {
 		}()
 	}
 
-	log.Notice("proxied to %s", hostport)
+	log.Info("proxied to %s", hostport)
 
 	if interactiveCommand {
 		err = runTtyCommand(ctx, cmd, recorder)

@@ -62,6 +62,6 @@ func MustSetupLogging(module, logfile, logformat, syslogformat string, debug boo
 	if debug {
 		logging.SetLevel(logging.DEBUG, module)
 	} else {
-		logging.SetLevel(logging.NOTICE, module)
+		logging.SetLevel(logging.INFO, module)
 	}
 }

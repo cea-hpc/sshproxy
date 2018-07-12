@@ -130,7 +130,7 @@ func (r *Recorder) log() {
 	}
 	// round to second
 	elapsed := time.Duration((time.Now().Sub(r.start) / time.Second) * time.Second)
-	log.Notice("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
+	log.Info("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
 }
 
 // dump saves a record.Record in the dumpfile.
