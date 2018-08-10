@@ -20,6 +20,18 @@
   version = "v1"
 
 [[projects]]
+  name = "golang.org/x/crypto"
+  packages = [
+    "curve25519",
+    "ed25519",
+    "ed25519/internal/edwards25519",
+    "internal/chacha20",
+    "poly1305",
+    "ssh"
+  ]
+  revision = "dccd99e89d39b13e12f1103c72e3bc49eb40a833"
+
+[[projects]]
   branch = "v2"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
@@ -29,6 +41,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a7af8fde35a4b514988fc601adc1435474f609ef113ad8e9472bcb8f50ceba3a"
+  inputs-digest = "9a7ecb4a2fdb14bb2367b749dda79ae44ba21fe4cb919c73b51f875fa45c6a47"
   solver-name = "gps-cdcl"
   solver-version = 1
