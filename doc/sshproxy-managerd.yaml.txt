@@ -32,6 +32,10 @@ The following keys can be defined:
 	a string specifying the listening address. The format is '[host]:port'
 	and the default is '127.0.0.1:55555'.
 
+*promlisten*::
+	a string specifying the listening address of the prometheus exporter.
+	The format is '[host]:port' and the default is ':55556'.
+
 *log*::
 	a string which can be:
 	- empty ('""') to display the logs on the standard output. It is the
@@ -91,6 +95,8 @@ EXAMPLE
 debug: false
 
 listen: 127.0.0.1:55555
+
+promlisten: :55556
 
 log: syslog
 

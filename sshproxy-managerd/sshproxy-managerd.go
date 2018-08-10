@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"regexp"
@@ -28,14 +29,17 @@ import (
 	"github.com/cea-hpc/sshproxy/utils"
 
 	"github.com/op/go-logging"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/yaml.v2"
 )
 
 var (
 	// SshproxyVersion is set in the Makefile.
-	SshproxyVersion   = "0.0.0+notproperlybuilt"
-	defaultConfig     = "/etc/sshproxy/sshproxy-managerd.yaml"
-	defaultListenAddr = "127.0.0.1:55555"
+	SshproxyVersion       = "0.0.0+notproperlybuilt"
+	defaultConfig         = "/etc/sshproxy/sshproxy-managerd.yaml"
+	defaultListenAddr     = "127.0.0.1:55555"
+	defaultPromListenAddr = ":55556"
 )
 
 var (
@@ -58,11 +62,54 @@ var (
 
 	findUserRegexp = regexp.MustCompile(`^(\w*)@`)
 )
+var (
+	promUserStats = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "sshproxy_user_connections_summary",
+			Help:       "SSH Connection distribution",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		},
+		[]string{"user", "server"},
+	)
+
+	promServerStats = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name:       "sshproxy_server_connections_summary",
+			Help:       "SSH Connection distribution",
+			Objectives: map[float64]float64{0.5: 0.05, 0.9: 0.01, 0.99: 0.001},
+		},
+		[]string{"server"},
+	)
+
+	promInstUserConnection = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "sshproxy_user_connections",
+			Help: "Current number of Proxied connections",
+		},
+		[]string{"user", "server"},
+	)
+
+	promServers = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "sshproxy_server_up",
+			Help: "Is this server Up ?",
+		},
+		[]string{"server"},
+	)
+
+	promManagerdLatency = prometheus.NewSummary(
+		prometheus.SummaryOpts{
+			Name: "sshproxy_managerd_latency",
+			Help: "sshproxy-managerd request handling statistics in microseconds",
+		},
+	)
+)
 
 // Configuration
 type managerdConfig struct {
 	Debug         bool                 // Debug mode
 	Listen        string               // Listen address [host]:port
+	PromListen    string               // Prometheus Metrics Listen address [host]:port
 	Log           string               // Where to log: empty is for stdout, "syslog" or a file
 	CheckInterval utils.Duration       `yaml:"check_interval"` // Minimum interval between host checks
 	RouteSelect   string               `yaml:"route_select"`   // Algorithm used to select a destination
@@ -115,6 +162,10 @@ func loadConfig(filename string) error {
 
 	if config.RouteSelect == "" {
 		config.RouteSelect = route.DefaultAlgorithm
+	}
+
+	if config.PromListen == "" {
+		config.PromListen = defaultPromListenAddr
 	}
 
 	return nil
@@ -187,6 +238,11 @@ func (hc *hostChecker) DoCheck(hostport string) State {
 		state = Up
 	}
 	hc.Update(hostport, state, time.Now())
+	if state == Up {
+		promServers.WithLabelValues(hostport).Set(1)
+	} else {
+		promServers.WithLabelValues(hostport).Set(0)
+	}
 	return state
 }
 
@@ -370,6 +426,7 @@ func connectHandler(args []string) (string, error) {
 	}
 
 	log.Info("new connection for %s: %s", key, dst)
+	promInstUserConnection.WithLabelValues(user, dst).Inc()
 	return fmt.Sprintf("+%s", dst), nil
 }
 
@@ -388,6 +445,7 @@ func disableHandler(args []string) (string, error) {
 
 	managerHostChecker.Update(hostport, Disabled, time.Now())
 
+	promServers.WithLabelValues(hostport).Set(0)
 	return "+OK", nil
 }
 
@@ -417,6 +475,7 @@ func disconnectHandler(args []string) (string, error) {
 		delete(proxiedConnections, key)
 	}
 
+	promInstUserConnection.WithLabelValues(user, pc.Dest).Set(float64(pc.N))
 	return "+OK", nil
 }
 
@@ -511,6 +570,7 @@ type request struct {
 // It either writes a response in the request.response channel or an error in
 // the request.errc channel.
 func handle(r *request) {
+	start := time.Now()
 	fields := strings.Fields(r.request)
 	if len(fields) == 0 {
 		r.errc <- errors.New("empty request")
@@ -533,6 +593,8 @@ func handle(r *request) {
 
 	r.response <- response
 	close(r.response)
+	elapsed := time.Since(start)
+	promManagerdLatency.Observe(float64(elapsed / time.Microsecond))
 }
 
 // serve processes requests written in the queue channel and quits when the
@@ -677,6 +739,46 @@ func main() {
 	queue := make(chan *request)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	prometheus.MustRegister(promUserStats)
+	prometheus.MustRegister(promServerStats)
+	prometheus.MustRegister(promInstUserConnection)
+	prometheus.MustRegister(promServers)
+	prometheus.MustRegister(promManagerdLatency)
+
+	go func() {
+		var UserStats map[string]map[string]uint64
+		var ServerStats map[string]uint64
+		var user string
+		for {
+			UserStats = make(map[string]map[string]uint64)
+			ServerStats = make(map[string]uint64)
+			for k, v := range proxiedConnections {
+				user, err = getUserFromKey(k)
+				if err == nil {
+					if _, ok := UserStats[user]; !ok {
+						UserStats[user] = make(map[string]uint64)
+					}
+					UserStats[user][v.Dest] = uint64(v.N)
+					ServerStats[v.Dest] += uint64(v.N)
+				} else {
+					continue
+				}
+			}
+			for observedUser, observedServers := range UserStats {
+				for observedServer, nbConnections := range observedServers {
+					promUserStats.WithLabelValues(observedUser, observedServer).Observe(float64(nbConnections))
+				}
+			}
+			for observedServer, nbConnections := range ServerStats {
+				promServerStats.WithLabelValues(observedServer).Observe(float64(nbConnections))
+			}
+			time.Sleep(time.Second)
+		}
+	}()
+
+	http.Handle("/metrics", promhttp.Handler())
+	go http.ListenAndServe(config.PromListen, nil)
 
 	go serve(ctx, queue)
 
