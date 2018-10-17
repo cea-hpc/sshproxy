@@ -17,6 +17,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"os/signal"
 	"os/user"
 	"regexp"
 	"runtime/debug"
@@ -262,6 +263,14 @@ func mainExitCode() int {
 	defer func() {
 		cancel()
 		wg.Wait()
+	}()
+
+	sigChannel := make(chan os.Signal, 1)
+	signal.Notify(sigChannel, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTERM)
+	go func() {
+		s := <-sigChannel
+		log.Info("Got signal %s, exiting", s)
+		cancel()
 	}()
 
 	// launch background command
