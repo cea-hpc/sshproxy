@@ -19,6 +19,7 @@ import (
 	"os/exec"
 	"os/user"
 	"regexp"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -156,6 +157,7 @@ func mainExitCode() int {
 		// log error in case of panic()
 		if err := recover(); err != nil {
 			log.Error("program panicked: %s", err)
+			log.Error("Stack: %s", debug.Stack())
 		}
 	}()
 
