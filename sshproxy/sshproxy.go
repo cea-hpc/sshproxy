@@ -286,7 +286,8 @@ func mainExitCode() int {
 			case <-time.After(1 * time.Second):
 				if os.Getppid() == 1 {
 					log.Warning("SSH parent connection is dead")
-					os.Exit(0)
+					cancel()
+					return
 				}
 			case <-ctx.Done():
 				return
