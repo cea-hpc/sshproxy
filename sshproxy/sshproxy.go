@@ -345,6 +345,8 @@ func mainExitCode() int {
 		log.Error("error executing proxied ssh command: %s", err)
 	}
 
+	cmd.Wait()
+
 	// return command exit code
 	return cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
 }
