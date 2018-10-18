@@ -35,6 +35,7 @@ func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) error {
 			return err
 		}
 	}
+	go cmd.Wait()
 
 	for {
 		select {
