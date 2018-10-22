@@ -143,7 +143,7 @@ func (b *BackgroundCommandLogger) Write(p []byte) (int, error) {
 	for _, l := range lines {
 		l = strings.TrimSpace(l)
 		if len(l) != 0 {
-			log.Debug("%s: %s", b.Prefix, l)
+			log.Debugf("%s: %s", b.Prefix, l)
 		}
 	}
 	return len(p), nil

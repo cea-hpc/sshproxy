@@ -56,7 +56,7 @@ var (
 func CanConnect(hostport string) bool {
 	c, err := net.DialTimeout("tcp", hostport, 1*time.Second)
 	if err != nil {
-		log.Info("cannot connect to %s: %s", hostport, err)
+		log.Infof("cannot connect to %s: %s", hostport, err)
 		return false
 	}
 	c.Close()
@@ -85,7 +85,7 @@ func selectDestinationRandom(destinations []string, checker HostChecker) (string
 	for i, v := range perm {
 		rdestinations[i] = destinations[v]
 	}
-	log.Debug("randomized destinations: %v", rdestinations)
+	log.Debugf("randomized destinations: %v", rdestinations)
 	return selectDestinationOrdered(rdestinations, checker)
 }
 

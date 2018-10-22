@@ -54,12 +54,12 @@ func findDestination(mclient *manager.Client, routes map[string][]string, routeS
 		if err != nil {
 			// disable manager in case of error
 			mclient = nil
-			log.Error("%s", err)
+			log.Errorf("%s", err)
 		} else {
 			if dst == "" {
 				log.Debug("got empty response from manager")
 			} else {
-				log.Debug("got response from manager: %s", dst)
+				log.Debugf("got response from manager: %s", dst)
 			}
 			return dst, nil
 		}
@@ -81,7 +81,7 @@ func setEnvironment(environment map[string]string) {
 		os.Setenv(k, v)
 	}
 	for _, e := range os.Environ() {
-		log.Debug("env = %s", e)
+		log.Debugf("env = %s", e)
 	}
 }
 
@@ -157,8 +157,8 @@ func mainExitCode() int {
 	defer func() {
 		// log error in case of panic()
 		if err := recover(); err != nil {
-			log.Error("program panicked: %s", err)
-			log.Error("Stack: %s", debug.Stack())
+			log.Errorf("program panicked: %s", err)
+			log.Errorf("Stack: %s", debug.Stack())
 		}
 	}()
 
@@ -217,22 +217,22 @@ func mainExitCode() int {
 	syslogformat := fmt.Sprintf("%%{level} %s: %%{message}", sid)
 	utils.MustSetupLogging("sshproxy", config.Log, logformat, syslogformat, config.Debug)
 
-	log.Debug("groups = %v", groups)
-	log.Debug("config.debug = %v", config.Debug)
-	log.Debug("config.log = %s", config.Log)
-	log.Debug("config.dump = %s", config.Dump)
-	log.Debug("config.stats_interval = %s", config.StatsInterval.Duration())
-	log.Debug("config.bg_command = %s", config.BgCommand)
-	log.Debug("config.manager = %s", config.Manager)
-	log.Debug("config.environment = %v", config.Environment)
-	log.Debug("config.route_select = %s", config.RouteSelect)
-	log.Debug("config.routes = %v", config.Routes)
-	log.Debug("config.ssh.exe = %s", config.SSH.Exe)
-	log.Debug("config.ssh.args = %v", config.SSH.Args)
+	log.Debugf("groups = %v", groups)
+	log.Debugf("config.debug = %v", config.Debug)
+	log.Debugf("config.log = %s", config.Log)
+	log.Debugf("config.dump = %s", config.Dump)
+	log.Debugf("config.stats_interval = %s", config.StatsInterval.Duration())
+	log.Debugf("config.bg_command = %s", config.BgCommand)
+	log.Debugf("config.manager = %s", config.Manager)
+	log.Debugf("config.environment = %v", config.Environment)
+	log.Debugf("config.route_select = %s", config.RouteSelect)
+	log.Debugf("config.routes = %v", config.Routes)
+	log.Debugf("config.ssh.exe = %s", config.SSH.Exe)
+	log.Debugf("config.ssh.args = %v", config.SSH.Args)
 
 	setEnvironment(config.Environment)
 
-	log.Info("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
+	log.Infof("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
 	defer log.Info("disconnected")
 
 	var mclient *manager.Client
@@ -269,7 +269,7 @@ func mainExitCode() int {
 	signal.Notify(sigChannel, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTERM)
 	go func() {
 		s := <-sigChannel
-		log.Info("Got signal %s, exiting", s)
+		log.Infof("Got signal %s, exiting", s)
 		cancel()
 	}()
 
@@ -280,7 +280,7 @@ func mainExitCode() int {
 			defer wg.Done()
 			cmd := prepareBackgroundCommand(config.BgCommand, config.Debug)
 			if err := runCommand(ctx, cmd, false); err != nil {
-				log.Error("error running background command: %s", err)
+				log.Errorf("error running background command: %s", err)
 			}
 		}()
 	}
@@ -305,10 +305,10 @@ func mainExitCode() int {
 	}()
 
 	originalCmd := os.Getenv("SSH_ORIGINAL_COMMAND")
-	log.Debug("original command = %s", originalCmd)
+	log.Debugf("original command = %s", originalCmd)
 
 	interactiveCommand := term.IsTerminal(os.Stdout.Fd())
-	log.Debug("interactiveCommand = %v", interactiveCommand)
+	log.Debugf("interactiveCommand = %v", interactiveCommand)
 
 	// We assume the `sftp-server` binary is in the same directory on the
 	// gateway as on the target.
@@ -330,7 +330,7 @@ func mainExitCode() int {
 		sshArgs = append(sshArgs, host)
 	}
 	cmd := exec.Command(config.SSH.Exe, sshArgs...)
-	log.Debug("command = %s %q", cmd.Path, cmd.Args)
+	log.Debugf("command = %s %q", cmd.Path, cmd.Args)
 
 	var recorder *Recorder
 	if !interactiveCommand || config.Dump != "" {
@@ -346,7 +346,7 @@ func mainExitCode() int {
 		}()
 	}
 
-	log.Info("proxied to %s", hostport)
+	log.Infof("proxied to %s", hostport)
 
 	if interactiveCommand {
 		err = runTtyCommand(ctx, cmd, recorder)
@@ -354,7 +354,7 @@ func mainExitCode() int {
 		err = runStdCommand(ctx, cmd, recorder)
 	}
 	if err != nil {
-		log.Error("error executing proxied ssh command: %s", err)
+		log.Errorf("error executing proxied ssh command: %s", err)
 	}
 
 	// return command exit code

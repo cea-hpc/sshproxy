@@ -130,7 +130,7 @@ func (r *Recorder) log() {
 	}
 	// round to second
 	elapsed := time.Duration((time.Now().Sub(r.start) / time.Second) * time.Second)
-	log.Info("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
+	log.Infof("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
 }
 
 // dump saves a record.Record in the dumpfile.
@@ -140,7 +140,7 @@ func (r *Recorder) dump(rec record.Record) {
 	}
 
 	if err := r.writer.Write(&rec); err != nil {
-		log.Error("writing: %s", err)
+		log.Errorf("writing: %s", err)
 	}
 }
 
@@ -153,13 +153,13 @@ func (r *Recorder) Run() {
 			hostport := r.dumpfile[4:]
 			fd, err = net.Dial("tcp", hostport)
 			if err != nil {
-				log.Error("session recording disabled due to error connecting to host '%s': %s", hostport, err)
+				log.Errorf("session recording disabled due to error connecting to host '%s': %s", hostport, err)
 				fd = nil
 			}
 		} else {
 			fd, err = openRecordFile(r.dumpfile)
 			if err != nil {
-				log.Error("session recording disabled due to error: %s", err)
+				log.Errorf("session recording disabled due to error: %s", err)
 				fd = nil
 			}
 		}
@@ -176,7 +176,7 @@ func (r *Recorder) Run() {
 			}
 			r.writer, err = record.NewWriter(fd, infos)
 			if err != nil {
-				log.Error("session recording disabled due to error: %s", err)
+				log.Errorf("session recording disabled due to error: %s", err)
 				fd.Close()
 				fd = nil
 			}
