@@ -8,6 +8,11 @@
 # (e.g. "/var/log/sshproxy/{user}.log").
 #log: ""
 
+# Minimum interval for checking if an host is alive.
+# Empty by default (i.e. always check host).
+# The string can contain a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s").
+#check_interval: ""
+
 # Where raw dumps are written.
 # Default is empty.
 # It can be a path which can (and should) contain one or more of the following
@@ -32,11 +37,22 @@
 # The standard and error outputs are only logged in debug mode.
 #bg_command: ""
 
-# A manager to find the destination for a connection. The format is
-# "host:port".
-# If the manager is unavailable or does not return a response the routes
-# defined in the configuration will be used as a fallback.
-#manager: ""
+# etcd configuration. Associative array whose keys are:
+# - endpoints: a list of etcd endpoints. Default is determined by the
+#   underlying library.
+# - tls: TLS configuration if enabled on etcd endpoints. Default is no TLS.
+# - username: username if basic authentication is enabled.
+# - password: password if basic authentication is enabled.
+#etcd:
+#    endpoints:
+#        - "host1:port1"
+#        - "host2:port2"
+#    tls:
+#        cafile: ""
+#        keyfile: ""
+#        certfile: ""
+#    username: ""
+#    password: ""
 
 # How the host destination will be chosen. It can be "ordered" (the default) or
 # "random". If "ordered", the hosts are tried in the order listed until a

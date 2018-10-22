@@ -29,11 +29,12 @@ var (
 type sshProxyConfig struct {
 	Debug         bool
 	Log           string
+	CheckInterval utils.Duration `yaml:"check_interval"` // Minimum interval between host checks
 	Dump          string
+	Etcd          etcdConfig
 	StatsInterval utils.Duration `yaml:"stats_interval"`
 	BgCommand     string         `yaml:"bg_command"`
-	Manager       string
-	RouteSelect   string `yaml:"route_select"`
+	RouteSelect   string         `yaml:"route_select"`
 	SSH           sshConfig
 	Environment   map[string]string
 	Routes        map[string][]string
@@ -46,6 +47,19 @@ type sshConfig struct {
 	Args []string
 }
 
+type etcdConfig struct {
+	Endpoints []string
+	TLS       etcdTLSConfig
+	Username  string
+	Password  string
+}
+
+type etcdTLSConfig struct {
+	CAFile   string
+	KeyFile  string
+	CertFile string
+}
+
 // We use interface{} instead of real type to check if the option was specified
 // or not.
 type subConfig struct {
@@ -54,7 +68,6 @@ type subConfig struct {
 	Dump          interface{}
 	StatsInterval interface{} `yaml:"stats_interval"`
 	BgCommand     interface{} `yaml:"bg_command"`
-	Manager       interface{}
 	RouteSelect   interface{} `yaml:"route_select"`
 	Environment   map[string]string
 	Routes        map[string][]string
@@ -84,10 +97,6 @@ func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
 
 	if subconfig.BgCommand != nil {
 		config.BgCommand = subconfig.BgCommand.(string)
-	}
-
-	if subconfig.Manager != nil {
-		config.Manager = subconfig.Manager.(string)
 	}
 
 	if subconfig.RouteSelect != nil {

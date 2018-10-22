@@ -47,6 +47,10 @@ ignored = [
   branch = "v2"
   source = "https://github.com/go-yaml/yaml.git"
 
+[[constraint]]
+  name = "go.etcd.io/etcd"
+  version = "3.3.10"
+
 [prune]
   non-go = true
   go-tests = true

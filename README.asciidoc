@@ -14,12 +14,11 @@ destination hosts. It can then choose the first available destination or
 load-balance the connections with a simple round-robin algorithm.
 
 Because of its design sshproxy is stateless (it is launched as a
-+ForceCommand+ by sshd). It can be made stateful by using the
-+sshproxy-managerd+ daemon which:
++ForceCommand+ by sshd). It can be made stateful by using etcd allowing to:
 
-- remembers users connections and always connects a user to the same
+- remember users connections and always connects a user to the same
   destination while a connection to this destination is alive,
-- periodically checks if destination hosts are alive.
+- periodically check if destination hosts are alive.
 
 sshproxy can be configured to monitor SSH sessions and either to save them in
 files or to send them to the very simple +sshproxy-dumpd+ daemon. Sessions can
@@ -49,17 +48,13 @@ Install binaries and manpages:
 
 	# make install
 
-+sshproxy+, +sshproxy-managerd+ and +sshproxy-dumpd+ are installed in
-+/usr/sbin+ and +sshproxy-replay+ in +/usr/bin+.
++sshproxy+ and +sshproxy-dumpd+ are installed in +/usr/sbin+ and
++sshproxy-replay+ in +/usr/bin+.
 
 Configuration
 -------------
 
 There are commented configuration files in the +config+ directory.
-
-If you want to use +sshproxy-managerd+ you need its configuration file
-+/etc/sshproxy/sshproxy-managerd.yaml+. There are service files for +Upstart+
-and +systemd+ in the +misc+ directory to start +sshproxy-managerd+.
 
 Configure +/etc/sshproxy/sshproxy.yaml+ to suit your needs.
 

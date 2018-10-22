@@ -37,16 +37,15 @@ The following keys can be defined:
 	  '/var/log/sshproxy/\{user}.log'). The user is the owner of the
 	  filename, so he needs the right to write in the specified directory.
 
+*check_interval*::
+	a string specifying the minimal interval for checking if an host is
+	alive.  It is empty by default (i.e. always check host). The string
+	can contain a unit suffix such as 'h', 'm' and 's' (e.g. '2m30s').
+
 *bg_command*::
 	a string specifying a command which will be launched in the background
 	for the session duration. Its standard and error outputs are only
 	logged in debug mode. It is empty by default.
-
-*manager*::
-	a string specifying a manager to find the destination for a
-	connection. The format is 'host:port'.  If the manager is unavailable
-	or does not return a response the routes defined in the configuration
-	will be used as a fallback.
 
 *route_select*::
 	a string specifying how the host destination will be chosen.  It can
@@ -77,6 +76,34 @@ It can also be a network address where to send dumps if specified as
 	contain a unit suffix such as 'h', 'm' and 's' (e.g. '2m30s'). These
 	statistics are only available for non-interactive sessions or when the
 	'dump' option is set.
+
+etcd configuration is provided in an associative array *etcd* whose keys are:
+
+*endpoints*::
+	a list of etcd endpoints. Default is determined by the underlying library.
+
+*tls*::
+	an associative arrary to configure TLS if enabled on etcd endpoints.
+	The keys are *cafile*, *keyfile* and *certfile*. Default is no TLS.
+
+*username*::
+	a string with a username if basic authentication is enabled.
+
+*password*::
+	a string with a password if basic authentication is enabled.
+
+For example, we can have the following:
+
+	etcd:
+	    endpoints:
+	        - "127.0.0.1:2379"
+	        - "127.0.0.1:2380"
+	    tls:
+	        cafile: "/etc/sshproxy/ca.pem"
+	        keyfile: "/etc/sshproxy/sshproxy.key"
+	        certfile: "/etc/sshproxy/sshproxy.pem"
+	    username: "sshproxy"
+	    password: "sshproxypassword"
 
 An associative array *environment* can be used to set environment variables.
 The pattern '\{user}' will be replaced with the user login:

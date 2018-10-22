@@ -14,16 +14,14 @@ GO_OPTS		= -ldflags "-X main.SshproxyVersion=$(SSHPROXY_VERSION)"
 
 SSHPROXY_SRC		= $(wildcard cmd/sshproxy/*.go)
 SSHPROXY_DUMPD_SRC	= $(wildcard cmd/sshproxy-dumpd/*.go)
-SSHPROXY_MANAGERD_SRC	= $(wildcard cmd/sshproxy-managerd/*.go)
 SSHPROXY_REPLAY_SRC	= $(wildcard cmd/sshproxy-replay/*.go)
-MANAGER_SRC		= $(wildcard pkg/manager/*.go)
 RECORD_SRC		= $(wildcard pkg/record/*.go)
 ROUTE_SRC		= $(wildcard pkg/route/*.go)
 UTILS_SRC		= $(wildcard pkg/utils/*.go)
 
 PKGS	= $(shell $(GO) list ./... | grep -v /vendor/)
-EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-managerd sshproxy-replay)
-MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy-managerd.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-managerd.8 doc/sshproxy-replay.8
+EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-replay)
+MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8
 
 all: exe doc
 
@@ -37,14 +35,11 @@ doc: $(MANDOC)
 %.8: %.txt
 	a2x $(ASCIIDOC_OPTS) -f manpage $<
 
-bin/sshproxy: $(SSHPROXY_SRC) $(MANAGER_SRC) $(RECORD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
+bin/sshproxy: $(SSHPROXY_SRC) $(RECORD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
 	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/cmd/sshproxy
 
 bin/sshproxy-dumpd: $(SSHPROXY_DUMPD_SRC) $(RECORD_SRC) $(UTILS_SRC)
 	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/cmd/sshproxy-dumpd
-
-bin/sshproxy-managerd: $(SSHPROXY_MANAGERD_SRC) $(ROUTE_SRC) $(UTILS_SRC)
-	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/cmd/sshproxy-managerd
 
 bin/sshproxy-replay: $(SSHPROXY_REPLAY_SRC) $(RECORD_SRC)
 	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/cmd/sshproxy-replay
@@ -61,7 +56,6 @@ install-binaries: $(EXE)
 	install -d $(DESTDIR)$(sbindir)
 	install -p -m 0755 bin/sshproxy $(DESTDIR)$(sbindir)
 	install -p -m 0755 bin/sshproxy-dumpd $(DESTDIR)$(sbindir)
-	install -p -m 0755 bin/sshproxy-managerd $(DESTDIR)$(sbindir)
 	install -d $(DESTDIR)$(bindir)
 	install -p -m 0755 bin/sshproxy-replay $(DESTDIR)$(bindir)
 

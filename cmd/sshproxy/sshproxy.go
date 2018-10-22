@@ -27,7 +27,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cea-hpc/sshproxy/pkg/manager"
 	"github.com/cea-hpc/sshproxy/pkg/route"
 	"github.com/cea-hpc/sshproxy/pkg/utils"
 
@@ -44,34 +43,103 @@ var (
 // main logger for sshproxy
 var log = logging.MustGetLogger("sshproxy")
 
+type etcdChecker struct {
+	LastState     State
+	checkInterval utils.Duration
+	cli           *EtcdClient
+}
+
+func (c *etcdChecker) Check(hostport string) bool {
+	ts := time.Now()
+	var host *Host
+	var err error
+	if c.cli != nil && c.cli.IsAlive() {
+		host, err = c.cli.GetHost(hostport)
+	} else {
+		host = &Host{}
+	}
+
+	switch {
+	case err != nil:
+		if err != ErrKeyNotFound {
+			log.Errorf("problem with etcd: %v", err)
+		}
+		c.LastState = c.doCheck(hostport)
+	case host.State == Disabled:
+		c.LastState = host.State
+	case ts.Sub(host.Ts) > c.checkInterval.Duration():
+		c.LastState = c.doCheck(hostport)
+	default:
+		c.LastState = host.State
+	}
+	return c.LastState == Up
+}
+
+func (c *etcdChecker) doCheck(hostport string) State {
+	ts := time.Now()
+	state := Down
+	if route.CanConnect(hostport) {
+		state = Up
+	}
+	if c.cli != nil && c.cli.IsAlive() {
+		if err := c.cli.SetHost(hostport, state, ts); err != nil {
+			log.Errorf("setting host state in etcd: %v", err)
+		}
+	}
+	return state
+}
+
 // findDestination finds a reachable destination for the sshd server according
-// to the manager if available or the routes and route_select algorithm.
+// to the etcd database if available or the routes and route_select algorithm.
 // It returns a string with host:port, an empty string if no destination is
 // found or an error if any.
-func findDestination(mclient *manager.Client, routes map[string][]string, routeSelect, sshdHostport string) (string, error) {
-	if mclient != nil {
-		dst, err := mclient.Connect()
+func findDestination(cli *EtcdClient, username string, routes map[string][]string, routeSelect, sshdHostport string, checkInterval utils.Duration) (string, error) {
+	key := fmt.Sprintf("%s@%s", username, sshdHostport)
+	checker := &etcdChecker{
+		checkInterval: checkInterval,
+		cli:           cli,
+	}
+
+	if cli != nil && cli.IsAlive() {
+		dest, err := cli.GetDestination(key)
 		if err != nil {
-			// disable manager in case of error
-			mclient = nil
-			log.Errorf("%s", err)
-		} else {
-			if dst == "" {
-				log.Debug("got empty response from manager")
-			} else {
-				log.Debugf("got response from manager: %s", dst)
+			if err != ErrKeyNotFound {
+				log.Errorf("problem with etcd: %v", err)
 			}
-			return dst, nil
+		} else {
+			if checker.Check(dest) {
+				if err := cli.Increment(key, dest); err != nil {
+					log.Errorf("cannot increment key in etcd: %v", err)
+					cli.Close()
+				}
+				return dest, nil
+			}
+			log.Infof("cannot connect %s to already existing connection(s) to %s: host %s", key, dest, checker.LastState)
 		}
 	}
 
-	checker := new(route.BasicHostChecker)
+	var dest string
+	var err error
 	if destinations, present := routes[sshdHostport]; present {
-		return route.Select(routeSelect, destinations, checker)
+		dest, err = route.Select(routeSelect, destinations, checker)
 	} else if destinations, present := routes[route.DefaultRouteKeyword]; present {
-		return route.Select(routeSelect, destinations, checker)
+		dest, err = route.Select(routeSelect, destinations, checker)
+	} else {
+		return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshdHostport)
 	}
-	return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshdHostport)
+
+	if err != nil {
+		return "", err
+	}
+
+	if cli != nil && cli.IsAlive() {
+		if err := cli.Increment(key, dest); err != nil {
+			log.Errorf("cannot set key in etcd: %v", err)
+			cli.Close()
+		}
+	}
+
+	return dest, nil
 }
 
 // setEnvironment sets environment variables from a map whose keys are the
@@ -220,10 +288,11 @@ func mainExitCode() int {
 	log.Debugf("groups = %v", groups)
 	log.Debugf("config.debug = %v", config.Debug)
 	log.Debugf("config.log = %s", config.Log)
+	log.Debugf("config.check_interval = %s", config.CheckInterval.Duration())
 	log.Debugf("config.dump = %s", config.Dump)
 	log.Debugf("config.stats_interval = %s", config.StatsInterval.Duration())
+	log.Debugf("config.etcd = %+v", config.Etcd)
 	log.Debugf("config.bg_command = %s", config.BgCommand)
-	log.Debugf("config.manager = %s", config.Manager)
 	log.Debugf("config.environment = %v", config.Environment)
 	log.Debugf("config.route_select = %s", config.RouteSelect)
 	log.Debugf("config.routes = %v", config.Routes)
@@ -235,17 +304,19 @@ func mainExitCode() int {
 	log.Infof("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
 	defer log.Info("disconnected")
 
-	var mclient *manager.Client
-	if config.Manager != "" {
-		mclient = manager.NewClient(config.Manager, username, sshInfos.Dst(), 2*time.Second)
+	cli, err := NewEtcdClient(config)
+	if err != nil {
+		log.Errorf("Cannot contact etcd cluster to update state: %v", err)
+	} else {
 		defer func() {
-			if mclient != nil {
-				mclient.Disconnect()
+			key := fmt.Sprintf("%s@%s", username, sshInfos.Dst())
+			if err := cli.Decrement(key); err != nil {
+				log.Errorf("Decrementing key %s: %v", key, err)
 			}
 		}()
 	}
 
-	hostport, err := findDestination(mclient, config.Routes, config.RouteSelect, sshInfos.Dst())
+	hostport, err := findDestination(cli, username, config.Routes, config.RouteSelect, sshInfos.Dst(), config.CheckInterval)
 	switch {
 	case err != nil:
 		log.Fatalf("Finding destination: %s", err)
