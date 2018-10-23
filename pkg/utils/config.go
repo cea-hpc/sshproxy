@@ -7,7 +7,7 @@
 // license as circulated by CEA, CNRS and INRIA at the following URL
 // "http://www.cecill.info".
 
-package main
+package utils
 
 import (
 	"fmt"
@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/cea-hpc/sshproxy/pkg/route"
-	"github.com/cea-hpc/sshproxy/pkg/utils"
 
 	"gopkg.in/yaml.v2"
 )
@@ -26,15 +25,16 @@ var (
 	defaultSSHArgs = []string{"-q", "-Y"}
 )
 
-type sshProxyConfig struct {
+// Config represents the configuration for sshproxy.
+type Config struct {
 	Debug         bool
 	Log           string
-	CheckInterval utils.Duration `yaml:"check_interval"` // Minimum interval between host checks
+	CheckInterval Duration `yaml:"check_interval"` // Minimum interval between host checks
 	Dump          string
 	Etcd          etcdConfig
-	StatsInterval utils.Duration `yaml:"stats_interval"`
-	BgCommand     string         `yaml:"bg_command"`
-	RouteSelect   string         `yaml:"route_select"`
+	StatsInterval Duration `yaml:"stats_interval"`
+	BgCommand     string   `yaml:"bg_command"`
+	RouteSelect   string   `yaml:"route_select"`
 	SSH           sshConfig
 	Environment   map[string]string
 	Routes        map[string][]string
@@ -74,7 +74,7 @@ type subConfig struct {
 	SSH           sshConfig
 }
 
-func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
+func parseSubConfig(config *Config, subconfig *subConfig) error {
 	if subconfig.Debug != nil {
 		config.Debug = subconfig.Debug.(bool)
 	}
@@ -89,7 +89,7 @@ func parseSubConfig(config *sshProxyConfig, subconfig *subConfig) error {
 
 	if subconfig.StatsInterval != nil {
 		var err error
-		config.StatsInterval, err = utils.ParseDuration(subconfig.StatsInterval.(string))
+		config.StatsInterval, err = ParseDuration(subconfig.StatsInterval.(string))
 		if err != nil {
 			return err
 		}
@@ -132,7 +132,8 @@ func replace(src string, replacer *patternReplacer) string {
 	return replacer.Regexp.ReplaceAllString(src, replacer.Text)
 }
 
-func loadConfig(filename, username, sid string, start time.Time, groups map[string]bool) (*sshProxyConfig, error) {
+// LoadConfig load configuration file and adapt it according to specified user.
+func LoadConfig(filename, username, sid string, start time.Time, groups map[string]bool) (*Config, error) {
 	patterns := map[string]*patternReplacer{
 		"{user}": {regexp.MustCompile(`{user}`), username},
 		"{sid}":  {regexp.MustCompile(`{sid}`), sid},
@@ -144,7 +145,7 @@ func loadConfig(filename, username, sid string, start time.Time, groups map[stri
 		return nil, err
 	}
 
-	var config sshProxyConfig
+	var config Config
 	// if no environment is defined in config it seems to not be allocated
 	config.Environment = make(map[string]string)
 
@@ -191,7 +192,7 @@ func loadConfig(filename, username, sid string, start time.Time, groups map[stri
 	}
 
 	// replace sources and destinations (with possible missing port) with host:port.
-	if err := utils.CheckRoutes(config.Routes); err != nil {
+	if err := CheckRoutes(config.Routes); err != nil {
 		return nil, fmt.Errorf("invalid value in `routes` option: %s", err)
 	}
 

@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/cea-hpc/sshproxy/pkg/etcd"
 	"github.com/cea-hpc/sshproxy/pkg/route"
 	"github.com/cea-hpc/sshproxy/pkg/utils"
 
@@ -44,42 +45,42 @@ var (
 var log = logging.MustGetLogger("sshproxy")
 
 type etcdChecker struct {
-	LastState     State
+	LastState     etcd.State
 	checkInterval utils.Duration
-	cli           *EtcdClient
+	cli           *etcd.Client
 }
 
 func (c *etcdChecker) Check(hostport string) bool {
 	ts := time.Now()
-	var host *Host
+	var host *etcd.Host
 	var err error
 	if c.cli != nil && c.cli.IsAlive() {
 		host, err = c.cli.GetHost(hostport)
 	} else {
-		host = &Host{}
+		host = &etcd.Host{}
 	}
 
 	switch {
 	case err != nil:
-		if err != ErrKeyNotFound {
+		if err != etcd.ErrKeyNotFound {
 			log.Errorf("problem with etcd: %v", err)
 		}
 		c.LastState = c.doCheck(hostport)
-	case host.State == Disabled:
+	case host.State == etcd.Disabled:
 		c.LastState = host.State
 	case ts.Sub(host.Ts) > c.checkInterval.Duration():
 		c.LastState = c.doCheck(hostport)
 	default:
 		c.LastState = host.State
 	}
-	return c.LastState == Up
+	return c.LastState == etcd.Up
 }
 
-func (c *etcdChecker) doCheck(hostport string) State {
+func (c *etcdChecker) doCheck(hostport string) etcd.State {
 	ts := time.Now()
-	state := Down
+	state := etcd.Down
 	if route.CanConnect(hostport) {
-		state = Up
+		state = etcd.Up
 	}
 	if c.cli != nil && c.cli.IsAlive() {
 		if err := c.cli.SetHost(hostport, state, ts); err != nil {
@@ -93,7 +94,7 @@ func (c *etcdChecker) doCheck(hostport string) State {
 // to the etcd database if available or the routes and route_select algorithm.
 // It returns a string with host:port, an empty string if no destination is
 // found or an error if any.
-func findDestination(cli *EtcdClient, username string, routes map[string][]string, routeSelect, sshdHostport string, checkInterval utils.Duration) (string, error) {
+func findDestination(cli *etcd.Client, username string, routes map[string][]string, routeSelect, sshdHostport string, checkInterval utils.Duration) (string, error) {
 	key := fmt.Sprintf("%s@%s", username, sshdHostport)
 	checker := &etcdChecker{
 		checkInterval: checkInterval,
@@ -103,7 +104,7 @@ func findDestination(cli *EtcdClient, username string, routes map[string][]strin
 	if cli != nil && cli.IsAlive() {
 		dest, err := cli.GetDestination(key)
 		if err != nil {
-			if err != ErrKeyNotFound {
+			if err != etcd.ErrKeyNotFound {
 				log.Errorf("problem with etcd: %v", err)
 			}
 		} else {
@@ -276,7 +277,7 @@ func mainExitCode() int {
 		log.Fatalf("Cannot find current user groups: %s", err)
 	}
 
-	config, err := loadConfig(configFile, username, sid, start, groups)
+	config, err := utils.LoadConfig(configFile, username, sid, start, groups)
 	if err != nil {
 		log.Fatalf("Reading configuration '%s': %s", configFile, err)
 	}
@@ -304,7 +305,7 @@ func mainExitCode() int {
 	log.Infof("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
 	defer log.Info("disconnected")
 
-	cli, err := NewEtcdClient(config)
+	cli, err := etcd.NewClient(config, log)
 	if err != nil {
 		log.Errorf("Cannot contact etcd cluster to update state: %v", err)
 	} else {
