@@ -20,8 +20,8 @@ import (
 	"path"
 	"time"
 
-	"github.com/cea-hpc/sshproxy/record"
-	"github.com/cea-hpc/sshproxy/utils"
+	"github.com/cea-hpc/sshproxy/pkg/record"
+	"github.com/cea-hpc/sshproxy/pkg/utils"
 )
 
 var (

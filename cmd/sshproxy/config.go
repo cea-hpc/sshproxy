@@ -15,8 +15,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/cea-hpc/sshproxy/route"
-	"github.com/cea-hpc/sshproxy/utils"
+	"github.com/cea-hpc/sshproxy/pkg/route"
+	"github.com/cea-hpc/sshproxy/pkg/utils"
 
 	"gopkg.in/yaml.v2"
 )

@@ -24,8 +24,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cea-hpc/sshproxy/route"
-	"github.com/cea-hpc/sshproxy/utils"
+	"github.com/cea-hpc/sshproxy/pkg/route"
+	"github.com/cea-hpc/sshproxy/pkg/utils"
 
 	"github.com/op/go-logging"
 	"gopkg.in/yaml.v2"

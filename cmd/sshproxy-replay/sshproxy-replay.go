@@ -18,7 +18,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/cea-hpc/sshproxy/record"
+	"github.com/cea-hpc/sshproxy/pkg/record"
 )
 
 var (

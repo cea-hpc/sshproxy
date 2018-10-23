@@ -27,9 +27,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cea-hpc/sshproxy/manager"
-	"github.com/cea-hpc/sshproxy/route"
-	"github.com/cea-hpc/sshproxy/utils"
+	"github.com/cea-hpc/sshproxy/pkg/manager"
+	"github.com/cea-hpc/sshproxy/pkg/route"
+	"github.com/cea-hpc/sshproxy/pkg/utils"
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/op/go-logging"
