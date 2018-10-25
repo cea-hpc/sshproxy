@@ -24,7 +24,7 @@ UTILS_SRC		= $(wildcard pkg/utils/*.go)
 
 PKGS	= $(shell $(GO) list ./... | grep -v /vendor/)
 EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-replay sshproxyctl)
-MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8
+MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8 doc/sshproxyctl.8
 
 all: exe doc
 

@@ -1,0 +1,80 @@
+sshproxyctl(8)
+==============
+:doctype:	manpage
+:man source:	sshproxy
+:man manual:	sshproxy manual
+:man version:	{sshproxy_version}
+
+NAME
+----
+sshproxyctl - display and modify sshproxy informations stored in etcd
+
+SYNOPSIS
+--------
+*sshproxyctl* ['OPTIONS'] 'COMMAND'
+
+DESCRIPTION
+-----------
+
+'sshproxyctl' is used to display the current state of *sshproxy*(8)
+connections and host checks stored in etcd. It is also used to enable or
+disable a destination host.
+
+OPTIONS
+-------
+
+*-c CONFIGFILE*::
+	Path to *sshproxy*(8) configuration file. Only the parameters for etcd
+	are used. See *sshproxy.yaml*(5) for details.
+
+*-h*::
+	Show help and exit.
+
+*-V*::
+	Show version number and exit.
+
+COMMANDS
+--------
+
+*help*::
+	Show help and exit.
+
+*version*::
+	Show version number and exit.
+
+*enable HOST [PORT]*::
+	Enable a destination host in etcd. The host was previously disabled by
+	the 'disable' command (see below). The port by default is 22 if not
+	specified.
+
+*disable HOST [PORT]*::
+	Disable a destination host in etcd. A disabled host will not be
+	proposed as a destination. The only way to enable it again is to send
+	the 'enable' command. It could be used for host maintenance. The port
+	by default is 22 if not specified.
+
+*show connections*::
+	Show all users connections in etcd.
+
+*show hosts*::
+	Show all hosts and their state in etcd.
+
+FILES
+-----
+/etc/sshproxy/sshproxy.yaml::
+	Contains etcd configuration (see *sshproxy.yaml*(5) for details).
+
+SEE ALSO
+--------
+*sshproxy*(8), *sshproxy.yaml*(5)
+
+AUTHORS
+-------
+sshproxyctl was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+
+COPYING
+-------
+Copyright (C) 2015-2019 CEA/DAM/DIF. Free use of this software is granted
+under the term of the CeCILL-B license.
+
+// vim:tw=78:ft=asciidoc:

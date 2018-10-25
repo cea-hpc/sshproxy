@@ -47,6 +47,7 @@ install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}/sshproxy
 %{_bindir}/sshproxyctl
 %{_mandir}/man5/sshproxy.yaml.5*
 %{_mandir}/man8/sshproxy.8*
+%{_mandir}/man8/sshproxyctl.8*
 %{_mandir}/man8/sshproxy-dumpd.8*
 %{_mandir}/man8/sshproxy-replay.8*
 

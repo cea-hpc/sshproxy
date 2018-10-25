@@ -33,6 +33,9 @@ INSTALLATION
 
 	ForceCommand /sbin/sshproxy
 
+'etcd' can be used to make 'sshproxy' stateful. If it is the case,
+*sshproxyctl*(8) can display and modify states stored in etcd.
+
 FILES
 -----
 /etc/sshproxy/sshproxy.yaml::
@@ -40,7 +43,7 @@ FILES
 
 SEE ALSO
 --------
-*sshproxy.yaml*(5), *sshproxy-replay*(8), *sshd_config*(5)
+*sshproxy.yaml*(5), *sshproxyctl*(8), *sshproxy-replay*(8), *sshd_config*(5)
 
 AUTHORS
 -------

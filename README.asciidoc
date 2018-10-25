@@ -20,6 +20,9 @@ Because of its design sshproxy is stateless (it is launched as a
   destination while a connection to this destination is alive,
 - periodically check if destination hosts are alive.
 
+States stored in etcd can be displayed or modified with the +sshproxyctl+
+command.
+
 sshproxy can be configured to monitor SSH sessions and either to save them in
 files or to send them to the very simple +sshproxy-dumpd+ daemon. Sessions can
 be replayed with the +sshproxy-replay+ command.
@@ -48,8 +51,8 @@ Install binaries and manpages:
 
 	# make install
 
-+sshproxy+ and +sshproxy-dumpd+ are installed in +/usr/sbin+ and
-+sshproxy-replay+ in +/usr/bin+.
++sshproxy+ and +sshproxy-dumpd+ are installed in +/usr/sbin+, +sshproxyctl+
+and +sshproxy-replay+ in +/usr/bin+.
 
 Configuration
 -------------
