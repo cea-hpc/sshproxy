@@ -40,6 +40,7 @@ install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}/sshproxy
 %files
 %doc Licence_CeCILL-B_V1-en.txt Licence_CeCILL-B_V1-fr.txt
 %config(noreplace) %{_sysconfdir}/sshproxy/sshproxy.yaml
+%{_sysconfdir}/bash_completion.d
 %{_sbindir}/sshproxy
 %{_sbindir}/sshproxy-dumpd
 %{_bindir}/sshproxy-replay

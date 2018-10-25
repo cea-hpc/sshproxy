@@ -6,6 +6,7 @@ bindir		?= $(prefix)/bin
 sbindir		?= $(prefix)/sbin
 datarootdir	?= $(prefix)/share
 mandir		?= $(datarootdir)/man
+bashcompdir	?= /etc/bash_completion.d
 
 GO		?= go
 
@@ -64,6 +65,8 @@ install-binaries: $(EXE)
 	install -d $(DESTDIR)$(bindir)
 	install -p -m 0755 bin/sshproxy-replay $(DESTDIR)$(bindir)
 	install -p -m 0755 bin/sshproxyctl $(DESTDIR)$(bindir)
+	install -d $(DESTDIR)$(bashcompdir)
+	install -p -m 0644 misc/sshproxyctl-completion.bash $(DESTDIR)$(bashcompdir)
 
 format:
 	$(GO) fmt $(PKGS)
