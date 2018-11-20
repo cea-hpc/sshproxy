@@ -30,9 +30,6 @@ OPTIONS
 *-h*::
 	Show help and exit.
 
-*-V*::
-	Show version number and exit.
-
 COMMANDS
 --------
 

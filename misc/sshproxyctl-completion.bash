@@ -5,10 +5,17 @@ _sshproxyctl() {
         COMPREPLY=()
         cur="${COMP_WORDS[COMP_CWORD]}"
         prev="${COMP_WORDS[COMP_CWORD-1]}"
-        opts="-h -c -V enable disable help show version"
+        commands="enable disable help show version"
+        opts="-h -c ${commands}"
 
         case "${prev}" in
+            help)
+                COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
+                ;;
             show)
+                COMPREPLY=( $(compgen -W '-csv connections hosts' -- "${cur}") )
+                ;;
+            -csv)
                 COMPREPLY=( $(compgen -W 'connections hosts' -- "${cur}") )
                 ;;
             -c)
