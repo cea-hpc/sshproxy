@@ -1,4 +1,4 @@
-// Copyright 2015-2018 CEA/DAM/DIF
+// Copyright 2015-2019 CEA/DAM/DIF
 //  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and

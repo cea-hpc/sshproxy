@@ -48,7 +48,7 @@ sshproxy-dumpd was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
 
 COPYING
 -------
-Copyright (C) 2015-2018 CEA/DAM/DIF. Free use of this software is granted
+Copyright (C) 2015-2019 CEA/DAM/DIF. Free use of this software is granted
 under the term of the CeCILL-B license.
 
 // vim:tw=78:ft=asciidoc:
