@@ -125,13 +125,25 @@ type Host struct {
 // NewClient creates a new etcd client.
 func NewClient(config *utils.Config, log *logging.Logger) (*Client, error) {
 	var tlsConfig *tls.Config
-	if config.Etcd.TLS.CertFile != "" && config.Etcd.TLS.KeyFile != "" && config.Etcd.TLS.CAFile != "" {
-		tlsInfo := transport.TLSInfo{
-			CertFile:      config.Etcd.TLS.CertFile,
-			KeyFile:       config.Etcd.TLS.KeyFile,
-			TrustedCAFile: config.Etcd.TLS.CAFile,
-		}
+	var pTLSInfo *transport.TLSInfo
+	tlsInfo := transport.TLSInfo{}
 
+	if config.Etcd.TLS.CertFile != "" {
+		tlsInfo.CertFile = config.Etcd.TLS.CertFile
+		pTLSInfo = &tlsInfo
+	}
+
+	if config.Etcd.TLS.KeyFile != "" {
+		tlsInfo.KeyFile = config.Etcd.TLS.KeyFile
+		pTLSInfo = &tlsInfo
+	}
+
+	if config.Etcd.TLS.CAFile != "" {
+		tlsInfo.TrustedCAFile = config.Etcd.TLS.CAFile
+		pTLSInfo = &tlsInfo
+	}
+
+	if pTLSInfo != nil {
 		var err error
 		tlsConfig, err = tlsInfo.ClientConfig()
 		if err != nil {
