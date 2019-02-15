@@ -13,7 +13,7 @@ _sshproxyctl() {
                 COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
                 ;;
             show)
-                COMPREPLY=( $(compgen -W '-csv connections hosts' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-csv -json connections hosts' -- "${cur}") )
                 ;;
             -csv)
                 COMPREPLY=( $(compgen -W 'connections hosts' -- "${cur}") )

@@ -11,6 +11,7 @@ package main
 
 import (
 	"encoding/csv"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -49,7 +50,7 @@ func mustInitEtcdClient(configFile string) *etcd.Client {
 	return cli
 }
 
-func showConnections(configFile string, csvFlag bool) {
+func showConnections(configFile string, csvFlag bool, jsonFlag bool) {
 	cli := mustInitEtcdClient(configFile)
 	defer cli.Close()
 
@@ -78,6 +79,11 @@ func showConnections(configFile string, csvFlag bool) {
 		if err := w.Error(); err != nil {
 			log.Fatalln("error writing csv:", err)
 		}
+	} else if jsonFlag {
+		w := json.NewEncoder(os.Stdout)
+		if err := w.Encode(&connections); err != nil {
+			log.Fatalln("error writing JSON:", err)
+		}
 	} else {
 		table := tablewriter.NewWriter(os.Stdout)
 		table.SetHeader([]string{"User", "From", "Port", "Destination", "# of connections", "Last connection"})
@@ -97,7 +103,7 @@ func showConnections(configFile string, csvFlag bool) {
 	}
 }
 
-func showHosts(configFile string, csvFlag bool) {
+func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 	cli := mustInitEtcdClient(configFile)
 	defer cli.Close()
 
@@ -123,6 +129,11 @@ func showHosts(configFile string, csvFlag bool) {
 
 		if err := w.Error(); err != nil {
 			log.Fatalln("error writing csv:", err)
+		}
+	} else if jsonFlag {
+		w := json.NewEncoder(os.Stdout)
+		if err := w.Encode(&hosts); err != nil {
+			log.Fatalln("error writing JSON:", err)
 		}
 	} else {
 		table := tablewriter.NewWriter(os.Stdout)
@@ -201,9 +212,10 @@ Show version and exit.
 	return fs
 }
 
-func newShowParser(csvFlag *bool) *flag.FlagSet {
+func newShowParser(csvFlag *bool, jsonFlag *bool) *flag.FlagSet {
 	fs := flag.NewFlagSet("show", flag.ExitOnError)
-	fs.BoolVar(csvFlag, "csv", false, "show results in a CSV format to parse it easily")
+	fs.BoolVar(csvFlag, "csv", false, "show results in CSV format")
+	fs.BoolVar(jsonFlag, "json", false, "show results in JSON format")
 	fs.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s show [OPTIONS] COMMAND
 
@@ -268,11 +280,12 @@ func main() {
 	}
 
 	var csvFlag bool
+	var jsonFlag bool
 
 	parsers := map[string]*flag.FlagSet{
 		"help":    newHelpParser(),
 		"version": newVersionParser(),
-		"show":    newShowParser(&csvFlag),
+		"show":    newShowParser(&csvFlag, &jsonFlag),
 		"enable":  newEnableParser(),
 		"disable": newDisableParser(),
 	}
@@ -307,9 +320,9 @@ func main() {
 		subcmd := p.Arg(0)
 		switch subcmd {
 		case "hosts":
-			showHosts(*configFile, csvFlag)
+			showHosts(*configFile, csvFlag, jsonFlag)
 		case "connections":
-			showConnections(*configFile, csvFlag)
+			showConnections(*configFile, csvFlag, jsonFlag)
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand: %s\n\n", subcmd)
 			usage()
