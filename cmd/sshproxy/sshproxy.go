@@ -109,38 +109,20 @@ func findDestination(cli *etcd.Client, username string, routes map[string][]stri
 			}
 		} else {
 			if checker.Check(dest) {
-				if err := cli.Increment(key, dest); err != nil {
-					log.Errorf("cannot increment key in etcd: %v", err)
-					cli.Close()
-				}
+				log.Debugf("found destination in etcd: %s", dest)
 				return dest, nil
 			}
 			log.Infof("cannot connect %s to already existing connection(s) to %s: host %s", key, dest, checker.LastState)
 		}
 	}
 
-	var dest string
-	var err error
 	if destinations, present := routes[sshdHostport]; present {
-		dest, err = route.Select(routeSelect, destinations, checker)
+		return route.Select(routeSelect, destinations, checker)
 	} else if destinations, present := routes[route.DefaultRouteKeyword]; present {
-		dest, err = route.Select(routeSelect, destinations, checker)
-	} else {
-		return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshdHostport)
+		return route.Select(routeSelect, destinations, checker)
 	}
 
-	if err != nil {
-		return "", err
-	}
-
-	if cli != nil && cli.IsAlive() {
-		if err := cli.Increment(key, dest); err != nil {
-			log.Errorf("cannot set key in etcd: %v", err)
-			cli.Close()
-		}
-	}
-
-	return dest, nil
+	return "", fmt.Errorf("cannot find a route for %s and no default route configured", sshdHostport)
 }
 
 // setEnvironment sets environment variables from a map whose keys are the
@@ -308,13 +290,6 @@ func mainExitCode() int {
 	cli, err := etcd.NewClient(config, log)
 	if err != nil {
 		log.Errorf("Cannot contact etcd cluster to update state: %v", err)
-	} else {
-		defer func() {
-			key := fmt.Sprintf("%s@%s", username, sshInfos.Dst())
-			if err := cli.Decrement(key); err != nil {
-				log.Errorf("Decrementing key %s: %v", key, err)
-			}
-		}()
 	}
 
 	hostport, err := findDestination(cli, username, config.Routes, config.RouteSelect, sshInfos.Dst(), config.CheckInterval)
@@ -344,6 +319,26 @@ func mainExitCode() int {
 		log.Infof("Got signal %s, exiting", s)
 		cancel()
 	}()
+
+	// Register destination in etcd and keep it alive while running.
+	if cli.IsAlive() {
+		key := fmt.Sprintf("%s@%s", username, sshInfos.Dst())
+		keepAliveChan, err := cli.SetDestination(ctx, key, hostport)
+		if err != nil {
+			log.Warningf("setting destination in etcd: %v", err)
+		}
+		go func() {
+			wg.Add(1)
+			defer wg.Done()
+			for {
+				select {
+				case <-keepAliveChan:
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
 
 	// launch background command
 	if config.BgCommand != "" {

@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"time"
 
@@ -50,56 +51,203 @@ func mustInitEtcdClient(configFile string) *etcd.Client {
 	return cli
 }
 
-func showConnections(configFile string, csvFlag bool, jsonFlag bool) {
-	cli := mustInitEtcdClient(configFile)
-	defer cli.Close()
+func displayCSV(rows [][]string) {
+	w := csv.NewWriter(os.Stdout)
+	w.WriteAll(rows)
 
-	connections, err := cli.GetAllConnections()
-	if err != nil {
-		log.Fatalf("ERROR: getting connections from etcd: %v", err)
+	if err := w.Error(); err != nil {
+		log.Fatalln("error writing csv:", err)
+	}
+}
+
+func displayJSON(objs interface{}) {
+	w := json.NewEncoder(os.Stdout)
+	if err := w.Encode(&objs); err != nil {
+		log.Fatalln("error writing JSON:", err)
+	}
+}
+
+func displayTable(headers []string, rows [][]string) {
+	table := tablewriter.NewWriter(os.Stdout)
+
+	colours := make([]tablewriter.Colors, len(headers))
+	for i := 0; i < len(headers); i++ {
+		colours[i] = tablewriter.Colors{tablewriter.Bold}
 	}
 
-	rows := make([][]string, len(connections))
+	table.SetHeader(headers)
+	table.SetBorder(false)
+	table.SetAutoFormatHeaders(false)
+	//table.SetAutoWrapText(false)
+	table.SetHeaderColor(colours...)
+	table.AppendBulk(rows)
+	table.Render()
+}
 
-	for i, c := range connections {
+type aggConnection struct {
+	User string
+	Host string
+	Port string
+	Dest string
+	N    int
+	Last time.Time
+}
+
+type aggregatedConnections []*aggConnection
+
+func (ac aggregatedConnections) toRows() [][]string {
+	rows := make([][]string, len(ac))
+
+	for i, c := range ac {
 		rows[i] = []string{
 			c.User,
 			c.Host,
 			c.Port,
 			c.Dest,
 			strconv.Itoa(c.N),
+			c.Last.Format("2006-01-02 15:04:05"),
+		}
+	}
+
+	return rows
+}
+
+type flatConnections []*etcd.FlatConnection
+
+func (fc flatConnections) getAllConnections() [][]string {
+	rows := make([][]string, len(fc))
+
+	for i, c := range fc {
+		rows[i] = []string{
+			c.User,
+			c.Host,
+			c.Port,
+			c.Dest,
 			c.Ts.Format("2006-01-02 15:04:05"),
 		}
 	}
 
-	if csvFlag {
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(rows)
+	return rows
+}
 
-		if err := w.Error(); err != nil {
-			log.Fatalln("error writing csv:", err)
+func (fc flatConnections) getAggregatedConnections() aggregatedConnections {
+	type conn struct {
+		User string
+		Host string
+		Port string
+		Dest string
+	}
+
+	type connInfo struct {
+		N  int
+		Ts time.Time
+	}
+
+	conns := make(map[conn]*connInfo)
+
+	for _, c := range fc {
+		key := conn{User: c.User, Host: c.Host, Port: c.Port, Dest: c.Dest}
+
+		if val, present := conns[key]; present {
+			val.N++
+			val.Ts = c.Ts
+		} else {
+			conns[key] = &connInfo{
+				N:  1,
+				Ts: c.Ts,
+			}
 		}
-	} else if jsonFlag {
-		w := json.NewEncoder(os.Stdout)
-		if err := w.Encode(&connections); err != nil {
-			log.Fatalln("error writing JSON:", err)
+	}
+
+	var connections aggregatedConnections
+
+	for k, v := range conns {
+		connections = append(connections, &aggConnection{
+			k.User,
+			k.Host,
+			k.Port,
+			k.Dest,
+			v.N,
+			v.Ts,
+		})
+	}
+
+	sort.Slice(connections, func(i, j int) bool {
+		switch {
+		case connections[i].User != connections[j].User:
+			return connections[i].User < connections[j].User
+		case connections[i].Host != connections[j].Host:
+			return connections[i].Host < connections[j].Host
+		case connections[i].Port != connections[j].Port:
+			return connections[i].Port < connections[j].Port
+		case connections[i].Dest != connections[j].Dest:
+			return connections[i].Dest < connections[j].Dest
 		}
+		return false
+	})
+
+	return connections
+}
+
+func (fc flatConnections) displayCSV(allFlag bool) {
+	var rows [][]string
+
+	if allFlag {
+		rows = fc.getAllConnections()
 	} else {
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"User", "From", "Port", "Destination", "# of connections", "Last connection"})
-		table.SetBorder(false)
-		table.SetAutoFormatHeaders(false)
-		//table.SetAutoWrapText(false)
-		table.SetHeaderColor(
-			tablewriter.Colors{tablewriter.Bold},
-			tablewriter.Colors{tablewriter.Bold},
-			tablewriter.Colors{tablewriter.Bold},
-			tablewriter.Colors{tablewriter.Bold},
-			tablewriter.Colors{tablewriter.Bold},
-			tablewriter.Colors{tablewriter.Bold},
-		)
-		table.AppendBulk(rows)
-		table.Render()
+		rows = fc.getAggregatedConnections().toRows()
+	}
+
+	displayCSV(rows)
+}
+
+func (fc flatConnections) displayJSON(allFlag bool) {
+	var objs interface{}
+
+	if allFlag {
+		objs = fc
+	} else {
+		objs = fc.getAggregatedConnections()
+	}
+
+	displayJSON(objs)
+}
+
+func (fc flatConnections) displayTable(allFlag bool) {
+	var rows [][]string
+
+	if allFlag {
+		rows = fc.getAllConnections()
+	} else {
+		rows = fc.getAggregatedConnections().toRows()
+	}
+
+	var headers []string
+	if allFlag {
+		headers = []string{"User", "From", "Port", "Destination", "Start time"}
+	} else {
+		headers = []string{"User", "From", "Port", "Destination", "# of connections", "Last connection"}
+	}
+
+	displayTable(headers, rows)
+}
+
+func showConnections(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
+
+	var connections flatConnections
+	connections, err := cli.GetAllConnections()
+	if err != nil {
+		log.Fatalf("ERROR: getting connections from etcd: %v", err)
+	}
+
+	if csvFlag {
+		connections.displayCSV(allFlag)
+	} else if jsonFlag {
+		connections.displayJSON(allFlag)
+	} else {
+		connections.displayTable(allFlag)
 	}
 }
 
@@ -110,6 +258,11 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 	hosts, err := cli.GetAllHosts()
 	if err != nil {
 		log.Fatalf("ERROR: getting hosts from etcd: %v", err)
+	}
+
+	if jsonFlag {
+		displayJSON(hosts)
+		return
 	}
 
 	rows := make([][]string, len(hosts))
@@ -124,31 +277,9 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 	}
 
 	if csvFlag {
-		w := csv.NewWriter(os.Stdout)
-		w.WriteAll(rows)
-
-		if err := w.Error(); err != nil {
-			log.Fatalln("error writing csv:", err)
-		}
-	} else if jsonFlag {
-		w := json.NewEncoder(os.Stdout)
-		if err := w.Encode(&hosts); err != nil {
-			log.Fatalln("error writing JSON:", err)
-		}
+		displayCSV(rows)
 	} else {
-		table := tablewriter.NewWriter(os.Stdout)
-		table.SetHeader([]string{"Host", "Port", "State", "Last check"})
-		table.SetBorder(false)
-		table.SetAutoFormatHeaders(false)
-		//table.SetAutoWrapText(false)
-		table.SetHeaderColor(
-			tablewriter.Colors{tablewriter.Bold},
-			tablewriter.Colors{tablewriter.Bold},
-			tablewriter.Colors{tablewriter.Bold},
-			tablewriter.Colors{tablewriter.Bold},
-		)
-		table.AppendBulk(rows)
-		table.Render()
+		displayTable([]string{"Host", "Port", "State", "Last check"}, rows)
 	}
 }
 
@@ -212,10 +343,11 @@ Show version and exit.
 	return fs
 }
 
-func newShowParser(csvFlag *bool, jsonFlag *bool) *flag.FlagSet {
+func newShowParser(csvFlag *bool, jsonFlag *bool, allFlag *bool) *flag.FlagSet {
 	fs := flag.NewFlagSet("show", flag.ExitOnError)
 	fs.BoolVar(csvFlag, "csv", false, "show results in CSV format")
 	fs.BoolVar(jsonFlag, "json", false, "show results in JSON format")
+	fs.BoolVar(allFlag, "all", false, "show all connections")
 	fs.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s show [OPTIONS] COMMAND
 
@@ -281,11 +413,12 @@ func main() {
 
 	var csvFlag bool
 	var jsonFlag bool
+	var allFlag bool
 
 	parsers := map[string]*flag.FlagSet{
 		"help":    newHelpParser(),
 		"version": newVersionParser(),
-		"show":    newShowParser(&csvFlag, &jsonFlag),
+		"show":    newShowParser(&csvFlag, &jsonFlag, &allFlag),
 		"enable":  newEnableParser(),
 		"disable": newDisableParser(),
 	}
@@ -300,7 +433,7 @@ func main() {
 			usage()
 		}
 		subcmd := p.Arg(0)
-		if p2, ok := parsers[subcmd]; ok {
+		if p2, present := parsers[subcmd]; present {
 			p2.Usage()
 		} else {
 			fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", subcmd)
@@ -322,7 +455,7 @@ func main() {
 		case "hosts":
 			showHosts(*configFile, csvFlag, jsonFlag)
 		case "connections":
-			showConnections(*configFile, csvFlag, jsonFlag)
+			showConnections(*configFile, csvFlag, jsonFlag, allFlag)
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand: %s\n\n", subcmd)
 			usage()

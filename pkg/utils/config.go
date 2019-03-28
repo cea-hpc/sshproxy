@@ -52,6 +52,7 @@ type etcdConfig struct {
 	TLS       etcdTLSConfig
 	Username  string
 	Password  string
+	KeyTTL    int64
 }
 
 type etcdTLSConfig struct {

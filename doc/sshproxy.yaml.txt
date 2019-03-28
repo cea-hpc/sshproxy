@@ -92,6 +92,12 @@ etcd configuration is provided in an associative array *etcd* whose keys are:
 *password*::
 	a string with a password if basic authentication is enabled.
 
+*keyttl*::
+	an integer specifying the lifetime in seconds of a connection
+	information in etcd. The key will be kept alive while the connection
+	is up. It will be removed from etcd after this number of seconds.
+	Default is 5 seconds.
+
 For example, we can have the following:
 
 	etcd:

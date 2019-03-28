@@ -106,14 +106,7 @@ type Client struct {
 	cli            *clientv3.Client
 	log            *logging.Logger
 	requestTimeout time.Duration
-}
-
-// Connection represents the details of a proxied connection for a couple
-// (user, host).
-type Connection struct {
-	Dest string    // Chosen destination
-	N    int       // Number of connections
-	Ts   time.Time // Start of last connection
+	keyTTL         int64
 }
 
 // Host represent the state of a host.
@@ -163,10 +156,16 @@ func NewClient(config *utils.Config, log *logging.Logger) (*Client, error) {
 		return nil, fmt.Errorf("creating etcd client: %v", err)
 	}
 
+	keyTTL := config.Etcd.KeyTTL
+	if keyTTL == 0 {
+		keyTTL = 5
+	}
+
 	return &Client{
 		cli:            cli,
 		log:            log,
 		requestTimeout: 2 * time.Second,
+		keyTTL:         keyTTL,
 	}, nil
 }
 
@@ -178,161 +177,45 @@ func (c *Client) Close() {
 	}
 }
 
-func marshalConnection(c *Connection) (string, error) {
-	bytes, err := json.Marshal(c)
-	if err != nil {
-		return "", err
-	}
-	return string(bytes), nil
-}
-
-// Increment increments the number of connections from a user connected to an
-// SSH daemon (key) to a destination dst. A new entry will be created if key is
-// not present in etcd.
-func (c *Client) Increment(key, dst string) error {
-	for {
-		if ok, err := c.doIncrement(key, dst); err != nil {
-			return err
-		} else if ok {
-			return nil
-		}
-	}
-}
-
-func (c *Client) doIncrement(key, dest string) (bool, error) {
-	path := toConnectionKey(key)
-	var conn Connection
-	modRevision, err := c.get(path, &conn)
-	if err != nil {
-		if err == ErrKeyNotFound {
-			value, err := marshalConnection(&Connection{
-				Dest: dest,
-				N:    1,
-				Ts:   time.Now(),
-			})
-			if err != nil {
-				return false, err
-			}
-
-			// key missing <=> Version = 0
-			ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-			resp, err := c.cli.Txn(ctx).
-				If(clientv3.Compare(clientv3.Version(path), "=", 0)).
-				Then(clientv3.OpPut(path, value)).
-				Commit()
-			cancel()
-			return resp.Succeeded, err
-		}
-		return false, err
-	}
-
-	conn.N++
-	conn.Ts = time.Now()
-	value, err := marshalConnection(&conn)
-	if err != nil {
-		return false, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-	resp, err := c.cli.Txn(ctx).
-		If(clientv3.Compare(clientv3.ModRevision(path), "=", modRevision)).
-		Then(clientv3.OpPut(path, value)).
-		Commit()
-	cancel()
-	return resp.Succeeded, err
-}
-
-// Decrement decrements the number of connection of a user connected to an SSH
-// daemon (key). It removes the key if the number of connections is 0.
-func (c *Client) Decrement(key string) error {
-	for {
-		if ok, err := c.doDecrement(key); err != nil {
-			c.Close()
-			return err
-		} else if ok {
-			c.Close()
-			return nil
-		}
-	}
-}
-
-func (c *Client) doDecrement(key string) (bool, error) {
-	path := toConnectionKey(key)
-	var conn Connection
-	modRevision, err := c.get(path, &conn)
-	if err != nil {
-		if err == ErrKeyNotFound {
-			if c.log != nil {
-				c.log.Errorf("decrementing %s: key does not exist", key)
-			}
-			return true, nil
-		}
-		return false, err
-	}
-
-	conn.N--
-
-	if conn.N == 0 {
-		if c.log != nil {
-			c.log.Info("no more active connection for %s (to %s): removing", key, conn.Dest)
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-		resp, err := c.cli.Txn(ctx).
-			If(clientv3.Compare(clientv3.ModRevision(path), "=", modRevision)).
-			Then(clientv3.OpDelete(path)).
-			Commit()
-		cancel()
-		return resp.Succeeded, err
-	}
-
-	value, err := marshalConnection(&conn)
-	if err != nil {
-		return false, err
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-	resp, err := c.cli.Txn(ctx).
-		If(clientv3.Compare(clientv3.ModRevision(path), "=", modRevision)).
-		Then(clientv3.OpPut(path, value)).
-		Commit()
-	cancel()
-	return resp.Succeeded, err
-}
-
-// get is used by exported functions to get the value associated to a key.
-func (c *Client) get(key string, v interface{}) (int64, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-	resp, err := c.cli.Get(ctx, key)
-	cancel()
-	if err != nil {
-		return 0, err
-	}
-
-	switch len(resp.Kvs) {
-	case 0:
-		return 0, ErrKeyNotFound
-	case 1:
-		if err := json.Unmarshal([]byte(resp.Kvs[0].Value), v); err != nil {
-			return 0, fmt.Errorf("decoding JSON data at '%s': %v", key, err)
-		}
-		return resp.Kvs[0].ModRevision, nil
-	default:
-		return 0, fmt.Errorf("got multiple responses for %s", key)
-	}
-
-	// not reached
-}
-
 // GetDestination returns the destination found in etcd for a user connected to
 // an SSH daemon (key). If the key is not present the error will be
 // etcd.ErrKeyNotFound.
 func (c *Client) GetDestination(key string) (string, error) {
-	var conn Connection
 	path := toConnectionKey(key)
-	if _, err := c.get(path, &conn); err != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Get(ctx, path, clientv3.WithPrefix(), clientv3.WithKeysOnly(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortDescend))
+	cancel()
+	if err != nil {
 		return "", err
 	}
-	return conn.Dest, nil
+
+	if len(resp.Kvs) == 0 {
+		return "", ErrKeyNotFound
+	}
+
+	subkey := string(resp.Kvs[0].Key)[len(path)+1:]
+	dest := strings.SplitN(subkey, "/", 2)
+	return dest[0], nil
+}
+
+// SetDestination set current destination in etcd.
+func (c *Client) SetDestination(rootctx context.Context, key, dst string) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
+	path := fmt.Sprintf("%s/%s/%s", toConnectionKey(key), dst, time.Now().Format(time.RFC3339Nano))
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Grant(ctx, c.keyTTL)
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), c.requestTimeout)
+	_, err = c.cli.Put(ctx, path, "1", clientv3.WithLease(resp.ID))
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	return c.cli.KeepAlive(rootctx, resp.ID)
 }
 
 // GetHost returns the host (passed as "host:port") details. It host if not
@@ -340,10 +223,27 @@ func (c *Client) GetDestination(key string) (string, error) {
 func (c *Client) GetHost(hostport string) (*Host, error) {
 	var h Host
 	key := toHostKey(hostport)
-	if _, err := c.get(key, &h); err != nil {
+
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Get(ctx, key)
+	cancel()
+	if err != nil {
 		return nil, err
 	}
-	return &h, nil
+
+	switch len(resp.Kvs) {
+	case 0:
+		return nil, ErrKeyNotFound
+	case 1:
+		if err := json.Unmarshal([]byte(resp.Kvs[0].Value), &h); err != nil {
+			return nil, fmt.Errorf("decoding JSON data at '%s': %v", key, err)
+		}
+		return &h, nil
+	default:
+		return nil, fmt.Errorf("got multiple responses for %s", key)
+	}
+
+	// not reached
 }
 
 // SetHost sets a host (passed as "host:port") state and last checked time (ts)
@@ -372,7 +272,8 @@ type FlatConnection struct {
 	User string
 	Host string
 	Port string
-	*Connection
+	Dest string
+	Ts   time.Time
 }
 
 // GetAllConnections returns a list of all connections present in etcd.
@@ -387,13 +288,22 @@ func (c *Client) GetAllConnections() ([]*FlatConnection, error) {
 	conns := make([]*FlatConnection, len(resp.Kvs))
 	for i, ev := range resp.Kvs {
 		v := &FlatConnection{}
-		if err := json.Unmarshal([]byte(ev.Value), v); err != nil {
-			return nil, fmt.Errorf("decoding JSON data at '%s': %v", ev.Key, err)
-		}
 		subkey := string(ev.Key)[len(etcdConnectionsPath)+1:]
-		m := keyRegex.FindStringSubmatch(subkey)
+		fields := strings.Split(subkey, "/")
+		if len(fields) != 3 {
+			return nil, fmt.Errorf("bad key format %s", subkey)
+		}
+
+		userhostport := fields[0]
+		v.Dest = fields[1]
+		v.Ts, err = time.Parse(time.RFC3339Nano, fields[2])
+		if err != nil {
+			return nil, fmt.Errorf("error parsing time %s", fields[2])
+		}
+
+		m := keyRegex.FindStringSubmatch(userhostport)
 		if m == nil || len(m) != 4 {
-			return nil, fmt.Errorf("error parsing key %s", subkey)
+			return nil, fmt.Errorf("error parsing key %s", userhostport)
 		}
 		v.User, v.Host, v.Port = m[1], m[2], m[3]
 		conns[i] = v

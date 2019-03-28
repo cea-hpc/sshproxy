@@ -50,8 +50,10 @@ COMMANDS
 	the 'enable' command. It could be used for host maintenance. The port
 	by default is 22 if not specified.
 
-*show [-csv|-json] connections*::
-	Show all users connections in etcd.
+*show [-all] [-csv|-json] connections*::
+	Show users connections in etcd. Without '-all' only one entry per user
+	is displayed with the number of her/his connections. If '-all' is
+	specified, all connections are displayed.
 
 *show [-csv|-json] hosts*::
 	Show all hosts and their state in etcd.
