@@ -451,6 +451,9 @@ func main() {
 			p.Usage()
 		}
 		subcmd := p.Arg(0)
+		// parse flags after subcommand
+		args = p.Args()[1:]
+		p.Parse(args)
 		switch subcmd {
 		case "hosts":
 			showHosts(*configFile, csvFlag, jsonFlag)
