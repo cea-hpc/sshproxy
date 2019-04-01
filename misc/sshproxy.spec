@@ -11,7 +11,6 @@ Source:         https://github.com/cea-hpc/%{name}/archive/v%{version}/%{name}-%
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 %{arm} aarch64}
 BuildRequires:  %{?go_compiler:compiler(go-compiler)}%{!?go_compiler:golang}
 BuildRequires:  asciidoc
-Requires:       etcd >= 3.2.0
 
 Summary:        SSH proxy
 
