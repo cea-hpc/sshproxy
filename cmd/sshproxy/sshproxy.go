@@ -321,7 +321,7 @@ func mainExitCode() int {
 	}()
 
 	// Register destination in etcd and keep it alive while running.
-	if cli.IsAlive() {
+	if cli != nil && cli.IsAlive() {
 		key := fmt.Sprintf("%s@%s", username, sshInfos.Dst())
 		keepAliveChan, err := cli.SetDestination(ctx, key, hostport)
 		if err != nil {
