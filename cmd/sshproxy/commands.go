@@ -28,6 +28,8 @@ import (
 // unless the context is cancelled in which case the command is killed.
 //
 // The command can already be started if the started boolean is true.
+//
+// Returns the exit code of the command or an error.
 func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) (int, error) {
 	if !started {
 		if err := cmd.Start(); err != nil {
@@ -60,6 +62,8 @@ func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) (int, error) {
 //
 // The command will be stopped when the context is cancelled and the session
 // recorded by rec.
+//
+// Returns the exit code of the command or an error.
 func runStdCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) (int, error) {
 	cmd.Stdin = rec.Stdin
 	cmd.Stdout = rec.Stdout
@@ -73,6 +77,8 @@ func runStdCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) (int, erro
 // recorded by rec.
 //
 // From: https://github.com/9seconds/ah/blob/master/app/utils/exec.go
+//
+// Returns the exit code of the command or an error.
 func runTtyCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) (int, error) {
 	commandStarted := false
 	if rec != nil {
