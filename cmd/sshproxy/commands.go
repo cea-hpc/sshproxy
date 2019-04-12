@@ -19,7 +19,6 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/kr/pty"
@@ -29,29 +28,31 @@ import (
 // unless the context is cancelled in which case the command is killed.
 //
 // The command can already be started if the started boolean is true.
-func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) error {
+func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) (int, error) {
 	if !started {
 		if err := cmd.Start(); err != nil {
-			return err
+			return -1, err
 		}
 	}
-	go cmd.Wait()
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
 
 	for {
 		select {
-		case <-time.After(1 * time.Second):
-			if cmd.ProcessState != nil && cmd.ProcessState.Exited() {
-				if !cmd.ProcessState.Success() {
-					return fmt.Errorf("unexpected exit: %s", cmd.ProcessState.String())
-				}
-				return nil
+		case err := <-done:
+			rc := cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+			if err != nil {
+				return rc, fmt.Errorf("unexpected exit: %s", err)
 			}
+			return rc, nil
 		case <-ctx.Done():
 			cmd.Process.Kill()
-			return nil
+			return -1, nil
 		}
 	}
-
 	// not reached
 }
 
@@ -59,7 +60,7 @@ func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) error {
 //
 // The command will be stopped when the context is cancelled and the session
 // recorded by rec.
-func runStdCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) error {
+func runStdCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) (int, error) {
 	cmd.Stdin = rec.Stdin
 	cmd.Stdout = rec.Stdout
 	cmd.Stderr = rec.Stderr
@@ -72,19 +73,19 @@ func runStdCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) error {
 // recorded by rec.
 //
 // From: https://github.com/9seconds/ah/blob/master/app/utils/exec.go
-func runTtyCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) error {
+func runTtyCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) (int, error) {
 	commandStarted := false
 	if rec != nil {
 		p, err := pty.Start(cmd)
 		if err != nil {
-			return err
+			return -1, err
 		}
 		defer p.Close()
 
 		hostFd := os.Stdin.Fd()
 		oldState, err := term.SetRawTerminal(hostFd)
 		if err != nil {
-			return err
+			return -1, err
 		}
 		defer term.RestoreTerminal(hostFd, oldState)
 

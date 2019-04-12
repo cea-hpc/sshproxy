@@ -11,7 +11,7 @@ bashcompdir	?= /etc/bash_completion.d
 GO		?= go
 
 ASCIIDOC_OPTS	= -asshproxy_version=$(SSHPROXY_VERSION)
-GO_OPTS		= -ldflags "-X main.SshproxyVersion=$(SSHPROXY_VERSION)"
+GO_OPTS		= $(GO_OPTS_EXTRA) -ldflags "-X main.SshproxyVersion=$(SSHPROXY_VERSION)"
 
 SSHPROXY_SRC		= $(wildcard cmd/sshproxy/*.go)
 SSHPROXY_DUMPD_SRC	= $(wildcard cmd/sshproxy-dumpd/*.go)

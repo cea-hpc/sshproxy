@@ -346,7 +346,7 @@ func mainExitCode() int {
 			wg.Add(1)
 			defer wg.Done()
 			cmd := prepareBackgroundCommand(config.BgCommand, config.Debug)
-			if err := runCommand(ctx, cmd, false); err != nil {
+			if _, err := runCommand(ctx, cmd, false); err != nil {
 				log.Errorf("error running background command: %s", err)
 			}
 		}()
@@ -415,15 +415,16 @@ func mainExitCode() int {
 
 	log.Infof("proxied to %s", hostport)
 
+	var rc int
 	if interactiveCommand {
-		err = runTtyCommand(ctx, cmd, recorder)
+		rc, err = runTtyCommand(ctx, cmd, recorder)
 	} else {
-		err = runStdCommand(ctx, cmd, recorder)
+		rc, err = runStdCommand(ctx, cmd, recorder)
 	}
 	if err != nil {
 		log.Errorf("error executing proxied ssh command: %s", err)
 	}
 
 	// return command exit code
-	return cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	return rc
 }
