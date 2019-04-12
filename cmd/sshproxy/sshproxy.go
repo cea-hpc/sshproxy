@@ -377,8 +377,6 @@ func mainExitCode() int {
 	interactiveCommand := term.IsTerminal(os.Stdout.Fd())
 	log.Debugf("interactiveCommand = %v", interactiveCommand)
 
-	// We assume the `sftp-server` binary is in the same directory on the
-	// gateway as on the target.
 	sshArgs := config.SSH.Args
 	envSshproxyArgs := strings.Fields(os.Getenv("SSHPROXY_ARGS"))
 	if len(envSshproxyArgs) != 0 {
@@ -388,11 +386,20 @@ func mainExitCode() int {
 		sshArgs = append(sshArgs, "-p", port)
 	}
 	if originalCmd != "" {
-		if interactiveCommand {
-			// Force TTY allocation because the user probably asked for it.
-			sshArgs = append(sshArgs, "-t")
+		if strings.Contains(originalCmd, "sftp-server") {
+			// Ask for sftp subsystem on destination (arguments are
+			// the same used by sftp client command).
+			sshArgs = append(sshArgs, "-oForwardX11=no",
+				"-oForwardAgent=no", "-oPermitLocalCommand=no",
+				"-oClearAllForwardings=yes", "-oProtocol=2",
+				"-s", "--", host, "sftp")
+		} else {
+			if interactiveCommand {
+				// Force TTY allocation because the user probably asked for it.
+				sshArgs = append(sshArgs, "-t")
+			}
+			sshArgs = append(sshArgs, host, originalCmd)
 		}
-		sshArgs = append(sshArgs, host, originalCmd)
 	} else {
 		sshArgs = append(sshArgs, host)
 	}
