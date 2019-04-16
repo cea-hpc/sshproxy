@@ -407,7 +407,7 @@ func mainExitCode() int {
 	log.Debugf("command = %s %q", cmd.Path, cmd.Args)
 
 	var recorder *Recorder
-	if !interactiveCommand || config.Dump != "" {
+	if config.Dump != "" {
 		recorder, err = NewRecorder(ctx, conninfo, config.Dump, originalCmd, config.StatsInterval.Duration())
 		if err != nil {
 			log.Fatalf("setting recorder: %s", err)

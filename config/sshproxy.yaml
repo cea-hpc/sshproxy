@@ -29,8 +29,8 @@
 
 # Interval at which basic statistics of transferred bytes are logged.
 # Empty by default, the string can contain a unit suffix such as 'h', 'm' and
-# 's' (e.g. "2m30s"). These statistics are only available for non-interactive
-# sessions or when the 'dump' option is set.
+# 's' (e.g. "2m30s"). These statistics are only available when the 'dump'
+# option is set.
 #stats_interval: ""
 
 # A command can be launched in the background for the session duration.

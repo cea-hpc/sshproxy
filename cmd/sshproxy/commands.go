@@ -44,9 +44,15 @@ func runCommand(cmd *exec.Cmd, started bool) (int, error) {
 //
 // Returns the exit code of the command or an error.
 func runStdCommand(cmd *exec.Cmd, rec *Recorder) (int, error) {
-	cmd.Stdin = rec.Stdin
-	cmd.Stdout = rec.Stdout
-	cmd.Stderr = rec.Stderr
+	if rec != nil {
+		cmd.Stdin = rec.Stdin
+		cmd.Stdout = rec.Stdout
+		cmd.Stderr = rec.Stderr
+	} else {
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
 	return runCommand(cmd, false)
 }
 

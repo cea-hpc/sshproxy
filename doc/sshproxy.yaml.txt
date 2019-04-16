@@ -74,8 +74,7 @@ It can also be a network address where to send dumps if specified as
 	a string specifying the interval at which basic statistics of
 	transferred bytes are logged.  It is empty by default. The string can
 	contain a unit suffix such as 'h', 'm' and 's' (e.g. '2m30s'). These
-	statistics are only available for non-interactive sessions or when the
-	'dump' option is set.
+	statistics are only available when the 'dump' option is set.
 
 etcd configuration is provided in an associative array *etcd* whose keys are:
 
