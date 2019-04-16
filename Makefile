@@ -68,7 +68,7 @@ install-binaries: $(EXE)
 	install -d $(DESTDIR)$(bashcompdir)
 	install -p -m 0644 misc/sshproxyctl-completion.bash $(DESTDIR)$(bashcompdir)
 
-format:
+fmt:
 	$(GO) fmt $(PKGS)
 
 lint:
