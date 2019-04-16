@@ -2,7 +2,16 @@ package utils
 
 import (
 	"testing"
+	"time"
 )
+
+func TestCalcSessionID(t *testing.T) {
+	want := "C028E7684F"
+	d := time.Unix(1136239445, 0)
+	if got := CalcSessionID("arno", d, "127.0.0.1:22"); got != want {
+		t.Errorf("session id = %q, want = %q", got, want)
+	}
+}
 
 var splithostportTests = []struct {
 	hostport, host, port string
