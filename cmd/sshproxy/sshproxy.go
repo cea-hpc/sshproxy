@@ -345,8 +345,8 @@ func mainExitCode() int {
 		go func() {
 			wg.Add(1)
 			defer wg.Done()
-			cmd := prepareBackgroundCommand(config.BgCommand, config.Debug)
-			if _, err := runCommand(ctx, cmd, false); err != nil {
+			cmd := prepareBackgroundCommand(ctx, config.BgCommand, config.Debug)
+			if _, err := runCommand(cmd, false); err != nil {
 				log.Errorf("error running background command: %s", err)
 			}
 		}()
@@ -403,7 +403,7 @@ func mainExitCode() int {
 	} else {
 		sshArgs = append(sshArgs, host)
 	}
-	cmd := exec.Command(config.SSH.Exe, sshArgs...)
+	cmd := exec.CommandContext(ctx, config.SSH.Exe, sshArgs...)
 	log.Debugf("command = %s %q", cmd.Path, cmd.Args)
 
 	var recorder *Recorder
@@ -424,9 +424,9 @@ func mainExitCode() int {
 
 	var rc int
 	if interactiveCommand {
-		rc, err = runTtyCommand(ctx, cmd, recorder)
+		rc, err = runTtyCommand(cmd, recorder)
 	} else {
-		rc, err = runStdCommand(ctx, cmd, recorder)
+		rc, err = runStdCommand(cmd, recorder)
 	}
 	if err != nil {
 		log.Errorf("error executing proxied ssh command: %s", err)

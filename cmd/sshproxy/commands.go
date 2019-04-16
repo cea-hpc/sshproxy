@@ -12,7 +12,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -24,62 +23,39 @@ import (
 	"github.com/kr/pty"
 )
 
-// runCommand executes the *exec.Cmd command and waits for its completion,
-// unless the context is cancelled in which case the command is killed.
+// runCommand executes the *exec.Cmd command and waits for its completion.
 //
 // The command can already be started if the started boolean is true.
 //
 // Returns the exit code of the command or an error.
-func runCommand(ctx context.Context, cmd *exec.Cmd, started bool) (int, error) {
+func runCommand(cmd *exec.Cmd, started bool) (int, error) {
 	if !started {
 		if err := cmd.Start(); err != nil {
 			return -1, err
 		}
 	}
 
-	done := make(chan error, 1)
-	go func() {
-		done <- cmd.Wait()
-	}()
-
-	for {
-		select {
-		case err := <-done:
-			rc := cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
-			if err != nil {
-				return rc, fmt.Errorf("unexpected exit: %s", err)
-			}
-			return rc, nil
-		case <-ctx.Done():
-			cmd.Process.Kill()
-			return -1, nil
-		}
-	}
-	// not reached
+	err := cmd.Wait()
+	rc := cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
+	return rc, err
 }
 
 // runStdCommand launches a command without the need for a PTY.
 //
-// The command will be stopped when the context is cancelled and the session
-// recorded by rec.
-//
 // Returns the exit code of the command or an error.
-func runStdCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) (int, error) {
+func runStdCommand(cmd *exec.Cmd, rec *Recorder) (int, error) {
 	cmd.Stdin = rec.Stdin
 	cmd.Stdout = rec.Stdout
 	cmd.Stderr = rec.Stderr
-	return runCommand(ctx, cmd, false)
+	return runCommand(cmd, false)
 }
 
 // runTtyCommand launches a command in a PTY.
 //
-// The command will be stopped when the context is cancelled and the session
-// recorded by rec.
-//
 // From: https://github.com/9seconds/ah/blob/master/app/utils/exec.go
 //
 // Returns the exit code of the command or an error.
-func runTtyCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) (int, error) {
+func runTtyCommand(cmd *exec.Cmd, rec *Recorder) (int, error) {
 	commandStarted := false
 	if rec != nil {
 		p, err := pty.Start(cmd)
@@ -106,7 +82,7 @@ func runTtyCommand(ctx context.Context, cmd *exec.Cmd, rec *Recorder) (int, erro
 		cmd.Stderr = os.Stderr
 	}
 
-	return runCommand(ctx, cmd, commandStarted)
+	return runCommand(cmd, commandStarted)
 }
 
 // monitorTtyResize resizes the guestFd TTY to the hostFd TTY size and checks
@@ -159,9 +135,9 @@ func (b *BackgroundCommandLogger) Write(p []byte) (int, error) {
 // prepareBackgroundCommand returns an *exec.Cmd struct for the background
 // command. It replaces the stdout and stderr with a BackgroundCommandLogger if
 // debug is true.
-func prepareBackgroundCommand(command string, debug bool) *exec.Cmd {
+func prepareBackgroundCommand(ctx context.Context, command string, debug bool) *exec.Cmd {
 	args := strings.Fields(command)
-	cmd := exec.Command(args[0], args[1:]...)
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 
 	if debug {
 		stdout := &BackgroundCommandLogger{"bg_command.stdout"}
