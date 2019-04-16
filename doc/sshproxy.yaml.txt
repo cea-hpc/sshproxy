@@ -102,8 +102,7 @@ For example, we can have the following:
 
 	etcd:
 	    endpoints:
-	        - "127.0.0.1:2379"
-	        - "127.0.0.1:2380"
+	        - "https://127.0.0.1:2379"
 	    tls:
 	        cafile: "/etc/sshproxy/ca.pem"
 	        keyfile: "/etc/sshproxy/sshproxy.key"
