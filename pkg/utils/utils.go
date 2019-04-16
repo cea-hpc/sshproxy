@@ -102,26 +102,42 @@ func GetGroupList(username string) (map[string]bool, error) {
 	return groups, nil
 }
 
+// Mocking net.LookupHost for testing.
+var netLookupHost = net.LookupHost
+
 // CheckRoutes checks and replaces all hosts defined in a map of routes with
 // their "host:port" value (in case the host is defined without a port).
 func CheckRoutes(routes map[string][]string) error {
 	for source, destinations := range routes {
 		host, port, err := SplitHostPort(source)
 		if err != nil {
-			return fmt.Errorf("invalid source address '%s': %s", source, err)
+			return fmt.Errorf("invalid source address: %s", err)
 		}
 
-		hostport := net.JoinHostPort(host, port)
-		delete(routes, source)
-
-		for i, dst := range destinations {
-			host, port, err := SplitHostPort(dst)
+		var addrs []string
+		if host != "default" && net.ParseIP(host) == nil {
+			// host is a name and not an IP address
+			addrs, err = netLookupHost(host)
 			if err != nil {
-				return fmt.Errorf("invalid destination '%s' for source address '%s': %s", dst, source, err)
+				return fmt.Errorf("cannot resolve host '%s': %v", host, err)
 			}
-			destinations[i] = net.JoinHostPort(host, port)
+		} else {
+			addrs = []string{host}
 		}
-		routes[hostport] = destinations
+
+		for _, addr := range addrs {
+			hostport := net.JoinHostPort(addr, port)
+			delete(routes, source)
+
+			for i, dst := range destinations {
+				host, port, err := SplitHostPort(dst)
+				if err != nil {
+					return fmt.Errorf("invalid destination '%s' for source address '%s': %s", dst, source, err)
+				}
+				destinations[i] = net.JoinHostPort(host, port)
+			}
+			routes[hostport] = destinations
+		}
 	}
 	return nil
 }
