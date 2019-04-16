@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"net"
 	"os/user"
+	"strconv"
 	"time"
 )
 
@@ -38,7 +39,11 @@ func SplitHostPort(hostport string) (string, string, error) {
 		}
 		return hostport, DefaultSSHPort, err
 	}
-	return host, port, nil
+	portNum, err := net.LookupPort("tcp", port)
+	if err != nil {
+		return "", "", fmt.Errorf("address %s: invalid port", hostport)
+	}
+	return host, strconv.Itoa(portNum), nil
 }
 
 // GetGroupUser returns a map of group memberships for the specifised user.

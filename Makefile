@@ -74,10 +74,11 @@ format:
 lint:
 	golint $(PKGS)
 
-vet:
-	$(GO) vet $(PKGS)
+test:
+	$(GO) vet ./...
+	$(GO) test -failfast -race -count=1 -timeout=10s ./...
 
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml
 
-.PHONY: all exe doc install install-doc-man install-binaries format lint clean vet
+.PHONY: all exe doc install install-doc-man install-binaries fmt lint clean test
