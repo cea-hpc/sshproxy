@@ -43,6 +43,8 @@
 # - tls: TLS configuration if enabled on etcd endpoints. Default is no TLS.
 # - username: username if basic authentication is enabled.
 # - password: password if basic authentication is enabled.
+# - keyttl: time to live in second for a connection stored in etcd after it has
+#   ended. Default is 5 seconds.
 #etcd:
 #    endpoints:
 #        - "host1:port1"
@@ -53,6 +55,7 @@
 #        certfile: ""
 #    username: ""
 #    password: ""
+#    keyttl: 5
 
 # How the host destination will be chosen. It can be "ordered" (the default) or
 # "random". If "ordered", the hosts are tried in the order listed until a
