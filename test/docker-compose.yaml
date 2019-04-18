@@ -1,0 +1,63 @@
+version: '3'
+
+services:
+    tester:
+        container_name: tester
+        hostname: tester
+        build: centos-image
+        user: centos
+        working_dir: /home/centos
+        depends_on:
+            - gateway
+            - server1
+            - server2
+            - server3
+        command: ["/usr/bin/wait-for", "gateway:22", "-t", "60", "--", "/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
+
+    gateway:
+        container_name: gateway
+        hostname: gateway
+        build: centos-image
+        volumes:
+            - ../../sshproxy:/sshproxy
+        expose:
+            - "22"
+        #ports:
+        #    - "2222:22"
+        entrypoint: ["/root/gateway.sh"]
+        command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.gateway"]
+
+    etcd:
+        container_name: etcd
+        hostname: etcd
+        build: centos-image
+        expose:
+            - "2379"
+            - "2380"
+        command: ["/root/etcd.sh"]
+
+    server1:
+        container_name: server1
+        hostname: server1
+        build: centos-image
+        expose:
+            - "22"
+        command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.server1"]
+
+    server2:
+        container_name: server2
+        hostname: server2
+        build: centos-image
+        expose:
+            - "22"
+        command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.server2"]
+
+    server3:
+        container_name: server3
+        hostname: server3
+        build: centos-image
+        expose:
+            - "22"
+        command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.server1"]
+
+# vim: set et sw=4 ts=4 sts=4:

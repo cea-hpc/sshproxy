@@ -1,5 +1,8 @@
 language: go
 
+services:
+  - docker
+
 matrix:
   include:
     - go: 1.10.x
@@ -10,4 +13,4 @@ matrix:
 notifications:
   email: false
 
-script: make exe
+script: make exe && make test
