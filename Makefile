@@ -77,6 +77,7 @@ lint:
 test:
 	$(GO) vet ./...
 	$(GO) test -failfast -race -count=1 -timeout=10s ./...
+	cd test && bash ./run.sh
 
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml

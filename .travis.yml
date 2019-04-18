@@ -1,4 +1,13 @@
+dist: xenial
+
 language: go
+
+# disable shallow clone
+git:
+  depth: false
+
+services:
+  - docker
 
 matrix:
   include:
@@ -10,4 +19,4 @@ matrix:
 notifications:
   email: false
 
-script: make exe
+script: make exe && make test

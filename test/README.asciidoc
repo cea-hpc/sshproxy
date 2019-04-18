@@ -1,0 +1,104 @@
+Functional Tests
+================
+
+How is it working?
+------------------
+
+The functional tests are run with +docker-compose+. The +run.sh+ script is a
+wrapper to automatically start the tests (e.g. when using +make test+).
+
+Every container is created with the same +Dockerfile+ found in the
++centos-image+ directory. All scripts started in the containers are located in
+the +centos-image+ directory.
+
+The following containers will be created:
+
+tester::
+	where all tests are started. It executes a +go test+ program (cf.
+	below).
+
+etcd::
+	where the etcd database is. It executes the +etcd.sh+ script which
+	starts the etcd server.
+
+gateway::
+	where sshproxy is installed/configured. It executes the +gateway.sh+
+	script. The script builds and installs an sshproxy RPM package with
+	the latest HEAD commit, creates a sshproxy configuration file and
+	starts an SSH server.
+
+server{1,2,3}::
+	destinations configured in sshproxy. They all execute an SSH server.
+
+The tests that run on tester use the Go test framework and can be found in the
++centos-image/sshproxy_test.go+ file.
+
+How to debug the tests?
+-----------------------
+
+To debug the tests, we can modify the definition of the tester container in
++docker-compose.yaml+:
+
+------------------------------------------------------------------------------
+diff --git a/test/docker-compose.yaml b/test/docker-compose.yaml
+index 65ae927..0621932 100644
+--- a/test/docker-compose.yaml
++++ b/test/docker-compose.yaml
+@@ -5,14 +5,14 @@ services:
+         container_name: tester
+         hostname: tester
+         build: centos-image
+-        user: centos
+-        working_dir: /home/centos
++        volumes:
++            - ../test:/sshproxy-test
+         depends_on:
+             - gateway
+             - server1
+             - server2
+             - server3
+-        command: ["/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
++        command: ["/usr/sbin/sshd", "-De"]
+ 
+     gateway:
+         container_name: gateway
+------------------------------------------------------------------------------
+
+Then we start (and build if necessary) all containers:
+
+	$ docker-compose up --build
+
+Once every container is started, we can connect to the tester container:
+
+	$ docker-compose exec tester /bin/bash
+	[root@tester /]#
+
+It is then recommended to change the test file by a link to the one found in
+the repository (thanks to the volume mounted in the container):
+
+	[root@tester /]# su - centos
+	[centos@tester ~]$ ln -s -f /sshproxy-test/centos-image/sshproxy_test.go
+
+We then use the +go test+ command to run the tests:
+
+------------------------------------------------------------------------------
+[centos@tester ~]$ go test -v -failfast -tags docker sshproxy_test.go
+=== RUN   TestSimpleConnect
+--- PASS: TestSimpleConnect (1.58s)
+=== RUN   TestReturnCode
+--- PASS: TestReturnCode (0.96s)
+=== RUN   TestMainSSHDied
+--- PASS: TestMainSSHDied (0.27s)
+=== RUN   TestEtcdConnections
+--- PASS: TestEtcdConnections (6.89s)
+=== RUN   TestEtcdHosts
+--- PASS: TestEtcdHosts (7.69s)
+=== RUN   TestEnableDisableHost
+--- PASS: TestEnableDisableHost (6.12s)
+=== RUN   TestSFTP
+--- PASS: TestSFTP (2.36s)
+PASS
+ok      command-line-arguments  26.449s
+------------------------------------------------------------------------------
+
+// vim:tw=78:ft=asciidoc:
