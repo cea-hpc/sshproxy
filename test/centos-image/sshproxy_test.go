@@ -406,30 +406,40 @@ func TestEnableDisableHost(t *testing.T) {
 // XXX sftp-server / internal-sftp tests
 
 func waitForServers(hostports []string, timeout time.Duration) {
-	var wg sync.WaitGroup
 	results := make([]bool, len(hostports))
-	timeoutTimer := time.After(timeout)
+	ticker := time.NewTicker(1 * time.Second)
+	done := make(chan bool, 1)
+	var wg sync.WaitGroup
+
 	for i, hostport := range hostports {
 		wg.Add(1)
 		go func(n int, dest string) {
 			defer wg.Done()
 			for {
+				c, err := net.DialTimeout("tcp", dest, 1*time.Second)
+				if err == nil {
+					c.Close()
+					results[n] = true
+					return
+				}
+
 				select {
-				case <-timeoutTimer:
+				case <-done:
 					results[n] = false
 					return
-				case <-time.After(1 * time.Second):
-					c, err := net.DialTimeout("tcp", dest, 1*time.Second)
-					if err == nil {
-						c.Close()
-						results[n] = true
-						return
-					}
+				case <-ticker.C:
 				}
 			}
 		}(i, hostport)
 	}
+
+	go func() {
+		<-time.After(timeout)
+		close(done)
+	}()
+
 	wg.Wait()
+	ticker.Stop()
 
 	for _, b := range results {
 		if !b {
