@@ -4,7 +4,7 @@ FROM centos:7
 RUN set -ex \
 	&& yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
 	&& yum -y update \
-	&& yum -y install asciidoc etcd git golang iproute make nmap-ncat openssh-server rpm-build
+	&& yum -y install asciidoc etcd git golang iproute make openssh-server rpm-build
 
 # Create centos user and group
 RUN set -ex \
@@ -25,9 +25,6 @@ RUN chmod 0600 /home/centos/.ssh/id_ed25519 /etc/ssh/ssh_host_ed25519_key
 # Copy etcd certificates and keys
 COPY ./etcd/*.pem /etc/etcd/
 RUN chmod 0644 /etc/etcd/sshproxy*
-
-# Copy wait-for script
-COPY ./wait-for /usr/bin/
 
 # Copy sshd configurations
 COPY ./ssh/sshd_config.* /etc/ssh/

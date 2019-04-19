@@ -8,11 +8,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -199,7 +201,7 @@ func TestSimpleConnect(t *testing.T) {
 		_, stdout, stderr, err := runCommand(ctx, "ssh", args, nil, nil)
 		stdoutStr := strings.TrimSpace(string(stdout))
 		if err != nil {
-			t.Errorf("%s unexpected error: %v | stdout = %s | stderr = %s", cmd, err, string(stdout), string(stderr))
+			t.Errorf("%s unexpected error: %v | stderr = %s", cmd, err, string(stderr))
 		} else if stdoutStr != tt.want {
 			t.Errorf("%s hostname = %s, want %s", cmd, stdoutStr, tt.want)
 		}
@@ -403,8 +405,42 @@ func TestEnableDisableHost(t *testing.T) {
 
 // XXX sftp-server / internal-sftp tests
 
+func waitForServers(hostports []string, timeout time.Duration) {
+	var wg sync.WaitGroup
+	results := make([]bool, len(hostports))
+	timeoutTimer := time.After(timeout)
+	for i, hostport := range hostports {
+		wg.Add(1)
+		go func(n int, dest string) {
+			defer wg.Done()
+			for {
+				select {
+				case <-timeoutTimer:
+					results[n] = false
+					return
+				case <-time.After(1 * time.Second):
+					c, err := net.DialTimeout("tcp", dest, 1*time.Second)
+					if err == nil {
+						c.Close()
+						results[n] = true
+						return
+					}
+				}
+			}
+		}(i, hostport)
+	}
+	wg.Wait()
+
+	for _, b := range results {
+		if !b {
+			log.Fatalf("cannot connect to %s after %s", hostports, timeout)
+		}
+	}
+}
+
 // TestMain is the main function for testing.
 func TestMain(m *testing.M) {
+	waitForServers([]string{"etcd:2379", "gateway:22", "gateway:2022", "gateway:2023", "gateway:2024", "gateway:2025"}, 1*time.Minute)
 	setupEtcd()
 	os.Exit(m.Run())
 }
