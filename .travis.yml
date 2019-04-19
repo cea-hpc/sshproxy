@@ -9,6 +9,9 @@ git:
 services:
   - docker
 
+before_install:
+  - sudo apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
+
 matrix:
   include:
     - go: 1.10.x
@@ -19,4 +22,4 @@ matrix:
 notifications:
   email: false
 
-script: make exe && make test
+script: make && make test
