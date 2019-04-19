@@ -9,12 +9,12 @@ mkdir -p /root/rpmbuild/SPECS
 # Find sshproxy version and branch
 SSHPROXY_VERSION="$(grep '^SSHPROXY_VERSION' /sshproxy/Makefile | cut -d' ' -f3)"
 SSHPROXY_FULLNAME="sshproxy-${SSHPROXY_VERSION}"
-SSHPROXY_BRANCH="$(cd /sshproxy && git symbolic-ref --short HEAD)"
+SSHPROXY_COMMIT="$(cd /sshproxy && git rev-parse HEAD)"
 
 # Create tarball
-git clone -b "${SSHPROXY_BRANCH}" /sshproxy /tmp/sshproxy
+git clone /sshproxy /tmp/sshproxy
 cd /tmp/sshproxy
-git archive --format=tar --prefix="${SSHPROXY_FULLNAME}/" HEAD | gzip -c > "/root/rpmbuild/SOURCES/${SSHPROXY_FULLNAME}.tar.gz"
+git archive --format=tar --prefix="${SSHPROXY_FULLNAME}/" "${SSHPROXY_COMMIT}" | gzip -c > "/root/rpmbuild/SOURCES/${SSHPROXY_FULLNAME}.tar.gz"
 
 # Compile and install RPM
 cp /sshproxy/misc/sshproxy.spec /root/rpmbuild/SPECS/
