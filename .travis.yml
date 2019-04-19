@@ -2,6 +2,10 @@ dist: xenial
 
 language: go
 
+# disable shallow clone
+git:
+  depth: false
+
 services:
   - docker
 
