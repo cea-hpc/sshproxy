@@ -12,7 +12,7 @@ services:
             - server1
             - server2
             - server3
-        command: ["/usr/bin/wait-for", "gateway:22", "-t", "60", "--", "/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
+        command: ["/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
 
     gateway:
         container_name: gateway
@@ -22,8 +22,10 @@ services:
             - ../../sshproxy:/sshproxy
         expose:
             - "22"
-        #ports:
-        #    - "2222:22"
+            - "2022"
+            - "2023"
+            - "2024"
+            - "2025"
         entrypoint: ["/root/gateway.sh"]
         command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.gateway"]
 
