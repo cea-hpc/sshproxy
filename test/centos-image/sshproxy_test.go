@@ -196,10 +196,10 @@ func TestSimpleConnect(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		args, cmd := prepareCommand(tt.port, "hostname")
-		_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
+		_, stdout, stderr, err := runCommand(ctx, "ssh", args, nil, nil)
 		stdoutStr := strings.TrimSpace(string(stdout))
 		if err != nil {
-			t.Errorf("%s unexpected error: %v", cmd, err)
+			t.Errorf("%s unexpected error: %v | stdout = %s | stderr = %s", cmd, err, string(stdout), string(stderr))
 		} else if stdoutStr != tt.want {
 			t.Errorf("%s hostname = %s, want %s", cmd, stdoutStr, tt.want)
 		}
