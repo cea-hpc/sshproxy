@@ -12,7 +12,7 @@ RUN set -ex \
 	&& install -d -m0755 -o centos -g centos /home/centos/.ssh
 
 # Copy centos public key to root authorized_keys
-RUN set -ex && mkdir -p /root/.ssh
+RUN set -ex && install -d -m0700 /root/.ssh
 COPY ./ssh/id_ed25519.pub /root/.ssh/authorized_keys
 
 # Copy centos ssh keys
@@ -20,7 +20,7 @@ COPY --chown=centos:centos ./ssh/id_ed25519.pub /home/centos/.ssh/authorized_key
 COPY --chown=centos:centos ./ssh/id_ed25519* ./ssh/known_hosts /home/centos/.ssh/
 COPY ./ssh/ssh_config /etc/ssh/
 COPY ./ssh/ssh_host_ed25519_key* /etc/ssh/
-RUN chmod 0600 /home/centos/.ssh/id_ed25519 /etc/ssh/ssh_host_ed25519_key
+RUN chmod 0600 /home/centos/.ssh/id_ed25519 /home/centos/.ssh/authorized_keys /etc/ssh/ssh_host_ed25519_key
 
 # Copy etcd certificates and keys
 COPY ./etcd/*.pem /etc/etcd/
