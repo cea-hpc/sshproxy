@@ -210,7 +210,6 @@ func WriteHeader(w io.Writer, infos *FileInfo) error {
 type Reader struct {
 	Info   *FileInfo
 	reader *bufio.Reader
-	err    error
 }
 
 // NewReader reads records from an io.Reader.

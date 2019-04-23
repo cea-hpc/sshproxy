@@ -129,7 +129,7 @@ func (r *Recorder) log() {
 		t = append(t, fmt.Sprintf("%s: %d", name, r.totals[fd]))
 	}
 	// round to second
-	elapsed := time.Duration((time.Now().Sub(r.start) / time.Second) * time.Second)
+	elapsed := time.Duration((time.Since(r.start) / time.Second) * time.Second)
 	log.Infof("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
 }
 

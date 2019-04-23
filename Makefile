@@ -71,15 +71,19 @@ install-binaries: $(EXE)
 fmt:
 	$(GO) fmt $(PKGS)
 
-lint:
+get-deps:
+	$(GO) get -u golang.org/x/lint/golint honnef.co/go/tools/cmd/staticcheck
+
+check:
 	golint $(PKGS)
+	$(GO) vet ./...
+	staticcheck ./...
 
 test:
-	$(GO) vet ./...
 	$(GO) test -failfast -race -count=1 -timeout=10s ./...
 	cd test && bash ./run.sh
 
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml
 
-.PHONY: all exe doc install install-doc-man install-binaries fmt lint clean test
+.PHONY: all exe doc install install-doc-man install-binaries fmt get-deps check clean test

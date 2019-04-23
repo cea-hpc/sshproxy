@@ -313,7 +313,7 @@ func mainExitCode() int {
 	}()
 
 	sigChannel := make(chan os.Signal, 1)
-	signal.Notify(sigChannel, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTERM)
+	signal.Notify(sigChannel, os.Interrupt, syscall.SIGHUP, syscall.SIGTERM)
 	go func() {
 		s := <-sigChannel
 		log.Infof("Got signal %s, exiting", s)
@@ -327,8 +327,8 @@ func mainExitCode() int {
 		if err != nil {
 			log.Warningf("setting destination in etcd: %v", err)
 		}
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
 			defer wg.Done()
 			for {
 				select {
@@ -342,8 +342,8 @@ func mainExitCode() int {
 
 	// launch background command
 	if config.BgCommand != "" {
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
 			defer wg.Done()
 			cmd := prepareBackgroundCommand(ctx, config.BgCommand, config.Debug)
 			if _, err := runCommand(cmd, false); err != nil {
@@ -354,8 +354,8 @@ func mainExitCode() int {
 
 	// Launch goroutine which exits sshproxy if it's attached to PID 1
 	// (which means its ssh parent connection is dead).
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		for {
 			select {
@@ -413,8 +413,8 @@ func mainExitCode() int {
 			log.Fatalf("setting recorder: %s", err)
 		}
 
+		wg.Add(1)
 		go func() {
-			wg.Add(1)
 			defer wg.Done()
 			recorder.Run()
 		}()

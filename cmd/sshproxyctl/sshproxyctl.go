@@ -33,10 +33,6 @@ var (
 	defaultHostPort = "22"
 )
 
-func bold(s string) string {
-	return "\033[1m" + s + "\033[0m"
-}
-
 func mustInitEtcdClient(configFile string) *etcd.Client {
 	config, err := utils.LoadConfig(configFile, "", "", time.Now(), nil)
 	if err != nil {
