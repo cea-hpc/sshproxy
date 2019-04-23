@@ -12,12 +12,9 @@ services:
 before_install:
   - sudo apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
 
-matrix:
-  include:
-    - go: 1.10.x
-    - go: tip
-  allow_failures:
-    - go: tip
+go:
+  - 1.11.x
+  - 1.12.x
 
 notifications:
   email: false
