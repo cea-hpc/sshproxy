@@ -31,6 +31,11 @@ var etcdEnv = []string{
 	"ETCDCTL_KEY=/etc/etcd/sshproxy-key.pem",
 }
 
+var gateways = []string{
+	"gateway1",
+	"gateway2",
+}
+
 var (
 	SSHPROXYCTL    = "/usr/bin/sshproxyctl"
 	SSHPROXYCONFIG = "/etc/sshproxy/sshproxy.yaml"
@@ -38,17 +43,31 @@ var (
 
 func addLineSSHProxyConf(line string) {
 	ctx := context.Background()
-	_, _, _, err := runCommand(ctx, "ssh", []string{"root@gateway", "--", fmt.Sprintf("echo \"%s\" >> %s", line, SSHPROXYCONFIG)}, nil, nil)
-	if err != nil {
-		log.Fatal(err)
+	for _, gateway := range gateways {
+		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", fmt.Sprintf("echo \"%s\" >> %s", line, SSHPROXYCONFIG)}, nil, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
 func removeLineSSHProxyConf(line string) {
 	ctx := context.Background()
-	_, _, _, err := runCommand(ctx, "ssh", []string{"root@gateway", "--", fmt.Sprintf("sed -i 's/^%s$//' %s", line, SSHPROXYCONFIG)}, nil, nil)
-	if err != nil {
-		log.Fatal(err)
+	for _, gateway := range gateways {
+		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", fmt.Sprintf("sed -i 's/^%s$//' %s", line, SSHPROXYCONFIG)}, nil, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func updateLineSSHProxyConf(key string, value string) {
+	ctx := context.Background()
+	for _, gateway := range gateways {
+		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", fmt.Sprintf("sed -i '/%s:/s/: .*$/: %s/' %s", key, value, SSHPROXYCONFIG)}, nil, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
@@ -83,8 +102,8 @@ func runCommand(ctx context.Context, name string, args []string, env []string, p
 	return rc, stdout, stderr, err
 }
 
-func prepareCommand(port int, command string) ([]string, string) {
-	args := []string{"-p", strconv.Itoa(port), "gateway"}
+func prepareCommand(gateway string, port int, command string) ([]string, string) {
+	args := []string{"-p", strconv.Itoa(port), gateway}
 	if command != "" {
 		args = append(args, "--", command)
 	}
@@ -124,17 +143,16 @@ func setupEtcd() {
 }
 
 type aggConnection struct {
-	User string
-	Host string
-	Port string
-	Dest string
-	N    int
-	Last time.Time
+	User    string
+	Service string
+	Dest    string
+	N       int
+	Last    time.Time
 }
 
 func getEtcdConnections() ([]aggConnection, string) {
 	ctx := context.Background()
-	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway", "--", fmt.Sprintf("%s show -json connections", SSHPROXYCTL)}, nil, nil)
+	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json connections", SSHPROXYCTL)}, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -157,7 +175,7 @@ type host struct {
 
 func getEtcdHosts() ([]host, string) {
 	ctx := context.Background()
-	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway", "--", fmt.Sprintf("%s show -json hosts", SSHPROXYCTL)}, nil, nil)
+	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json hosts", SSHPROXYCTL)}, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -173,7 +191,7 @@ func getEtcdHosts() ([]host, string) {
 
 func disableHost(host string) {
 	ctx := context.Background()
-	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway", "--", fmt.Sprintf("%s disable %s", SSHPROXYCTL, host)}, nil, nil)
+	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s disable %s", SSHPROXYCTL, host)}, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -181,7 +199,7 @@ func disableHost(host string) {
 
 func enableHost(host string) {
 	ctx := context.Background()
-	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway", "--", fmt.Sprintf("%s enable %s", SSHPROXYCTL, host)}, nil, nil)
+	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s enable %s", SSHPROXYCTL, host)}, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -200,7 +218,7 @@ func TestSimpleConnect(t *testing.T) {
 	for _, tt := range simpleConnectTests {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		args, cmd := prepareCommand(tt.port, "hostname")
+		args, cmd := prepareCommand("gateway1", tt.port, "hostname")
 		_, stdout, stderr, err := runCommand(ctx, "ssh", args, nil, nil)
 		stdoutStr := strings.TrimSpace(string(stdout))
 		if err != nil {
@@ -215,7 +233,7 @@ func TestReturnCode(t *testing.T) {
 	for _, exitCode := range []int{0, 3} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		args, cmd := prepareCommand(2023, fmt.Sprintf("exit %d", exitCode))
+		args, cmd := prepareCommand("gateway1", 2023, fmt.Sprintf("exit %d", exitCode))
 		rc, _, _, _ := runCommand(ctx, "ssh", args, nil, nil)
 		if rc != exitCode {
 			t.Errorf("%s rc = %d, want %d", cmd, rc, exitCode)
@@ -226,16 +244,16 @@ func TestReturnCode(t *testing.T) {
 func TestMainSSHDied(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	args, _ := prepareCommand(2023, "sleep 60")
+	args, _ := prepareCommand("gateway1", 2023, "sleep 60")
 	ch := make(chan *os.Process, 1)
 	go func() {
 		runCommand(ctx, "ssh", args, nil, ch)
 	}()
 	process := <-ch
 	process.Kill()
-	rc, _, _, _ := runCommand(ctx, "ssh", []string{"gateway", "--", "pgrep sshproxy"}, nil, nil)
+	rc, _, _, _ := runCommand(ctx, "ssh", []string{"gateway1", "--", "pgrep sshproxy"}, nil, nil)
 	if rc != 1 {
-		t.Error("found running sshproxy on gateway")
+		t.Error("found running sshproxy on gateway1")
 	}
 }
 
@@ -245,7 +263,7 @@ func TestEtcdConnections(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	args, _ := prepareCommand(2023, "sleep 20")
+	args, _ := prepareCommand("gateway1", 2023, "sleep 20")
 	ch := make(chan *os.Process)
 	go func() {
 		runCommand(ctx, "ssh", args, nil, ch)
@@ -260,8 +278,8 @@ func TestEtcdConnections(t *testing.T) {
 	}
 
 	c := connections[0]
-	if c.User != "centos" || c.Port != "2023" || c.Dest != "server1:22" || c.N != 1 {
-		t.Errorf("%s, want User=centos, Port=2023, Dest=server1:22, N=1", jsonStr)
+	if c.User != "centos" || c.Service != "service2" || c.Dest != "server1:22" || c.N != 1 {
+		t.Errorf("%s, want User=centos, Service=service2, Dest=server1:22, N=1", jsonStr)
 	}
 
 	go func() {
@@ -272,12 +290,12 @@ func TestEtcdConnections(t *testing.T) {
 	time.Sleep(1 * time.Second)
 	connections, jsonStr = getEtcdConnections()
 	if len(connections) != 1 {
-		t.Errorf("%s found %d connections, want 1", jsonStr, len(connections))
+		t.Errorf("%s found %d different connections, want 1", jsonStr, len(connections))
 		return
 	}
 
 	if connections[0].N != 2 {
-		t.Errorf("%s found %d connections, want 2", jsonStr, connections[0].N)
+		t.Errorf("%s found %d aggregated connections, want 2", jsonStr, connections[0].N)
 	}
 
 	process1.Kill()
@@ -290,10 +308,73 @@ func TestEtcdConnections(t *testing.T) {
 	}
 }
 
+func TestStickyConnections(t *testing.T) {
+	// remove old connections stored in etcd
+	time.Sleep(3 * time.Second)
+
+	disableHost("server1")
+	checkHostState(t, "server1", "disabled")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	args, _ := prepareCommand("gateway1", 2022, "sleep 20")
+	ch := make(chan *os.Process)
+	go func() {
+		runCommand(ctx, "ssh", args, nil, ch)
+	}()
+	process1 := <-ch
+
+	time.Sleep(1 * time.Second)
+	enableHost("server1")
+	checkHostState(t, "server1", "up")
+
+	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
+	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	process1.Kill()
+	dest := strings.TrimSpace(string(stdout))
+	if dest != "server2" {
+		t.Errorf("%s got %s, expected server2", cmdStr, dest)
+	}
+}
+
+func TestBalancedConnections(t *testing.T) {
+	// remove old connections stored in etcd
+	time.Sleep(3 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	args, _ := prepareCommand("gateway1", 2022, "sleep 20")
+	ch := make(chan *os.Process)
+	go func() {
+		runCommand(ctx, "ssh", args, nil, ch)
+	}()
+	process1 := <-ch
+
+	time.Sleep(1 * time.Second)
+	updateLineSSHProxyConf("route_select", "connections")
+	updateLineSSHProxyConf("mode", "balanced")
+
+	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
+	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	process1.Kill()
+	updateLineSSHProxyConf("route_select", "ordered")
+	updateLineSSHProxyConf("mode", "sticky")
+	dest := strings.TrimSpace(string(stdout))
+	if dest != "server2" {
+		t.Errorf("%s got %s, expected server2", cmdStr, dest)
+	}
+}
+
 func checkHostCheck(t *testing.T, host string, check time.Time) time.Time {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	args, _ := prepareCommand(2023, "hostname")
+	args, _ := prepareCommand("gateway1", 2023, "hostname")
 	want := time.Now()
 	runCommand(ctx, "ssh", args, nil, nil)
 
@@ -351,12 +432,12 @@ func checkHostState(t *testing.T, host, state string) {
 		}
 	}
 	if !found {
-		t.Errorf("%s cannot found entry for %s", jsonStr, host)
+		t.Errorf("%s cannot find entry for %s", jsonStr, host)
 	}
 }
 
 func TestEnableDisableHost(t *testing.T) {
-	args, cmdStr := prepareCommand(2022, "hostname")
+	args, cmdStr := prepareCommand("gateway1", 2022, "hostname")
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
@@ -406,6 +487,73 @@ func TestEnableDisableHost(t *testing.T) {
 	}
 }
 
+type user struct {
+	N int
+}
+
+func getEtcdUsers(allFlag bool) (map[string]user, string) {
+	all := ""
+	if allFlag {
+		all = " -all"
+	}
+	ctx := context.Background()
+	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json users%s", SSHPROXYCTL, all)}, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	jsonStr := strings.TrimSpace(string(stdout))
+	var users map[string]user
+	if err := json.Unmarshal(stdout, &users); err != nil {
+		log.Fatal(err)
+	}
+
+	return users, jsonStr
+}
+
+func TestEtcdUsers(t *testing.T) {
+	// remove old connections stored in etcd
+	time.Sleep(3 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	ch := make(chan *os.Process)
+	args, _ := prepareCommand("gateway1", 2023, "sleep 20")
+	go func() {
+		runCommand(ctx, "ssh", args, nil, ch)
+	}()
+	process1 := <-ch
+	defer process1.Kill()
+
+	args, _ = prepareCommand("gateway1", 2024, "sleep 20")
+	go func() {
+		runCommand(ctx, "ssh", args, nil, ch)
+	}()
+	process2 := <-ch
+	defer process2.Kill()
+
+	time.Sleep(1 * time.Second)
+	users, jsonStr := getEtcdUsers(false)
+	if len(users) != 1 {
+		t.Errorf("%s found %d aggregated users, want 1", jsonStr, len(users))
+		return
+	} else if users["centos"].N != 2 {
+		t.Errorf("%s found %d aggregated user connections, want 2", jsonStr, users["centos"].N)
+		return
+	}
+	users, jsonStr = getEtcdUsers(true)
+	if len(users) != 2 {
+		t.Errorf("%s found %d users, want 2", jsonStr, len(users))
+		return
+	} else if users["centos@service2"].N != 1 {
+		t.Errorf("%s found %d user connections, want 1", jsonStr, users["centos@service2"].N)
+		return
+	} else if users["centos@service3"].N != 1 {
+		t.Errorf("%s found %d user connections, want 1", jsonStr, users["centos@service3"].N)
+	}
+}
+
 func prepareSFTPBatchCommands(filename, downloadFilename string) {
 	f, err := os.Create(filename)
 	if err != nil {
@@ -451,7 +599,7 @@ func TestSFTP(t *testing.T) {
 		defer cancel()
 		ch := make(chan *os.Process, 1)
 		go func() {
-			runCommand(ctx, "sftp", []string{"-P", strconv.Itoa(tt.port), "-b", batchFile, "gateway"}, nil, ch)
+			runCommand(ctx, "sftp", []string{"-P", strconv.Itoa(tt.port), "-b", batchFile, "gateway1"}, nil, ch)
 		}()
 		process := <-ch
 
@@ -459,7 +607,7 @@ func TestSFTP(t *testing.T) {
 
 		rc, _, _, _ := runCommand(ctx, "ssh", []string{tt.dest, "--", fmt.Sprintf("pgrep -f %s", tt.server)}, nil, nil)
 		if rc != 0 {
-			t.Errorf("cannot found '%s' running on %s", tt.server, tt.dest)
+			t.Errorf("cannot find '%s' running on %s", tt.server, tt.dest)
 		}
 
 		process.Kill()
@@ -516,7 +664,19 @@ func waitForServers(hostports []string, timeout time.Duration) {
 
 // TestMain is the main function for testing.
 func TestMain(m *testing.M) {
-	waitForServers([]string{"etcd:2379", "gateway:22", "gateway:2022", "gateway:2023", "gateway:2024", "gateway:2025"}, 1*time.Minute)
+	waitForServers([]string{
+		"etcd:2379",
+		"gateway1:22",
+		"gateway1:2022",
+		"gateway1:2023",
+		"gateway1:2024",
+		"gateway1:2025",
+		"gateway2:22",
+		"gateway2:2022",
+		"gateway2:2023",
+		"gateway2:2024",
+		"gateway2:2025",
+	}, 1*time.Minute)
 	setupEtcd()
 	os.Exit(m.Run())
 }

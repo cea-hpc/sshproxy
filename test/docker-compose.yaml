@@ -8,15 +8,31 @@ services:
         user: centos
         working_dir: /home/centos
         depends_on:
-            - gateway
+            - gateway1
+            - gateway2
             - server1
             - server2
             - server3
         command: ["/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
 
-    gateway:
-        container_name: gateway
-        hostname: gateway
+    gateway1:
+        container_name: gateway1
+        hostname: gateway1
+        build: centos-image
+        volumes:
+            - ../../sshproxy:/sshproxy
+        expose:
+            - "22"
+            - "2022"
+            - "2023"
+            - "2024"
+            - "2025"
+        entrypoint: ["/root/gateway.sh"]
+        command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.gateway"]
+
+    gateway2:
+        container_name: gateway2
+        hostname: gateway2
         build: centos-image
         volumes:
             - ../../sshproxy:/sshproxy

@@ -41,13 +41,15 @@ etcd:
 
 routes:
     service1:
-        source: ["gateway:2022"]
+        source: ["gateway1:2022", "gateway2:2022"]
         dest: ["server1", "server2"]
+        route_select: ordered
+        mode: sticky
     service2:
-        source: ["gateway:2023"]
+        source: ["gateway1:2023"]
         dest: ["server1"]
     service3:
-        source: ["gateway:2024"]
+        source: ["gateway1:2024"]
         dest: ["server2"]
     default:
         dest: ["server3"]

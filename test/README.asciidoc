@@ -21,7 +21,7 @@ etcd::
 	where the etcd database is. It executes the +etcd.sh+ script which
 	starts the etcd server.
 
-gateway::
+gateway{1,2}::
 	where sshproxy is installed/configured. It executes the +gateway.sh+
 	script. The script builds and installs an sshproxy RPM package with
 	the latest HEAD commit, creates a sshproxy configuration file and
@@ -53,15 +53,16 @@ index 65ae927..0621932 100644
 +        volumes:
 +            - ../test:/sshproxy-test
          depends_on:
-             - gateway
+             - gateway1
+             - gateway2
              - server1
              - server2
              - server3
 -        command: ["/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
 +        command: ["/usr/sbin/sshd", "-De"]
  
-     gateway:
-         container_name: gateway
+     gateway1:
+         container_name: gateway1
 ------------------------------------------------------------------------------
 
 Then we start (and build if necessary) all containers:
