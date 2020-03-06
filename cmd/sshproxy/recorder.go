@@ -1,4 +1,4 @@
-// Copyright 2015-2019 CEA/DAM/DIF
+// Copyright 2015-2020 CEA/DAM/DIF
 //  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and
@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cea-hpc/sshproxy/pkg/utils"
 	"github.com/cea-hpc/sshproxy/pkg/record"
 )
 
@@ -89,6 +90,7 @@ type Recorder struct {
 	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors.
 	start                 time.Time          // when the Recorder was started
 	statsInterval         time.Duration      // interval at which basic statistics of transferred bytes are logged
+	bandwidth             map[int]int        // bytes for each recorded file descriptor transferred during last statsInterval
 	totals                map[int]int        // total of bytes for each recorded file descriptor
 	ch                    chan record.Record // channel to read record.Record structs
 	conninfo              *ConnInfo          // specific SSH connection information
@@ -111,6 +113,7 @@ func NewRecorder(ctx context.Context, conninfo *ConnInfo, dumpfile, command stri
 		Stdout:        NewSplitter(os.Stdout, ch),
 		Stderr:        NewSplitter(os.Stderr, ch),
 		statsInterval: statsInterval,
+		bandwidth:     map[int]int{0: 0, 1: 0, 2: 0},
 		totals:        map[int]int{0: 0, 1: 0, 2: 0},
 		ch:            ch,
 		conninfo:      conninfo,
@@ -122,7 +125,7 @@ func NewRecorder(ctx context.Context, conninfo *ConnInfo, dumpfile, command stri
 }
 
 // log formats the internal statistics and logs them.
-func (r *Recorder) log() {
+func (r *Recorder) log(cli *utils.Client, rootctx context.Context, etcdPath string) {
 	t := []string{}
 	fds := []string{"stdin", "stdout", "stderr"}
 	for fd, name := range fds {
@@ -130,7 +133,25 @@ func (r *Recorder) log() {
 	}
 	// round to second
 	elapsed := time.Duration((time.Since(r.start) / time.Second) * time.Second)
-	log.Infof("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
+	if cli != nil {
+		if cli.IsAlive() {
+			keepAliveChan, err := cli.UpdateStats(rootctx, etcdPath, r.bandwidth)
+			if err != nil {
+				log.Errorf("updating stats: %v", err)
+			}
+			go func() {
+				for {
+					select {
+					case <-keepAliveChan:
+					case <-rootctx.Done():
+						return
+					}
+				}
+			}()
+		}
+	} else {
+		log.Infof("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
+	}
 }
 
 // dump saves a record.Record in the dumpfile.
@@ -145,7 +166,7 @@ func (r *Recorder) dump(rec record.Record) {
 }
 
 // Run starts the recorder.
-func (r *Recorder) Run() {
+func (r *Recorder) Run(cli *utils.Client, rootctx context.Context, etcdPath string) {
 	var fd io.WriteCloser
 	if r.dumpfile != "" {
 		var err error
@@ -156,6 +177,8 @@ func (r *Recorder) Run() {
 				log.Errorf("session recording disabled due to error connecting to host '%s': %s", hostport, err)
 				fd = nil
 			}
+		} else if r.dumpfile == "etcd" {
+			fd = nil
 		} else {
 			fd, err = openRecordFile(r.dumpfile)
 			if err != nil {
@@ -183,7 +206,7 @@ func (r *Recorder) Run() {
 		}
 	}
 	defer func() {
-		r.log()
+		r.log(cli, rootctx, etcdPath)
 		if fd != nil {
 			fd.Close()
 		}
@@ -196,23 +219,42 @@ func (r *Recorder) Run() {
 			for {
 				select {
 				case <-time.After(r.statsInterval):
-					r.log()
+					r.log(cli, rootctx, etcdPath)
 				case <-r.ctx.Done():
 					return
 				}
 			}
 		}()
-	}
 
-	for {
-		select {
-		case rec := <-r.ch:
-			r.totals[rec.Fd] += rec.Size
-			if r.writer != nil {
-				r.dump(rec)
+		buf := map[int]int{0: 0, 1: 0, 2: 0}
+		for {
+			select {
+			case <-time.After(r.statsInterval):
+				for i := 0; i <= 2; i++ {
+					r.bandwidth[i] = buf[i] / int(r.statsInterval.Seconds())
+					buf[i] = 0
+				}
+			case rec := <-r.ch:
+				buf[rec.Fd] += rec.Size
+				r.totals[rec.Fd] += rec.Size
+				if r.writer != nil {
+					r.dump(rec)
+				}
+			case <-r.ctx.Done():
+				return
 			}
-		case <-r.ctx.Done():
-			return
+		}
+	} else {
+		for {
+			select {
+			case rec := <-r.ch:
+				r.totals[rec.Fd] += rec.Size
+				if r.writer != nil {
+					r.dump(rec)
+				}
+			case <-r.ctx.Done():
+				return
+			}
 		}
 	}
 }

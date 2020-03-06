@@ -1,7 +1,17 @@
+// Copyright 2015-2020 CEA/DAM/DIF
+//  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
+//
+// This software is governed by the CeCILL-B license under French law and
+// abiding by the rules of distribution of free software.  You can  use,
+// modify and/ or redistribute the software under the terms of the CeCILL-B
+// license as circulated by CEA, CNRS and INRIA at the following URL
+// "http://www.cecill.info".
+
 package utils
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -65,41 +75,81 @@ func mockNetLookupHost(host string) ([]string, error) {
 }
 
 var checkroutesTests = []struct {
-	routes, want map[string][]string
+	routes, want map[string]*RouteConfig
 }{
 	{
-		map[string][]string{"127.0.0.1:22": []string{"1.1.1.1"}},
-		map[string][]string{"127.0.0.1:22": []string{"1.1.1.1:22"}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "random",
+			Mode: "sticky",
+			Source: []string{"127.0.0.1:22"},
+			Dest: []string{"1.1.1.1"}}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "random",
+			Mode: "sticky",
+			Source: []string{"127.0.0.1:22"},
+			Dest: []string{"1.1.1.1:22"}}},
 	},
 	{
-		map[string][]string{"127.0.0.1:22": []string{"host"}},
-		map[string][]string{"127.0.0.1:22": []string{"host:22"}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "connections",
+			Mode: "balanced",
+			Source: []string{"127.0.0.1:22"},
+			Dest: []string{"host"}}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "connections",
+			Mode: "balanced",
+			Source: []string{"127.0.0.1:22"},
+			Dest: []string{"host:22"}}},
 	},
 	{
-		map[string][]string{"127.0.0.1:22": []string{"1.1.1.1:123"}},
-		map[string][]string{"127.0.0.1:22": []string{"1.1.1.1:123"}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "bandwidth",
+			Source: []string{"127.0.0.1:22"},
+			Dest: []string{"1.1.1.1:123"}}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "bandwidth",
+			Mode: "sticky",
+			Source: []string{"127.0.0.1:22"},
+			Dest: []string{"1.1.1.1:123"}}},
 	},
 	{
-		map[string][]string{"127.0.0.1": []string{"1.1.1.1"}},
-		map[string][]string{"127.0.0.1:22": []string{"1.1.1.1:22"}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "ordered",
+			Source: []string{"127.0.0.1"},
+			Dest: []string{"1.1.1.1"}}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "ordered",
+			Mode: "sticky",
+			Source: []string{"127.0.0.1:22"},
+			Dest: []string{"1.1.1.1:22"}}},
 	},
 	{
-		map[string][]string{"default": []string{"1.1.1.1"}},
-		map[string][]string{"default:22": []string{"1.1.1.1:22"}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			Source: []string{"host"},
+			Dest: []string{"1.1.1.1"}}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "ordered",
+			Mode: "sticky",
+			Source: []string{"1.1.1.1:22", "2.2.2.2:22", "3.3.3.3:22"},
+			Dest: []string{"1.1.1.1:22"}}},
 	},
 	{
-		map[string][]string{"host": []string{"1.1.1.1"}},
-		map[string][]string{
-			"1.1.1.1:22": []string{"1.1.1.1:22"},
-			"2.2.2.2:22": []string{"1.1.1.1:22"},
-			"3.3.3.3:22": []string{"1.1.1.1:22"}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			Source: []string{"host:22"},
+			Dest: []string{"1.1.1.1"}}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "ordered",
+			Mode: "sticky",
+			Source: []string{"1.1.1.1:22", "2.2.2.2:22", "3.3.3.3:22"},
+			Dest: []string{"1.1.1.1:22"}}},
 	},
 	{
-		map[string][]string{"host:22": []string{"1.1.1.1"}},
-		map[string][]string{
-			"1.1.1.1:22": []string{"1.1.1.1:22"},
-			"2.2.2.2:22": []string{"1.1.1.1:22"},
-			"3.3.3.3:22": []string{"1.1.1.1:22"}},
+		map[string]*RouteConfig{"default": &RouteConfig{
+			Dest: []string{"1.1.1.1"}}},
+		map[string]*RouteConfig{"default": &RouteConfig{
+			RouteSelect: "ordered",
+			Mode: "sticky",
+			Dest: []string{"1.1.1.1:22"}}},
 	},
 }
 
@@ -110,26 +160,62 @@ func TestCheckRoutes(t *testing.T) {
 		if err != nil {
 			t.Errorf("%v CheckRoutes error = %v, want nil", tt.routes, err)
 		} else if !reflect.DeepEqual(tt.routes, tt.want) {
-			t.Errorf("CheckRoutes %v, want %v", tt.routes, tt.want)
+			t.Errorf("CheckRoutes %s, want %s", displayRoutes(tt.routes), displayRoutes(tt.want))
 		}
 	}
 }
 
 var checkroutesInvalidTests = []struct {
-	routes map[string][]string
+	routes map[string]*RouteConfig
 	want   string
 }{
 	{
-		map[string][]string{"host:port:invalid": []string{}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			Source: []string{"host:port:invalid"},
+			Dest: []string{}}},
 		"invalid source address: address host:port:invalid: too many colons in address",
 	},
 	{
-		map[string][]string{"err": []string{}},
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			Source: []string{"err"},
+			Dest: []string{}}},
 		"cannot resolve host 'err': LookupHost error",
 	},
 	{
-		map[string][]string{"host": []string{"host:port"}},
-		"invalid destination 'host:port' for source address 'host': address host:port: invalid port",
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			Source: []string{"host"},
+			Dest: []string{"host:port"}}},
+		"invalid destination 'host:port' for service 'service1': address host:port: invalid port",
+	},
+	{
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			Dest: []string{"host"}}},
+		"no source defined for service 'service1'",
+	},
+	{
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			Source: []string{"host"}}},
+		"no destination defined for service 'service1'",
+	},
+	{
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			RouteSelect: "err",
+			Source: []string{"127.0.0.1"},
+			Dest: []string{"host"}}},
+		"invalid value for `route_select` option of service 'service1': err",
+	},
+	{
+		map[string]*RouteConfig{"service1": &RouteConfig{
+			Mode: "err",
+			Source: []string{"127.0.0.1"},
+			Dest: []string{"host"}}},
+		"invalid value for `mode` option of service 'service1': err",
+	},
+	{
+		map[string]*RouteConfig{"default": &RouteConfig{
+			Source: []string{"127.0.0.1"},
+			Dest: []string{"host"}}},
+		"no source should be defined for the default service",
 	},
 }
 
@@ -143,4 +229,12 @@ func TestInvalidCheckRoutes(t *testing.T) {
 			t.Errorf("%v CheckRoutes error = %v, want %v", tt.routes, err, tt.want)
 		}
 	}
+}
+
+func displayRoutes(routes map[string]*RouteConfig) (string) {
+	display := ""
+	for service, route := range routes {
+		display += fmt.Sprintf("%s: %v", service, route)
+	}
+	return display
 }

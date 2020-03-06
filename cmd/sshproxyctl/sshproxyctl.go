@@ -1,4 +1,4 @@
-// Copyright 2015-2019 CEA/DAM/DIF
+// Copyright 2015-2020 CEA/DAM/DIF
 //  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and
@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cea-hpc/sshproxy/pkg/etcd"
 	"github.com/cea-hpc/sshproxy/pkg/utils"
 
 	"github.com/olekukonko/tablewriter"
@@ -33,13 +32,13 @@ var (
 	defaultHostPort = "22"
 )
 
-func mustInitEtcdClient(configFile string) *etcd.Client {
+func mustInitEtcdClient(configFile string) *utils.Client {
 	config, err := utils.LoadConfig(configFile, "", "", time.Now(), nil)
 	if err != nil {
 		log.Fatalf("reading configuration file %s: %v", configFile, err)
 	}
 
-	cli, err := etcd.NewClient(config, nil)
+	cli, err := utils.NewEtcdClient(config, nil)
 	if err != nil {
 		log.Fatalf("configuring etcd client: %v", err)
 	}
@@ -81,12 +80,13 @@ func displayTable(headers []string, rows [][]string) {
 }
 
 type aggConnection struct {
-	User string
-	Host string
-	Port string
-	Dest string
-	N    int
-	Last time.Time
+	User    string
+	Service string
+	Dest    string
+	N       int
+	Last    time.Time
+	BwIn    int
+	BwOut   int
 }
 
 type aggregatedConnections []*aggConnection
@@ -97,18 +97,19 @@ func (ac aggregatedConnections) toRows() [][]string {
 	for i, c := range ac {
 		rows[i] = []string{
 			c.User,
-			c.Host,
-			c.Port,
+			c.Service,
 			c.Dest,
 			strconv.Itoa(c.N),
 			c.Last.Format("2006-01-02 15:04:05"),
+			fmt.Sprintf("%d", c.BwIn),
+			fmt.Sprintf("%d", c.BwOut),
 		}
 	}
 
 	return rows
 }
 
-type flatConnections []*etcd.FlatConnection
+type flatConnections []*utils.FlatConnection
 
 func (fc flatConnections) getAllConnections() [][]string {
 	rows := make([][]string, len(fc))
@@ -116,10 +117,12 @@ func (fc flatConnections) getAllConnections() [][]string {
 	for i, c := range fc {
 		rows[i] = []string{
 			c.User,
-			c.Host,
-			c.Port,
+			c.Service,
+			c.From,
 			c.Dest,
 			c.Ts.Format("2006-01-02 15:04:05"),
+			fmt.Sprintf("%d", c.BwIn),
+			fmt.Sprintf("%d", c.BwOut),
 		}
 	}
 
@@ -128,29 +131,34 @@ func (fc flatConnections) getAllConnections() [][]string {
 
 func (fc flatConnections) getAggregatedConnections() aggregatedConnections {
 	type conn struct {
-		User string
-		Host string
-		Port string
-		Dest string
+		User    string
+		Service string
+		Dest    string
 	}
 
 	type connInfo struct {
-		N  int
-		Ts time.Time
+		N     int
+		Ts    time.Time
+		BwIn  int
+		BwOut int
 	}
 
 	conns := make(map[conn]*connInfo)
 
 	for _, c := range fc {
-		key := conn{User: c.User, Host: c.Host, Port: c.Port, Dest: c.Dest}
+		key := conn{User: c.User, Service: c.Service, Dest: c.Dest}
 
 		if val, present := conns[key]; present {
 			val.N++
 			val.Ts = c.Ts
+			val.BwIn += c.BwIn
+			val.BwOut += c.BwOut
 		} else {
 			conns[key] = &connInfo{
-				N:  1,
-				Ts: c.Ts,
+				N:     1,
+				Ts:    c.Ts,
+				BwIn:  c.BwIn,
+				BwOut: c.BwOut,
 			}
 		}
 	}
@@ -160,11 +168,12 @@ func (fc flatConnections) getAggregatedConnections() aggregatedConnections {
 	for k, v := range conns {
 		connections = append(connections, &aggConnection{
 			k.User,
-			k.Host,
-			k.Port,
+			k.Service,
 			k.Dest,
 			v.N,
 			v.Ts,
+			v.BwIn,
+			v.BwOut,
 		})
 	}
 
@@ -172,10 +181,8 @@ func (fc flatConnections) getAggregatedConnections() aggregatedConnections {
 		switch {
 		case connections[i].User != connections[j].User:
 			return connections[i].User < connections[j].User
-		case connections[i].Host != connections[j].Host:
-			return connections[i].Host < connections[j].Host
-		case connections[i].Port != connections[j].Port:
-			return connections[i].Port < connections[j].Port
+		case connections[i].Service != connections[j].Service:
+			return connections[i].Service < connections[j].Service
 		case connections[i].Dest != connections[j].Dest:
 			return connections[i].Dest < connections[j].Dest
 		}
@@ -220,9 +227,9 @@ func (fc flatConnections) displayTable(allFlag bool) {
 
 	var headers []string
 	if allFlag {
-		headers = []string{"User", "From", "Port", "Destination", "Start time"}
+		headers = []string{"User", "Service", "From", "Destination", "Start time", "Bandwidth in", "Bandwidth out"}
 	} else {
-		headers = []string{"User", "From", "Port", "Destination", "# of connections", "Last connection"}
+		headers = []string{"User", "Service", "Destination", "# of connections", "Last connection", "Bandwidth in", "Bandwidth out"}
 	}
 
 	displayTable(headers, rows)
@@ -244,6 +251,39 @@ func showConnections(configFile string, csvFlag bool, jsonFlag bool, allFlag boo
 		connections.displayJSON(allFlag)
 	} else {
 		connections.displayTable(allFlag)
+	}
+}
+
+func showUsers(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
+
+	users, err := cli.GetAllUsers(allFlag)
+	if err != nil {
+		log.Fatalf("ERROR: getting users from etcd: %v", err)
+	}
+
+	if jsonFlag {
+		displayJSON(users)
+		return
+	}
+
+	rows := make([][]string, len(users))
+	i := 0
+	for k, v := range users {
+		rows[i] = []string{
+			k,
+			fmt.Sprintf("%d", v["N"]),
+			fmt.Sprintf("%d", v["BwIn"]),
+			fmt.Sprintf("%d", v["BwOut"]),
+		}
+		i++
+	}
+
+	if csvFlag {
+		displayCSV(rows)
+	} else {
+		displayTable([]string{"User", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
 	}
 }
 
@@ -269,13 +309,16 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 			h.Port,
 			h.State.String(),
 			h.Ts.Format("2006-01-02 15:04:05"),
+			fmt.Sprintf("%d", h.N),
+			fmt.Sprintf("%d", h.BwIn),
+			fmt.Sprintf("%d", h.BwOut),
 		}
 	}
 
 	if csvFlag {
 		displayCSV(rows)
 	} else {
-		displayTable([]string{"Host", "Port", "State", "Last check"}, rows)
+		displayTable([]string{"Host", "Port", "State", "Last check", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
 	}
 }
 
@@ -284,7 +327,7 @@ func enableHost(host, port, configFile string) error {
 	defer cli.Close()
 
 	key := fmt.Sprintf("%s:%s", host, port)
-	return cli.SetHost(key, etcd.Up, time.Now())
+	return cli.SetHost(key, utils.Up, time.Now())
 }
 
 func disableHost(host, port, configFile string) error {
@@ -292,7 +335,7 @@ func disableHost(host, port, configFile string) error {
 	defer cli.Close()
 
 	key := fmt.Sprintf("%s:%s", host, port)
-	return cli.SetHost(key, etcd.Disabled, time.Now())
+	return cli.SetHost(key, utils.Disabled, time.Now())
 }
 
 func showVersion() {
@@ -343,13 +386,14 @@ func newShowParser(csvFlag *bool, jsonFlag *bool, allFlag *bool) *flag.FlagSet {
 	fs := flag.NewFlagSet("show", flag.ExitOnError)
 	fs.BoolVar(csvFlag, "csv", false, "show results in CSV format")
 	fs.BoolVar(jsonFlag, "json", false, "show results in JSON format")
-	fs.BoolVar(allFlag, "all", false, "show all connections")
+	fs.BoolVar(allFlag, "all", false, "show all connections / users")
 	fs.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s show [OPTIONS] COMMAND
 
 The commands are:
   connections   show connections stored in etcd
   hosts         show hosts stored in etcd
+  users         show users stored in etcd
 
 The options are:
 `, os.Args[0])
@@ -455,6 +499,8 @@ func main() {
 			showHosts(*configFile, csvFlag, jsonFlag)
 		case "connections":
 			showConnections(*configFile, csvFlag, jsonFlag, allFlag)
+		case "users":
+			showUsers(*configFile, csvFlag, jsonFlag, allFlag)
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand: %s\n\n", subcmd)
 			usage()

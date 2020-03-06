@@ -1,4 +1,4 @@
-// Copyright 2015-2019 CEA/DAM/DIF
+// Copyright 2015-2020 CEA/DAM/DIF
 //  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and
@@ -14,8 +14,6 @@ import (
 	"io/ioutil"
 	"regexp"
 	"time"
-
-	"github.com/cea-hpc/sshproxy/pkg/route"
 
 	"gopkg.in/yaml.v2"
 )
@@ -34,12 +32,18 @@ type Config struct {
 	Etcd          etcdConfig
 	StatsInterval Duration `yaml:"stats_interval"`
 	BgCommand     string   `yaml:"bg_command"`
-	RouteSelect   string   `yaml:"route_select"`
 	SSH           sshConfig
 	Environment   map[string]string
-	Routes        map[string][]string
+	Routes        map[string]*RouteConfig
 	Users         map[string]subConfig
 	Groups        map[string]subConfig
+}
+
+type RouteConfig struct {
+	Source      []string
+	Dest        []string
+    RouteSelect string `yaml:"route_select"`
+    Mode        string
 }
 
 type sshConfig struct {
@@ -69,9 +73,8 @@ type subConfig struct {
 	Dump          interface{}
 	StatsInterval interface{} `yaml:"stats_interval"`
 	BgCommand     interface{} `yaml:"bg_command"`
-	RouteSelect   interface{} `yaml:"route_select"`
 	Environment   map[string]string
-	Routes        map[string][]string
+	Routes        map[string]*RouteConfig
 	SSH           sshConfig
 }
 
@@ -98,10 +101,6 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 
 	if subconfig.BgCommand != nil {
 		config.BgCommand = subconfig.BgCommand.(string)
-	}
-
-	if subconfig.RouteSelect != nil {
-		config.RouteSelect = subconfig.RouteSelect.(string)
 	}
 
 	if subconfig.SSH.Exe != "" {
@@ -154,10 +153,6 @@ func LoadConfig(filename, username, sid string, start time.Time, groups map[stri
 		return nil, err
 	}
 
-	if config.RouteSelect == "" {
-		config.RouteSelect = route.DefaultAlgorithm
-	}
-
 	if config.SSH.Exe == "" {
 		config.SSH.Exe = defaultSSHExe
 	}
@@ -186,10 +181,6 @@ func LoadConfig(filename, username, sid string, start time.Time, groups map[stri
 
 	for k, v := range config.Environment {
 		config.Environment[k] = replace(v, patterns["{user}"])
-	}
-
-	if !route.IsAlgorithm(config.RouteSelect) {
-		return nil, fmt.Errorf("invalid value for `route_select` option: %s", config.RouteSelect)
 	}
 
 	// replace sources and destinations (with possible missing port) with host:port.

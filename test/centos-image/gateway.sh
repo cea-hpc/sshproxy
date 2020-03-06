@@ -40,10 +40,17 @@ etcd:
     keyttl: 1
 
 routes:
-    "gateway:2022": ["server1", "server2"]
-    "gateway:2023": ["server1"]
-    "gateway:2024": ["server2"]
-    default: ["server3"]
+    service1:
+        source: ["gateway:2022"]
+        dest: ["server1", "server2"]
+    service2:
+        source: ["gateway:2023"]
+        dest: ["server1"]
+    service3:
+        source: ["gateway:2024"]
+        dest: ["server2"]
+    default:
+        dest: ["server3"]
 EOF
 
 exec "$@"

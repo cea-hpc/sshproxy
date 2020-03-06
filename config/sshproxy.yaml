@@ -23,6 +23,7 @@
 #     "2006-01-02T15:04:05.999999999Z07:00").
 # The subdirectories will be created if needed.
 # For example: "/var/lib/sshproxy/dumps/{user}/{time}-{sid}.dump"
+# It can also be "etcd", in order to store stats into etcd
 # It can also be a network address where to send dumps if specified as
 # 'TCP:host:port' (the TCP is case sensitive), e.g. 'TCP:collector:5555'.
 #dump: ""
@@ -57,12 +58,6 @@
 #    password: ""
 #    keyttl: 5
 
-# How the host destination will be chosen. It can be "ordered" (the default) or
-# "random". If "ordered", the hosts are tried in the order listed until a
-# successful connection is made. The list is first randomly sorted if "random"
-# is specified (i.e. a poor-man load-balancing algorithm).
-#route_select: ordered
-
 # Environment.
 # Environment variables can be set if needed. The '{user}' pattern will be
 # replaced with the user login.
@@ -75,16 +70,35 @@
 #    args: ["-q", "-Y"]
 
 # Routes definition.
-# The key is the IP address or DNS name of the listening SSH daemon (with an
-# optional port) and the value is an array of destination hosts (with an
-# optional port). If a DNS name is used and resolves to several IP addresses,
-# sshproxy will create the same route for each IP address. The special key
-# "default" can be used to define a default route. The hosts are tried in the
-# order specified in the previously defined "route_select" option.
+# The key is the service name (only used for display). The special service name
+# "default" can be used to define a default route and does not need the source
+# key. The source value is the IP address or DNS name of the listening SSH
+# daemon (with an optional port). The dest value is an array of destination
+# hosts (with an optional port). The route_select value difines how the host
+# destination will be chosen. It can be "ordered" (the default), "random",
+# "connections" or "bandwidth". If "ordered", the hosts are tried in the order
+# listed until a successful connection is made. The list is first randomly
+# sorted if "random" is specified (i.e. a poor-man load-balancing algorithm).
+# If "connections", the hosts with less connections from the user have
+# priority, then the hosts with less global connections, and in case of a draw,
+# the selection is random. For "bandwidth", it's the same as "connections", but
+# based on the bandwidth used, with a rollback on connections (which is
+# frequent for new simultaneous connections). Finally, the mode value defines
+# the stickiness of a connection. It can be "sticky" or "balanced". If
+# "sticky", then all connections of a user will be made on the same destination
+# host. If "balanced", the route_select algorithm will be used for every
+# connections.
 #routes:
-#    192.168.0.1: [host1, host2]
-#    192.168.0.2: [host3, host4]
-#    default: ["host5:4222"]
+#    service1:
+#        source: ["192.168.0.1"]
+#        dest: [host1, host2]
+#    service2:
+#        source: ["192.168.0.2"]
+#        dest: [host3, host4]
+#        route_select: bandwidth
+#        mode: balanced
+#    default:
+#        dest: ["host5:4222"]
 
 # Each option can be overridden for a Unix group of users.
 # If a user is in multiple groups and these groups are defined in the
@@ -104,7 +118,8 @@
 #            args: ["-vvv", "-Y"]
 #        # If routes are specified, they are fully overridden, not merged.
 #        routes:
-#            default: [hostx]
+#            default:
+#                dest: [hostx]
 
 # Each option can also be overridden for a specific user (eg. for debugging
 # purpose).

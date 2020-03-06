@@ -1,4 +1,4 @@
-// Copyright 2015-2019 CEA/DAM/DIF
+// Copyright 2015-2020 CEA/DAM/DIF
 //  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and
@@ -7,7 +7,7 @@
 // license as circulated by CEA, CNRS and INRIA at the following URL
 // "http://www.cecill.info".
 
-package etcd
+package utils
 
 import (
 	"context"
@@ -19,8 +19,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/cea-hpc/sshproxy/pkg/utils"
 
 	"github.com/op/go-logging"
 	"go.etcd.io/etcd/clientv3"
@@ -42,7 +40,7 @@ const (
 )
 
 var (
-	keyRegex = regexp.MustCompile(`^([^@]+)@([^:]+):([0-9]+)$`)
+	keyRegex = regexp.MustCompile(`^([^@]+)@([^:]+)$`)
 )
 
 func (s State) String() string {
@@ -115,8 +113,14 @@ type Host struct {
 	Ts    time.Time // time of last check
 }
 
-// NewClient creates a new etcd client.
-func NewClient(config *utils.Config, log *logging.Logger) (*Client, error) {
+// Bandwidth represent the amount of data per statsInterval
+type Bandwidth struct {
+	In  int // stdin
+	Out int // stdout + stderr
+}
+
+// NewEtcdClient creates a new etcd client.
+func NewEtcdClient(config *Config, log *logging.Logger) (*Client, error) {
 	var tlsConfig *tls.Config
 	var pTLSInfo *transport.TLSInfo
 	tlsInfo := transport.TLSInfo{}
@@ -199,8 +203,42 @@ func (c *Client) GetDestination(key string) (string, error) {
 }
 
 // SetDestination set current destination in etcd.
-func (c *Client) SetDestination(rootctx context.Context, key, dst string) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
-	path := fmt.Sprintf("%s/%s/%s", toConnectionKey(key), dst, time.Now().Format(time.RFC3339Nano))
+func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport string, dst string) (<-chan *clientv3.LeaseKeepAliveResponse, string, error) {
+	path := fmt.Sprintf("%s/%s/%s/%s", toConnectionKey(key), dst, sshdHostport, time.Now().Format(time.RFC3339Nano))
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Grant(ctx, c.keyTTL)
+	cancel()
+	if err != nil {
+		return nil, "", err
+	}
+
+	bytes, err := json.Marshal(&Bandwidth{
+		In:  0,
+		Out: 0,
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), c.requestTimeout)
+	_, err = c.cli.Put(ctx, path, string(bytes), clientv3.WithLease(resp.ID))
+	cancel()
+	if err != nil {
+		return nil, "", err
+	}
+
+	k, e := c.cli.KeepAlive(rootctx, resp.ID)
+	return k, path, e
+}
+
+func (c *Client) UpdateStats(rootctx context.Context, etcdPath string, stats map[int]int) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
+	bytes, err := json.Marshal(&Bandwidth{
+		In:  stats[0],
+		Out: stats[1] + stats[2],
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
 	resp, err := c.cli.Grant(ctx, c.keyTTL)
 	cancel()
@@ -209,7 +247,7 @@ func (c *Client) SetDestination(rootctx context.Context, key, dst string) (<-cha
 	}
 
 	ctx, cancel = context.WithTimeout(context.Background(), c.requestTimeout)
-	_, err = c.cli.Put(ctx, path, "1", clientv3.WithLease(resp.ID))
+	_, err = c.cli.Put(ctx, etcdPath, string(bytes), clientv3.WithLease(resp.ID))
 	cancel()
 	if err != nil {
 		return nil, err
@@ -218,7 +256,7 @@ func (c *Client) SetDestination(rootctx context.Context, key, dst string) (<-cha
 	return c.cli.KeepAlive(rootctx, resp.ID)
 }
 
-// GetHost returns the host (passed as "host:port") details. It host if not
+// GetHost returns the host (passed as "host:port") details. If host is not
 // present the error will be etcd.ErrKeyNotFound.
 func (c *Client) GetHost(hostport string) (*Host, error) {
 	var h Host
@@ -269,11 +307,13 @@ func (c *Client) SetHost(hostport string, state State, ts time.Time) error {
 // FlatConnection is a structure used to flatten a connection informations
 // present in etcd.
 type FlatConnection struct {
-	User string
-	Host string
-	Port string
-	Dest string
-	Ts   time.Time
+	User      string
+	Service   string
+	From      string
+	Dest      string
+	Ts        time.Time
+	BwIn      int
+	BwOut     int
 }
 
 // GetAllConnections returns a list of all connections present in etcd.
@@ -290,22 +330,29 @@ func (c *Client) GetAllConnections() ([]*FlatConnection, error) {
 		v := &FlatConnection{}
 		subkey := string(ev.Key)[len(etcdConnectionsPath)+1:]
 		fields := strings.Split(subkey, "/")
-		if len(fields) != 3 {
+		if len(fields) != 4 {
 			return nil, fmt.Errorf("bad key format %s", subkey)
 		}
 
-		userhostport := fields[0]
+		userservice := fields[0]
 		v.Dest = fields[1]
-		v.Ts, err = time.Parse(time.RFC3339Nano, fields[2])
+		v.From = fields[2]
+		v.Ts, err = time.Parse(time.RFC3339Nano, fields[3])
 		if err != nil {
 			return nil, fmt.Errorf("error parsing time %s", fields[2])
 		}
 
-		m := keyRegex.FindStringSubmatch(userhostport)
-		if m == nil || len(m) != 4 {
-			return nil, fmt.Errorf("error parsing key %s", userhostport)
+		m := keyRegex.FindStringSubmatch(userservice)
+		if m == nil || len(m) != 3 {
+			return nil, fmt.Errorf("error parsing key %s", userservice)
 		}
-		v.User, v.Host, v.Port = m[1], m[2], m[3]
+		v.User, v.Service = m[1], m[2]
+		b := &Bandwidth{}
+		if err := json.Unmarshal(ev.Value, b); err != nil {
+			return nil, fmt.Errorf("decoding JSON data at '%s': %v", ev.Key, err)
+		}
+		v.BwIn = b.In
+		v.BwOut = b.Out
 		conns[i] = v
 	}
 
@@ -316,7 +363,51 @@ func (c *Client) GetAllConnections() ([]*FlatConnection, error) {
 type FlatHost struct {
 	Hostname string
 	Port     string
+	N        int
+    BwIn     int
+	BwOut    int
 	*Host
+}
+
+// GetUserHosts returns a list of hosts used by a user, based on etcd.
+func (c *Client) GetUserHosts(key string) (map[string]*FlatHost, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Get(ctx, etcdConnectionsPath, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	hosts := map[string]*FlatHost{}
+	//hosts := make([]*FlatHost, len(resp.Kvs))
+	for _, ev := range resp.Kvs {
+		subkey := string(ev.Key)[len(etcdConnectionsPath)+1:]
+		fields := strings.Split(subkey, "/")
+		if len(fields) != 4 {
+			return nil, fmt.Errorf("bad key format %s", subkey)
+		}
+
+		if fields[0] == key {
+			b := &Bandwidth{}
+			if err := json.Unmarshal(ev.Value, b); err != nil {
+				return nil, fmt.Errorf("decoding JSON data at '%s': %v", ev.Key, err)
+			}
+			if hosts[fields[1]] == nil {
+				v := &FlatHost{}
+				v.Hostname, v.Port, err = net.SplitHostPort(fields[1])
+				v.N = 1
+				v.BwIn = b.In
+				v.BwOut = b.Out
+				hosts[fields[1]] = v
+			} else {
+				hosts[fields[1]].N++
+				hosts[fields[1]].BwIn += b.In
+				hosts[fields[1]].BwOut += b.Out
+			}
+		}
+	}
+
+	return hosts, nil
 }
 
 // GetAllHosts returns a list of all hosts present in etcd.
@@ -326,6 +417,24 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 	cancel()
 	if err != nil {
 		return nil, err
+	}
+
+	connections, err := c.GetAllConnections()
+	if err != nil {
+		return nil, fmt.Errorf("ERROR: getting connections from etcd: %v", err)
+	}
+	stats := map[string]map[string]int{}
+	for _, connection := range connections {
+		if stats[connection.Dest] == nil {
+			stats[connection.Dest] = map[string]int{}
+			stats[connection.Dest]["N"] = 1
+			stats[connection.Dest]["BwIn"] = connection.BwIn
+			stats[connection.Dest]["BwOut"] = connection.BwOut
+		} else {
+			stats[connection.Dest]["N"]++
+			stats[connection.Dest]["BwIn"] += connection.BwIn
+			stats[connection.Dest]["BwOut"] += connection.BwOut
+		}
 	}
 
 	hosts := make([]*FlatHost, len(resp.Kvs))
@@ -339,10 +448,47 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error parsing key %s", subkey)
 		}
+		if stats[subkey] == nil {
+			v.N = 0
+			v.BwIn = 0
+			v.BwOut = 0
+		} else {
+			v.N = stats[subkey]["N"]
+			v.BwIn = stats[subkey]["BwIn"]
+			v.BwOut = stats[subkey]["BwOut"]
+		}
 		hosts[i] = v
 	}
 
 	return hosts, nil
+}
+
+// GetAllUsers returns a list of connections present in etcd,  aggregated by
+// user@service.
+func (c *Client) GetAllUsers(allFlag bool) (map[string]map[string]int, error) {
+	connections, err := c.GetAllConnections()
+	if err != nil {
+		return nil, fmt.Errorf("ERROR: getting connections from etcd: %v", err)
+	}
+	users := map[string]map[string]int{}
+	for _, connection := range connections {
+		key := connection.User
+		if allFlag {
+			key = fmt.Sprintf("%s@%s", connection.User, connection.Service)
+		}
+		if users[key] == nil {
+			users[key] = map[string]int{}
+			users[key]["N"] = 1
+			users[key]["BwIn"] = connection.BwIn
+			users[key]["BwOut"] = connection.BwOut
+		} else {
+			users[key]["N"]++
+			users[key]["BwIn"] += connection.BwIn
+			users[key]["BwOut"] += connection.BwOut
+		}
+	}
+
+	return users, nil
 }
 
 // IsAlive checks if etcd client is still usable.

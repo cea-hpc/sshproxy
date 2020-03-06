@@ -58,6 +58,11 @@ COMMANDS
 *show [-csv|-json] hosts*::
 	Show all hosts and their state in etcd.
 
+*show [-all] [-csv|-json] users*::
+	Show users statistics in etcd. Without '-all' only one entry per user
+	is displayed. If '-all' is specified, users are splitted by services.
+
+
 FILES
 -----
 /etc/sshproxy/sshproxy.yaml::
@@ -73,7 +78,7 @@ sshproxyctl was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
 
 COPYING
 -------
-Copyright (C) 2015-2019 CEA/DAM/DIF. Free use of this software is granted
+Copyright (C) 2015-2020 CEA/DAM/DIF. Free use of this software is granted
 under the term of the CeCILL-B license.
 
 // vim:tw=78:ft=asciidoc:

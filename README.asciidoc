@@ -68,7 +68,7 @@ Modify the SSH daemon configuration +/etc/ssh/sshd_config+ by adding:
 Copying
 -------
 
-Copyright (C) 2015-2019 CEA/DAM/DIF
+Copyright (C) 2015-2020 CEA/DAM/DIF
 
 sshproxy is distributed under the CeCILL-B, a French transposition of the BSD
 license. See the included files +Licence_CeCILL-B_V1-en.txt+ (English version)
