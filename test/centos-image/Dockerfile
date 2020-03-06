@@ -18,6 +18,7 @@ RUN chmod 0600 /root/.ssh/authorized_keys
 
 # Copy sshd keys
 COPY ./ssh/ssh_config /etc/ssh/
+RUN chmod 0644 /etc/ssh/ssh_config
 COPY ./ssh/ssh_host_ed25519_key* /etc/ssh/
 RUN chmod 0600 /etc/ssh/ssh_host_ed25519_key
 
@@ -28,6 +29,7 @@ RUN chmod 0600 /home/centos/.ssh/id_ed25519 /home/centos/.ssh/authorized_keys
 
 # Copy etcd certificates and keys
 COPY ./etcd/*.pem /etc/etcd/
+RUN chmod 0644 /etc/etcd/ca.pem
 RUN chmod 0644 /etc/etcd/sshproxy*
 
 # Copy sshd configurations
@@ -41,3 +43,6 @@ COPY ./etcd.sh /root
 
 # Copy test file for tester
 COPY --chown=centos:centos ./sshproxy_test.go /home/centos/
+
+# Clean the sshproxy build environment
+RUN rm -rf /tmp/sshproxy
