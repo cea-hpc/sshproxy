@@ -125,7 +125,7 @@ func NewRecorder(ctx context.Context, conninfo *ConnInfo, dumpfile, command stri
 }
 
 // log formats the internal statistics and logs them.
-func (r *Recorder) log(cli *utils.Client, rootctx context.Context, etcdPath string) {
+func (r *Recorder) log(rootctx context.Context, cli *utils.Client, etcdPath string) {
 	t := []string{}
 	fds := []string{"stdin", "stdout", "stderr"}
 	for fd, name := range fds {
@@ -166,7 +166,7 @@ func (r *Recorder) dump(rec record.Record) {
 }
 
 // Run starts the recorder.
-func (r *Recorder) Run(cli *utils.Client, rootctx context.Context, etcdPath string) {
+func (r *Recorder) Run(rootctx context.Context, cli *utils.Client, etcdPath string) {
 	var fd io.WriteCloser
 	if r.dumpfile != "" {
 		var err error
@@ -206,7 +206,7 @@ func (r *Recorder) Run(cli *utils.Client, rootctx context.Context, etcdPath stri
 		}
 	}
 	defer func() {
-		r.log(cli, rootctx, etcdPath)
+		r.log(rootctx, cli, etcdPath)
 		if fd != nil {
 			fd.Close()
 		}
@@ -219,7 +219,7 @@ func (r *Recorder) Run(cli *utils.Client, rootctx context.Context, etcdPath stri
 			for {
 				select {
 				case <-time.After(r.statsInterval):
-					r.log(cli, rootctx, etcdPath)
+					r.log(rootctx, cli, etcdPath)
 				case <-r.ctx.Done():
 					return
 				}

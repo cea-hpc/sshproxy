@@ -131,10 +131,8 @@ func selectDestinationConnections(destinations []string, checker HostChecker, cl
 		})
 		mylog.Debugf("ordered destinations based on # of connections: %v", destinations)
 		return selectDestinationOrdered(destinations, checker, cli, key)
-	} else {
-		return selectDestinationRandom(destinations, checker, cli, key)
 	}
-	// never reached
+	return selectDestinationRandom(destinations, checker, cli, key)
 }
 
 // selectDestinationBandwidth selects the destination you have less bandwidth
@@ -172,13 +170,11 @@ func selectDestinationBandwidth(destinations []string, checker HostChecker, cli 
 		})
 		mylog.Debugf("ordered destinations based on bandwidth used: %v", destinations)
 		return selectDestinationOrdered(destinations, checker, cli, key)
-	} else {
-		return selectDestinationRandom(destinations, checker, cli, key)
 	}
-	// never reached
+	return selectDestinationRandom(destinations, checker, cli, key)
 }
 
-// Select returns a destination among the destinations according to the
+// SelectRoute returns a destination among the destinations according to the
 // specified algo. The destination was successfully checked by the specified
 // checker.
 func SelectRoute(algo string, destinations []string, checker HostChecker, cli *Client, key string) (string, error) {

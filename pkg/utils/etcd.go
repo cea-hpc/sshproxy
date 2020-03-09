@@ -230,6 +230,7 @@ func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport strin
 	return k, path, e
 }
 
+// UpdateStats updates the stats (bandwidth in and out) of a connection.
 func (c *Client) UpdateStats(rootctx context.Context, etcdPath string, stats map[int]int) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
 	bytes, err := json.Marshal(&Bandwidth{
 		In:  stats[0],

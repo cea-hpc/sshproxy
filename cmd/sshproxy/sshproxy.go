@@ -441,7 +441,7 @@ func mainExitCode() int {
 		go func() {
 			defer wg.Done()
 			if config.Dump == "etcd" {
-				recorder.Run(cli, ctx, etcdPath)
+				recorder.Run(ctx, cli, etcdPath)
 			} else {
 				recorder.Run(nil, nil, "")
 			}

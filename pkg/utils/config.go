@@ -39,6 +39,9 @@ type Config struct {
 	Groups        map[string]subConfig
 }
 
+// RouteConfig represents the configuration of a route. Dest is mandatory,
+// Source is mandatory if the associated service name is not the default one.
+// RouteSelect defaults to "ordered", Mode defaults to "stiky".
 type RouteConfig struct {
 	Source      []string
 	Dest        []string
