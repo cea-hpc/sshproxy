@@ -145,9 +145,9 @@ func selectDestinationBandwidth(destinations []string, checker HostChecker, cli 
 		if err != nil {
 			return "", nil
 		}
-		userHostsbw := map[string]int{}
+		userHostsbw := map[string]uint64{}
 		for _, userHost := range userHosts {
-			userHostsbw[fmt.Sprintf("%s:%s", userHost.Hostname, userHost.Port)] = (userHost.BwIn * userHost.BwIn) + (userHost.BwOut * userHost.BwOut) + userHost.N
+			userHostsbw[fmt.Sprintf("%s:%s", userHost.Hostname, userHost.Port)] = (uint64(userHost.BwIn) * uint64(userHost.BwIn)) + (uint64(userHost.BwOut) * uint64(userHost.BwOut)) + uint64(userHost.N)
 		}
 		hosts, err := cli.GetAllHosts()
 		if err != nil {

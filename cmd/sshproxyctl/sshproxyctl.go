@@ -91,7 +91,7 @@ type aggConnection struct {
 
 type aggregatedConnections []*aggConnection
 
-func (ac aggregatedConnections) toRows() [][]string {
+func (ac aggregatedConnections) toRows(passthrough bool) [][]string {
 	rows := make([][]string, len(ac))
 
 	for i, c := range ac {
@@ -101,8 +101,8 @@ func (ac aggregatedConnections) toRows() [][]string {
 			c.Dest,
 			strconv.Itoa(c.N),
 			c.Last.Format("2006-01-02 15:04:05"),
-			fmt.Sprintf("%d", c.BwIn),
-			fmt.Sprintf("%d", c.BwOut),
+			byteToHuman(c.BwIn, passthrough),
+			byteToHuman(c.BwOut, passthrough),
 		}
 	}
 
@@ -111,7 +111,7 @@ func (ac aggregatedConnections) toRows() [][]string {
 
 type flatConnections []*utils.FlatConnection
 
-func (fc flatConnections) getAllConnections() [][]string {
+func (fc flatConnections) getAllConnections(passthrough bool) [][]string {
 	rows := make([][]string, len(fc))
 
 	for i, c := range fc {
@@ -121,8 +121,8 @@ func (fc flatConnections) getAllConnections() [][]string {
 			c.From,
 			c.Dest,
 			c.Ts.Format("2006-01-02 15:04:05"),
-			fmt.Sprintf("%d", c.BwIn),
-			fmt.Sprintf("%d", c.BwOut),
+			byteToHuman(c.BwIn, passthrough),
+			byteToHuman(c.BwOut, passthrough),
 		}
 	}
 
@@ -196,9 +196,9 @@ func (fc flatConnections) displayCSV(allFlag bool) {
 	var rows [][]string
 
 	if allFlag {
-		rows = fc.getAllConnections()
+		rows = fc.getAllConnections(true)
 	} else {
-		rows = fc.getAggregatedConnections().toRows()
+		rows = fc.getAggregatedConnections().toRows(true)
 	}
 
 	displayCSV(rows)
@@ -220,9 +220,9 @@ func (fc flatConnections) displayTable(allFlag bool) {
 	var rows [][]string
 
 	if allFlag {
-		rows = fc.getAllConnections()
+		rows = fc.getAllConnections(false)
 	} else {
-		rows = fc.getAggregatedConnections().toRows()
+		rows = fc.getAggregatedConnections().toRows(false)
 	}
 
 	var headers []string
@@ -274,8 +274,8 @@ func showUsers(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 		rows[i] = []string{
 			k,
 			fmt.Sprintf("%d", v["N"]),
-			fmt.Sprintf("%d", v["BwIn"]),
-			fmt.Sprintf("%d", v["BwOut"]),
+			byteToHuman(v["BwIn"], csvFlag),
+			byteToHuman(v["BwOut"], csvFlag),
 		}
 		i++
 	}
@@ -310,8 +310,8 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 			h.State.String(),
 			h.Ts.Format("2006-01-02 15:04:05"),
 			fmt.Sprintf("%d", h.N),
-			fmt.Sprintf("%d", h.BwIn),
-			fmt.Sprintf("%d", h.BwOut),
+			byteToHuman(h.BwIn, csvFlag),
+			byteToHuman(h.BwOut, csvFlag),
 		}
 	}
 
@@ -439,6 +439,22 @@ func getHostPortFromCommandLine(args []string) (string, string, error) {
 		return "", "", fmt.Errorf("wrong number of arguments")
 	}
 	return host, port, nil
+}
+
+func byteToHuman(b int, passthrough bool) string {
+	if passthrough {
+		return fmt.Sprintf("%d", b)
+	}
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d kB/s", b)
+	}
+	div, exp := unit, 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB/s", float32(b)/float32(div), "MGT"[exp])
 }
 
 func main() {

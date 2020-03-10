@@ -126,13 +126,6 @@ func NewRecorder(ctx context.Context, conninfo *ConnInfo, dumpfile, command stri
 
 // log formats the internal statistics and logs them.
 func (r *Recorder) log(rootctx context.Context, cli *utils.Client, etcdPath string) {
-	t := []string{}
-	fds := []string{"stdin", "stdout", "stderr"}
-	for fd, name := range fds {
-		t = append(t, fmt.Sprintf("%s: %d", name, r.totals[fd]))
-	}
-	// round to second
-	elapsed := time.Duration((time.Since(r.start) / time.Second) * time.Second)
 	if cli != nil {
 		if cli.IsAlive() {
 			keepAliveChan, err := cli.UpdateStats(rootctx, etcdPath, r.bandwidth)
@@ -150,6 +143,13 @@ func (r *Recorder) log(rootctx context.Context, cli *utils.Client, etcdPath stri
 			}()
 		}
 	} else {
+		fds := []string{"stdin", "stdout", "stderr"}
+		t := []string{}
+		for fd, name := range fds {
+			t = append(t, fmt.Sprintf("%s: %d", name, r.totals[fd]))
+		}
+		// round to second
+		elapsed := time.Duration((time.Since(r.start) / time.Second) * time.Second)
 		log.Infof("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
 	}
 }
@@ -206,7 +206,7 @@ func (r *Recorder) Run(rootctx context.Context, cli *utils.Client, etcdPath stri
 		}
 	}
 	defer func() {
-		r.log(rootctx, cli, etcdPath)
+		r.log(nil, nil, etcdPath)
 		if fd != nil {
 			fd.Close()
 		}
