@@ -432,10 +432,7 @@ func mainExitCode() int {
 
 	var recorder *Recorder
 	if config.Dump != "" {
-		recorder, err = NewRecorder(ctx, conninfo, config.Dump, originalCmd, config.StatsInterval.Duration())
-		if err != nil {
-			log.Fatalf("setting recorder: %s", err)
-		}
+		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.StatsInterval.Duration())
 
 		wg.Add(1)
 		go func() {

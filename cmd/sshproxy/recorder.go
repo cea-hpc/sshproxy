@@ -105,7 +105,7 @@ type Recorder struct {
 // If dumpfile is not empty, the intercepted raw data will be written in this
 // file. Logging of basic statistics will be done every statsInterval seconds.
 // It will stop recording when the context is cancelled.
-func NewRecorder(ctx context.Context, conninfo *ConnInfo, dumpfile, command string, statsInterval time.Duration) (*Recorder, error) {
+func NewRecorder(conninfo *ConnInfo, dumpfile, command string, statsInterval time.Duration) *Recorder {
 	ch := make(chan record.Record)
 
 	return &Recorder{
@@ -120,15 +120,14 @@ func NewRecorder(ctx context.Context, conninfo *ConnInfo, dumpfile, command stri
 		command:       command,
 		dumpfile:      dumpfile,
 		writer:        nil,
-		ctx:           ctx,
-	}, nil
+	}
 }
 
 // log formats the internal statistics and logs them.
-func (r *Recorder) log(rootctx context.Context, cli *utils.Client, etcdPath string) {
+func (r *Recorder) log(ctx context.Context, cli *utils.Client, etcdPath string) {
 	if cli != nil {
 		if cli.IsAlive() {
-			keepAliveChan, err := cli.UpdateStats(rootctx, etcdPath, r.bandwidth)
+			keepAliveChan, err := cli.UpdateStats(ctx, etcdPath, r.bandwidth)
 			if err != nil {
 				log.Errorf("updating stats: %v", err)
 			}
@@ -136,7 +135,7 @@ func (r *Recorder) log(rootctx context.Context, cli *utils.Client, etcdPath stri
 				for {
 					select {
 					case <-keepAliveChan:
-					case <-rootctx.Done():
+					case <-ctx.Done():
 						return
 					}
 				}
@@ -166,7 +165,7 @@ func (r *Recorder) dump(rec record.Record) {
 }
 
 // Run starts the recorder.
-func (r *Recorder) Run(rootctx context.Context, cli *utils.Client, etcdPath string) {
+func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) {
 	var fd io.WriteCloser
 	if r.dumpfile != "" {
 		var err error
@@ -206,7 +205,7 @@ func (r *Recorder) Run(rootctx context.Context, cli *utils.Client, etcdPath stri
 		}
 	}
 	defer func() {
-		r.log(nil, nil, etcdPath)
+		r.log(nil, nil, "")
 		if fd != nil {
 			fd.Close()
 		}
@@ -219,17 +218,19 @@ func (r *Recorder) Run(rootctx context.Context, cli *utils.Client, etcdPath stri
 			for {
 				select {
 				case <-time.After(r.statsInterval):
-					r.log(rootctx, cli, etcdPath)
-				case <-r.ctx.Done():
+					r.log(ctx, cli, etcdPath)
+				case <-ctx.Done():
 					return
 				}
 			}
 		}()
 
 		buf := map[int]int{0: 0, 1: 0, 2: 0}
+		timeout := time.After(r.statsInterval)
 		for {
 			select {
-			case <-time.After(r.statsInterval):
+			case <-timeout:
+				timeout = time.After(r.statsInterval)
 				for i := 0; i <= 2; i++ {
 					r.bandwidth[i] = buf[i] / int(r.statsInterval.Seconds())
 					buf[i] = 0
@@ -240,7 +241,7 @@ func (r *Recorder) Run(rootctx context.Context, cli *utils.Client, etcdPath stri
 				if r.writer != nil {
 					r.dump(rec)
 				}
-			case <-r.ctx.Done():
+			case <-ctx.Done():
 				return
 			}
 		}
@@ -252,7 +253,7 @@ func (r *Recorder) Run(rootctx context.Context, cli *utils.Client, etcdPath stri
 				if r.writer != nil {
 					r.dump(rec)
 				}
-			case <-r.ctx.Done():
+			case <-ctx.Done():
 				return
 			}
 		}
