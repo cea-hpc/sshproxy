@@ -205,7 +205,7 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 		}
 	}
 	defer func() {
-		r.log(nil, nil, "")
+		r.log(ctx, nil, "")
 		if fd != nil {
 			fd.Close()
 		}

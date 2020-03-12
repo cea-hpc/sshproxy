@@ -440,7 +440,7 @@ func mainExitCode() int {
 			if config.Dump == "etcd" {
 				recorder.Run(ctx, cli, etcdPath)
 			} else {
-				recorder.Run(nil, nil, "")
+				recorder.Run(ctx, nil, "")
 			}
 		}()
 	}
