@@ -113,7 +113,7 @@ type Host struct {
 	Ts    time.Time // time of last check
 }
 
-// Bandwidth represent the amount of data per statsInterval
+// Bandwidth represent the amount of kB per statsInterval
 type Bandwidth struct {
 	In  int // stdin
 	Out int // stdout + stderr
@@ -231,10 +231,10 @@ func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport strin
 }
 
 // UpdateStats updates the stats (bandwidth in and out in kB/s) of a connection.
-func (c *Client) UpdateStats(rootctx context.Context, etcdPath string, stats map[int]int) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
+func (c *Client) UpdateStats(rootctx context.Context, etcdPath string, stats map[int]uint64) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
 	bytes, err := json.Marshal(&Bandwidth{
-		In:  stats[0] / 1024,
-		Out: (stats[1] + stats[2]) / 1024,
+		In:  int(stats[0] / 1024),
+		Out: int((stats[1] + stats[2]) / 1024),
 	})
 	if err != nil {
 		return nil, err

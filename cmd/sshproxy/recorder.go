@@ -90,8 +90,8 @@ type Recorder struct {
 	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors.
 	start                 time.Time          // when the Recorder was started
 	statsInterval         time.Duration      // interval at which basic statistics of transferred bytes are logged
-	bandwidth             map[int]int        // bytes for each recorded file descriptor transferred during last statsInterval
-	totals                map[int]int        // total of bytes for each recorded file descriptor
+	bandwidth             map[int]uint64     // bytes for each recorded file descriptor transferred during last statsInterval
+	totals                map[int]uint64     // total of bytes for each recorded file descriptor
 	ch                    chan record.Record // channel to read record.Record structs
 	conninfo              *ConnInfo          // specific SSH connection information
 	command               string             // initial user command
@@ -113,8 +113,8 @@ func NewRecorder(conninfo *ConnInfo, dumpfile, command string, statsInterval tim
 		Stdout:        NewSplitter(os.Stdout, ch),
 		Stderr:        NewSplitter(os.Stderr, ch),
 		statsInterval: statsInterval,
-		bandwidth:     map[int]int{0: 0, 1: 0, 2: 0},
-		totals:        map[int]int{0: 0, 1: 0, 2: 0},
+		bandwidth:     map[int]uint64{0: 0, 1: 0, 2: 0},
+		totals:        map[int]uint64{0: 0, 1: 0, 2: 0},
 		ch:            ch,
 		conninfo:      conninfo,
 		command:       command,
@@ -225,19 +225,19 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 			}
 		}()
 
-		buf := map[int]int{0: 0, 1: 0, 2: 0}
+		buf := map[int]uint64{0: 0, 1: 0, 2: 0}
 		timeout := time.After(r.statsInterval)
 		for {
 			select {
 			case <-timeout:
 				timeout = time.After(r.statsInterval)
 				for i := 0; i <= 2; i++ {
-					r.bandwidth[i] = buf[i] / int(r.statsInterval.Seconds())
+					r.bandwidth[i] = buf[i] / uint64(r.statsInterval.Seconds())
 					buf[i] = 0
 				}
 			case rec := <-r.ch:
-				buf[rec.Fd] += rec.Size
-				r.totals[rec.Fd] += rec.Size
+				buf[rec.Fd] += uint64(rec.Size)
+				r.totals[rec.Fd] += uint64(rec.Size)
 				if r.writer != nil {
 					r.dump(rec)
 				}
@@ -249,7 +249,7 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 		for {
 			select {
 			case rec := <-r.ch:
-				r.totals[rec.Fd] += rec.Size
+				r.totals[rec.Fd] += uint64(rec.Size)
 				if r.writer != nil {
 					r.dump(rec)
 				}
