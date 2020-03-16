@@ -20,6 +20,7 @@ import (
 
 // DefaultSSHPort is the default SSH server port.
 const DefaultSSHPort = "22"
+
 // DefaultService is the default service name.
 const DefaultService = "default"
 
@@ -145,12 +146,12 @@ func CheckRoutes(routes map[string]*RouteConfig) error {
 		}
 		for i, dst := range opts.Dest {
 			host, port, err := SplitHostPort(dst)
-				if err != nil {
-					return fmt.Errorf("invalid destination '%s' for service '%s': %s", dst, service, err)
-				}
+			if err != nil {
+				return fmt.Errorf("invalid destination '%s' for service '%s': %s", dst, service, err)
+			}
 			routes[service].Dest[i] = net.JoinHostPort(host, port)
 		}
-		
+
 		if opts.RouteSelect == "" {
 			routes[service].RouteSelect = DefaultAlgorithm
 		}

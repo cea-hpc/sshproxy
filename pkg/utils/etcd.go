@@ -308,13 +308,13 @@ func (c *Client) SetHost(hostport string, state State, ts time.Time) error {
 // FlatConnection is a structure used to flatten a connection informations
 // present in etcd.
 type FlatConnection struct {
-	User      string
-	Service   string
-	From      string
-	Dest      string
-	Ts        time.Time
-	BwIn      int
-	BwOut     int
+	User    string
+	Service string
+	From    string
+	Dest    string
+	Ts      time.Time
+	BwIn    int
+	BwOut   int
 }
 
 // GetAllConnections returns a list of all connections present in etcd.
@@ -365,7 +365,7 @@ type FlatHost struct {
 	Hostname string
 	Port     string
 	N        int
-    BwIn     int
+	BwIn     int
 	BwOut    int
 	*Host
 }

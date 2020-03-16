@@ -145,7 +145,7 @@ func findService(routes map[string]*utils.RouteConfig, sshdHostport string) (str
 	if _, ok := routes[utils.DefaultService]; ok {
 		return utils.DefaultService, nil
 	}
-	return "", fmt.Errorf("cannot find a service for %s and no default service configured", sshdHostport);
+	return "", fmt.Errorf("cannot find a service for %s and no default service configured", sshdHostport)
 }
 
 // setEnvironment sets environment variables from a map whose keys are the

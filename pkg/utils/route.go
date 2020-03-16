@@ -191,8 +191,8 @@ func IsRouteAlgorithm(algo string) bool {
 func IsRouteMode(mode string) bool {
 	for _, realMode := range []string{"sticky", "balanced"} {
 		if mode == realMode {
-			return true;
+			return true
 		}
 	}
-	return false;
+	return false
 }

@@ -80,76 +80,76 @@ var checkroutesTests = []struct {
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "random",
-			Mode: "sticky",
-			Source: []string{"127.0.0.1:22"},
-			Dest: []string{"1.1.1.1"}}},
+			Mode:        "sticky",
+			Source:      []string{"127.0.0.1:22"},
+			Dest:        []string{"1.1.1.1"}}},
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "random",
-			Mode: "sticky",
-			Source: []string{"127.0.0.1:22"},
-			Dest: []string{"1.1.1.1:22"}}},
+			Mode:        "sticky",
+			Source:      []string{"127.0.0.1:22"},
+			Dest:        []string{"1.1.1.1:22"}}},
 	},
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "connections",
-			Mode: "balanced",
-			Source: []string{"127.0.0.1:22"},
-			Dest: []string{"host"}}},
+			Mode:        "balanced",
+			Source:      []string{"127.0.0.1:22"},
+			Dest:        []string{"host"}}},
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "connections",
-			Mode: "balanced",
-			Source: []string{"127.0.0.1:22"},
-			Dest: []string{"host:22"}}},
+			Mode:        "balanced",
+			Source:      []string{"127.0.0.1:22"},
+			Dest:        []string{"host:22"}}},
 	},
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "bandwidth",
-			Source: []string{"127.0.0.1:22"},
-			Dest: []string{"1.1.1.1:123"}}},
+			Source:      []string{"127.0.0.1:22"},
+			Dest:        []string{"1.1.1.1:123"}}},
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "bandwidth",
-			Mode: "sticky",
-			Source: []string{"127.0.0.1:22"},
-			Dest: []string{"1.1.1.1:123"}}},
+			Mode:        "sticky",
+			Source:      []string{"127.0.0.1:22"},
+			Dest:        []string{"1.1.1.1:123"}}},
 	},
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "ordered",
-			Source: []string{"127.0.0.1"},
-			Dest: []string{"1.1.1.1"}}},
+			Source:      []string{"127.0.0.1"},
+			Dest:        []string{"1.1.1.1"}}},
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "ordered",
-			Mode: "sticky",
-			Source: []string{"127.0.0.1:22"},
-			Dest: []string{"1.1.1.1:22"}}},
+			Mode:        "sticky",
+			Source:      []string{"127.0.0.1:22"},
+			Dest:        []string{"1.1.1.1:22"}}},
 	},
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			Source: []string{"host"},
-			Dest: []string{"1.1.1.1"}}},
+			Dest:   []string{"1.1.1.1"}}},
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "ordered",
-			Mode: "sticky",
-			Source: []string{"1.1.1.1:22", "2.2.2.2:22", "3.3.3.3:22"},
-			Dest: []string{"1.1.1.1:22"}}},
+			Mode:        "sticky",
+			Source:      []string{"1.1.1.1:22", "2.2.2.2:22", "3.3.3.3:22"},
+			Dest:        []string{"1.1.1.1:22"}}},
 	},
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			Source: []string{"host:22"},
-			Dest: []string{"1.1.1.1"}}},
+			Dest:   []string{"1.1.1.1"}}},
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "ordered",
-			Mode: "sticky",
-			Source: []string{"1.1.1.1:22", "2.2.2.2:22", "3.3.3.3:22"},
-			Dest: []string{"1.1.1.1:22"}}},
+			Mode:        "sticky",
+			Source:      []string{"1.1.1.1:22", "2.2.2.2:22", "3.3.3.3:22"},
+			Dest:        []string{"1.1.1.1:22"}}},
 	},
 	{
 		map[string]*RouteConfig{"default": &RouteConfig{
 			Dest: []string{"1.1.1.1"}}},
 		map[string]*RouteConfig{"default": &RouteConfig{
 			RouteSelect: "ordered",
-			Mode: "sticky",
-			Dest: []string{"1.1.1.1:22"}}},
+			Mode:        "sticky",
+			Dest:        []string{"1.1.1.1:22"}}},
 	},
 }
 
@@ -172,19 +172,19 @@ var checkroutesInvalidTests = []struct {
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			Source: []string{"host:port:invalid"},
-			Dest: []string{}}},
+			Dest:   []string{}}},
 		"invalid source address: address host:port:invalid: too many colons in address",
 	},
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			Source: []string{"err"},
-			Dest: []string{}}},
+			Dest:   []string{}}},
 		"cannot resolve host 'err': LookupHost error",
 	},
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			Source: []string{"host"},
-			Dest: []string{"host:port"}}},
+			Dest:   []string{"host:port"}}},
 		"invalid destination 'host:port' for service 'service1': address host:port: invalid port",
 	},
 	{
@@ -200,21 +200,21 @@ var checkroutesInvalidTests = []struct {
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
 			RouteSelect: "err",
-			Source: []string{"127.0.0.1"},
-			Dest: []string{"host"}}},
+			Source:      []string{"127.0.0.1"},
+			Dest:        []string{"host"}}},
 		"invalid value for `route_select` option of service 'service1': err",
 	},
 	{
 		map[string]*RouteConfig{"service1": &RouteConfig{
-			Mode: "err",
+			Mode:   "err",
 			Source: []string{"127.0.0.1"},
-			Dest: []string{"host"}}},
+			Dest:   []string{"host"}}},
 		"invalid value for `mode` option of service 'service1': err",
 	},
 	{
 		map[string]*RouteConfig{"default": &RouteConfig{
 			Source: []string{"127.0.0.1"},
-			Dest: []string{"host"}}},
+			Dest:   []string{"host"}}},
 		"no source should be defined for the default service",
 	},
 }
@@ -231,7 +231,7 @@ func TestInvalidCheckRoutes(t *testing.T) {
 	}
 }
 
-func displayRoutes(routes map[string]*RouteConfig) (string) {
+func displayRoutes(routes map[string]*RouteConfig) string {
 	display := ""
 	for service, route := range routes {
 		display += fmt.Sprintf("%s: %v", service, route)

@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cea-hpc/sshproxy/pkg/utils"
 	"github.com/cea-hpc/sshproxy/pkg/record"
+	"github.com/cea-hpc/sshproxy/pkg/utils"
 )
 
 // Dup duplicates a []byte slice.

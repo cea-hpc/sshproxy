@@ -45,8 +45,8 @@ type Config struct {
 type RouteConfig struct {
 	Source      []string
 	Dest        []string
-    RouteSelect string `yaml:"route_select"`
-    Mode        string
+	RouteSelect string `yaml:"route_select"`
+	Mode        string
 }
 
 type sshConfig struct {
