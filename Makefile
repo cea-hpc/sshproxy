@@ -21,6 +21,7 @@ RECORD_SRC		= $(wildcard pkg/record/*.go)
 UTILS_SRC		= $(wildcard pkg/utils/*.go)
 
 PKGS	= $(shell $(GO) list ./... | grep -v /vendor/)
+TEST	= test/centos-image/sshproxy_test.go
 EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-replay sshproxyctl)
 MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8 doc/sshproxyctl.8
 
@@ -68,14 +69,18 @@ install-binaries: $(EXE)
 
 fmt:
 	$(GO) fmt $(PKGS)
+	$(GO) fmt $(TEST)
 
 get-deps:
 	$(GO) get -u golang.org/x/lint/golint honnef.co/go/tools/cmd/staticcheck
 
 check:
 	golint $(PKGS)
+	golint $(TEST)
 	$(GO) vet ./...
+	$(GO) vet $(TEST)
 	staticcheck ./...
+	staticcheck $(TEST)
 
 test:
 	$(GO) test -failfast -race -count=1 -timeout=10s ./...

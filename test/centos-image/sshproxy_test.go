@@ -259,7 +259,7 @@ func TestMainSSHDied(t *testing.T) {
 
 func TestEtcdConnections(t *testing.T) {
 	// remove old connections stored in etcd
-	time.Sleep(1 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -270,7 +270,7 @@ func TestEtcdConnections(t *testing.T) {
 	}()
 	process1 := <-ch
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(time.Second)
 	connections, jsonStr := getEtcdConnections()
 	if len(connections) != 1 {
 		t.Errorf("%s found %d connections, want 1", jsonStr, len(connections))
@@ -287,7 +287,7 @@ func TestEtcdConnections(t *testing.T) {
 	}()
 	process2 := <-ch
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(time.Second)
 	connections, jsonStr = getEtcdConnections()
 	if len(connections) != 1 {
 		t.Errorf("%s found %d different connections, want 1", jsonStr, len(connections))
@@ -300,7 +300,7 @@ func TestEtcdConnections(t *testing.T) {
 
 	process1.Kill()
 	process2.Kill()
-	time.Sleep(3 * time.Second)
+	time.Sleep(4 * time.Second)
 	connections, jsonStr = getEtcdConnections()
 	if len(connections) != 0 {
 		t.Errorf("%s found %d connections, want 0", jsonStr, len(connections))
@@ -310,7 +310,7 @@ func TestEtcdConnections(t *testing.T) {
 
 func TestStickyConnections(t *testing.T) {
 	// remove old connections stored in etcd
-	time.Sleep(3 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	disableHost("server1")
 	checkHostState(t, "server1", "disabled")
@@ -324,7 +324,7 @@ func TestStickyConnections(t *testing.T) {
 	}()
 	process1 := <-ch
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(time.Second)
 	enableHost("server1")
 	checkHostState(t, "server1", "up")
 
@@ -342,7 +342,7 @@ func TestStickyConnections(t *testing.T) {
 
 func TestBalancedConnections(t *testing.T) {
 	// remove old connections stored in etcd
-	time.Sleep(3 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -353,7 +353,7 @@ func TestBalancedConnections(t *testing.T) {
 	}()
 	process1 := <-ch
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(time.Second)
 	updateLineSSHProxyConf("route_select", "connections")
 	updateLineSSHProxyConf("mode", "balanced")
 
@@ -475,8 +475,8 @@ func TestEnableDisableHost(t *testing.T) {
 		t.Errorf("%s got %s, expected server2", cmdStr, dest)
 	}
 
-	// entry should be removed after 3 seconds
-	time.Sleep(3 * time.Second)
+	// entry should be removed after 4 seconds
+	time.Sleep(4 * time.Second)
 	_, stdout, _, err = runCommand(ctx, "ssh", args, nil, nil)
 	if err != nil {
 		log.Fatal(err)
@@ -513,7 +513,7 @@ func getEtcdUsers(allFlag bool) (map[string]user, string) {
 
 func TestEtcdUsers(t *testing.T) {
 	// remove old connections stored in etcd
-	time.Sleep(3 * time.Second)
+	time.Sleep(4 * time.Second)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
@@ -533,7 +533,7 @@ func TestEtcdUsers(t *testing.T) {
 	process2 := <-ch
 	defer process2.Kill()
 
-	time.Sleep(1 * time.Second)
+	time.Sleep(time.Second)
 	users, jsonStr := getEtcdUsers(false)
 	if len(users) != 1 {
 		t.Errorf("%s found %d aggregated users, want 1", jsonStr, len(users))
@@ -603,7 +603,7 @@ func TestSFTP(t *testing.T) {
 		}()
 		process := <-ch
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(time.Second)
 
 		rc, _, _, _ := runCommand(ctx, "ssh", []string{tt.dest, "--", fmt.Sprintf("pgrep -f %s", tt.server)}, nil, nil)
 		if rc != 0 {
@@ -621,7 +621,7 @@ func TestSFTP(t *testing.T) {
 
 func waitForServers(hostports []string, timeout time.Duration) {
 	results := make([]bool, len(hostports))
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	done := make(chan bool, 1)
 	var wg sync.WaitGroup
 
