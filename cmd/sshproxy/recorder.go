@@ -97,7 +97,6 @@ type Recorder struct {
 	command               string             // initial user command
 	dumpfile              string             // path to filename where the raw records are dumped.
 	writer                *record.Writer     // *record.Writer where the raw records are dumped.
-	ctx                   context.Context    // context to stop recording when it's cancelled
 }
 
 // NewRecorder returns a new Recorder struct.

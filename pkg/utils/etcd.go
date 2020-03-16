@@ -396,6 +396,9 @@ func (c *Client) GetUserHosts(key string) (map[string]*FlatHost, error) {
 			if hosts[fields[1]] == nil {
 				v := &FlatHost{}
 				v.Hostname, v.Port, err = net.SplitHostPort(fields[1])
+				if err != nil {
+					return nil, fmt.Errorf("splitting Host and Port from '%s': %v", fields[1], err)
+				}
 				v.N = 1
 				v.BwIn = b.In
 				v.BwOut = b.Out
