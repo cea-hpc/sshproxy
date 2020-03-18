@@ -43,6 +43,3 @@ COPY ./etcd.sh /root
 
 # Copy test file for tester
 COPY --chown=centos:centos ./sshproxy_test.go /home/centos/
-
-# Clean the sshproxy build environment
-RUN rm -rf /tmp/sshproxy

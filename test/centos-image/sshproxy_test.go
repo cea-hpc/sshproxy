@@ -94,7 +94,10 @@ func runCommand(ctx context.Context, name string, args []string, env []string, p
 	}
 
 	stdout, _ := ioutil.ReadAll(stdoutPipe)
-	stderr, _ := ioutil.ReadAll(stderrPipe)
+	stderr := []byte{}
+	if ctx.Err() != context.DeadlineExceeded {
+		stderr, _ = ioutil.ReadAll(stderrPipe)
+	}
 
 	err = cmd.Wait()
 	rc := cmd.ProcessState.Sys().(syscall.WaitStatus).ExitStatus()
@@ -619,6 +622,44 @@ func TestSFTP(t *testing.T) {
 	}
 }
 
+var scpTests = []struct {
+	source string
+	dest   string
+	port   int
+}{
+	{"/etc/passwd", "gateway1:remoteSCP", 2022},
+	{"gateway1:remoteSCP", "/tmp/finalSCP", 2022},
+}
+
+func TestSCP(t *testing.T) {
+	refSum := hash("/etc/passwd")
+
+	mode := "without dump"
+	for i := 0; i < 2; i++ {
+		if i != 0 {
+			mode = "with dump"
+			line := "dump: etcd"
+			addLineSSHProxyConf(line)
+			defer removeLineSSHProxyConf(line)
+			line = "stats_interval: 5s"
+			addLineSSHProxyConf(line)
+			defer removeLineSSHProxyConf(line)
+		}
+		for _, tt := range scpTests {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			_, _, _, err := runCommand(ctx, "scp", []string{"-P", strconv.Itoa(tt.port), tt.source, tt.dest}, nil, nil)
+			if err != nil {
+				t.Errorf("scp -P %d %s %s (%s): %s", tt.port, tt.source, tt.dest, mode, err)
+			}
+		}
+		sum := hash("/tmp/finalSCP")
+		if !reflect.DeepEqual(refSum, sum) {
+			t.Errorf("MD5 are different: got %v, want %v (%s)", sum, refSum, mode)
+		}
+	}
+}
+
 func waitForServers(hostports []string, timeout time.Duration) {
 	results := make([]bool, len(hostports))
 	ticker := time.NewTicker(time.Second)
@@ -630,7 +671,7 @@ func waitForServers(hostports []string, timeout time.Duration) {
 		go func(n int, dest string) {
 			defer wg.Done()
 			for {
-				c, err := net.DialTimeout("tcp", dest, 1*time.Second)
+				c, err := net.DialTimeout("tcp", dest, time.Second)
 				if err == nil {
 					c.Close()
 					results[n] = true
@@ -676,7 +717,7 @@ func TestMain(m *testing.M) {
 		"gateway2:2023",
 		"gateway2:2024",
 		"gateway2:2025",
-	}, 1*time.Minute)
+	}, time.Minute)
 	setupEtcd()
 	os.Exit(m.Run())
 }
