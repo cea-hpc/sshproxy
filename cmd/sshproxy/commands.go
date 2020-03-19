@@ -49,9 +49,17 @@ func runStdCommand(cmd *exec.Cmd, rec *Recorder) (int, error) {
 		if err != nil {
 			return -1, err
 		}
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return -1, err
+		}
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return -1, err
+		}
 		go io.Copy(stdin, rec.Stdin)
-		cmd.Stdout = rec.Stdout
-		cmd.Stderr = rec.Stderr
+		go io.Copy(rec.Stdout, stdout)
+		go io.Copy(rec.Stderr, stderr)
 	} else {
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
