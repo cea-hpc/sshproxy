@@ -23,13 +23,6 @@ import (
 	"github.com/cea-hpc/sshproxy/pkg/utils"
 )
 
-// Dup duplicates a []byte slice.
-func Dup(a []byte, n int) []byte {
-	b := make([]byte, n)
-	copy(b, a)
-	return b
-}
-
 // A Splitter reads from and/or writes to a file descriptor and sends a
 // record.Record struct to a channel for each read/write operation.
 type Splitter struct {
@@ -55,12 +48,11 @@ func (s *Splitter) Close() error {
 // its internal channel.
 func (s *Splitter) Read(p []byte) (int, error) {
 	n, err := s.f.Read(p)
-	pp := Dup(p, n)
 	s.ch <- record.Record{
 		Time: time.Now(),
 		Fd:   s.fd,
 		Size: n,
-		Data: pp,
+		Data: p,
 	}
 	return n, err
 }
@@ -68,12 +60,11 @@ func (s *Splitter) Read(p []byte) (int, error) {
 // Write implements the Writer Write method. It sends a copy of the written
 // slice to its internal channel.
 func (s *Splitter) Write(p []byte) (int, error) {
-	pp := Dup(p, len(p))
 	s.ch <- record.Record{
 		Time: time.Now(),
 		Fd:   s.fd,
 		Size: len(p),
-		Data: pp,
+		Data: p,
 	}
 	return s.f.Write(p)
 }
