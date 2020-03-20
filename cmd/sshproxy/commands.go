@@ -57,7 +57,10 @@ func runStdCommand(cmd *exec.Cmd, rec *Recorder) (int, error) {
 		if err != nil {
 			return -1, err
 		}
-		go io.Copy(stdin, rec.Stdin)
+		go func() {
+			io.Copy(stdin, rec.Stdin)
+			stdin.Close() // release stdin when rec.Stdin is closed
+		}()
 		go io.Copy(rec.Stdout, stdout)
 		go io.Copy(rec.Stderr, stderr)
 	} else {
