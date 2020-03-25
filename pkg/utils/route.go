@@ -181,6 +181,16 @@ func SelectRoute(algo string, destinations []string, checker HostChecker, cli *C
 	return routeSelecters[algo](destinations, checker, cli, key)
 }
 
+// IsDestinationInRoutes returns true if dest exists in routes, false otherwise
+func IsDestinationInRoutes(dest string, routes []string) bool {
+	for _, route := range routes {
+		if dest == route {
+			return true
+		}
+	}
+	return false
+}
+
 // IsRouteAlgorithm checks if the specified algo is valid.
 func IsRouteAlgorithm(algo string) bool {
 	_, ok := routeSelecters[algo]

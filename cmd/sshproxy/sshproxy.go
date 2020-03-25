@@ -112,11 +112,15 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 				log.Errorf("problem with etcd: %v", err)
 			}
 		} else {
-			if checker.Check(dest) {
-				log.Debugf("found destination in etcd: %s", dest)
-				return service, dest, nil
+			if utils.IsDestinationInRoutes(dest, routes[service].Dest) {
+				if checker.Check(dest) {
+					log.Debugf("found destination in etcd: %s", dest)
+					return service, dest, nil
+				}
+				log.Infof("cannot connect %s to already existing connection(s) to %s: host %s", key, dest, checker.LastState)
+			} else {
+				log.Infof("cannoc connect %s to already existing connection(s) to %s: not in routes", key, dest)
 			}
-			log.Infof("cannot connect %s to already existing connection(s) to %s: host %s", key, dest, checker.LastState)
 		}
 	}
 
