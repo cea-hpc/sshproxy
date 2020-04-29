@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"net"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -467,32 +468,107 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 	return hosts, nil
 }
 
-// GetAllUsers returns a list of connections present in etcd,  aggregated by
+// FlatUser is a structure used to flatten a user informations present in etcd.
+type FlatUser struct {
+	Groups string
+	N      int
+	BwIn   int
+	BwOut  int
+}
+
+// GetAllUsers returns a list of connections present in etcd, aggregated by
 // user@service.
-func (c *Client) GetAllUsers(allFlag bool) (map[string]map[string]int, error) {
+func (c *Client) GetAllUsers(allFlag bool) (map[string]*FlatUser, error) {
 	connections, err := c.GetAllConnections()
 	if err != nil {
 		return nil, fmt.Errorf("ERROR: getting connections from etcd: %v", err)
 	}
-	users := map[string]map[string]int{}
+	users := map[string]*FlatUser{}
 	for _, connection := range connections {
 		key := connection.User
 		if allFlag {
 			key = fmt.Sprintf("%s@%s", connection.User, connection.Service)
 		}
 		if users[key] == nil {
-			users[key] = map[string]int{}
-			users[key]["N"] = 1
-			users[key]["BwIn"] = connection.BwIn
-			users[key]["BwOut"] = connection.BwOut
+			v := &FlatUser{}
+			groups, err := GetGroupList(connection.User)
+			if err != nil {
+				return nil, err
+			}
+			g := make([]string, 0, len(groups))
+			for group := range groups {
+				g = append(g, group)
+			}
+			sort.Strings(g)
+			v.Groups = strings.Join(g, " ")
+			v.N = 1
+			v.BwIn = connection.BwIn
+			v.BwOut = connection.BwOut
+			users[key] = v
 		} else {
-			users[key]["N"]++
-			users[key]["BwIn"] += connection.BwIn
-			users[key]["BwOut"] += connection.BwOut
+			users[key].N++
+			users[key].BwIn += connection.BwIn
+			users[key].BwOut += connection.BwOut
 		}
 	}
 
 	return users, nil
+}
+
+// FlatGroup is a structure used to flatten a group informations present in etcd.
+type FlatGroup struct {
+	Users string
+	N     int
+	BwIn  int
+	BwOut int
+}
+
+// GetAllGroups returns a list of connections present in etcd, aggregated by
+// groups.
+func (c *Client) GetAllGroups(allFlag bool) (map[string]*FlatGroup, error) {
+	users, err := c.GetAllUsers(allFlag)
+	if err != nil {
+		return nil, fmt.Errorf("ERROR: getting connections from etcd: %v", err)
+	}
+	groupUsers := map[string]map[string]bool{}
+	groups := map[string]*FlatGroup{}
+	for user, userV := range users {
+		userService := []string{}
+		if allFlag {
+			userService = strings.Split(user, "@")
+			user = userService[0]
+		}
+		for _, group := range strings.Split(userV.Groups, " ") {
+			if allFlag {
+				group += "@" + userService[1]
+			}
+			if groupUsers[group] == nil {
+				groupUsers[group] = map[string]bool{}
+			}
+			groupUsers[group][user] = true
+			if groups[group] == nil {
+				v := &FlatGroup{}
+				v.N = userV.N
+				v.BwIn = userV.BwIn
+				v.BwOut = userV.BwOut
+				groups[group] = v
+			} else {
+				groups[group].N += userV.N
+				groups[group].BwIn += userV.BwIn
+				groups[group].BwOut += userV.BwOut
+			}
+		}
+	}
+	for g, userGroup := range groupUsers {
+		u := make([]string, 0, len(userGroup))
+		for user := range userGroup {
+			u = append(u, user)
+		}
+		sort.Strings(u)
+		groups[g].Users = strings.Join(u, " ")
+	}
+
+	return groups, nil
 }
 
 // IsAlive checks if etcd client is still usable.

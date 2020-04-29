@@ -13,7 +13,7 @@ _sshproxyctl() {
                 COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
                 ;;
             show)
-                COMPREPLY=( $(compgen -W '-all -csv -json connections hosts users' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all -csv -json connections hosts users groups' -- "${cur}") )
                 ;;
             connections)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
@@ -24,14 +24,17 @@ _sshproxyctl() {
             users)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
                 ;;
+            groups)
+                COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
+                ;;
             -all)
-                COMPREPLY=( $(compgen -W '-csv -json connections users' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-csv -json connections users groups' -- "${cur}") )
                 ;;
             -csv)
-                COMPREPLY=( $(compgen -W '-all connections hosts users' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all connections hosts users groups' -- "${cur}") )
                 ;;
             -json)
-                COMPREPLY=( $(compgen -W '-all connections hosts users' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all connections hosts users groups' -- "${cur}") )
                 ;;
             -c)
                 _filedir

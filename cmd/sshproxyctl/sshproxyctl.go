@@ -273,9 +273,10 @@ func showUsers(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 	for k, v := range users {
 		rows[i] = []string{
 			k,
-			fmt.Sprintf("%d", v["N"]),
-			byteToHuman(v["BwIn"], csvFlag),
-			byteToHuman(v["BwOut"], csvFlag),
+			v.Groups,
+			fmt.Sprintf("%d", v.N),
+			byteToHuman(v.BwIn, csvFlag),
+			byteToHuman(v.BwOut, csvFlag),
 		}
 		i++
 	}
@@ -283,7 +284,41 @@ func showUsers(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 	if csvFlag {
 		displayCSV(rows)
 	} else {
-		displayTable([]string{"User", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
+		displayTable([]string{"User", "Groups", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
+	}
+}
+
+func showGroups(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
+
+	groups, err := cli.GetAllGroups(allFlag)
+	if err != nil {
+		log.Fatalf("ERROR: getting groups from etcd: %v", err)
+	}
+
+	if jsonFlag {
+		displayJSON(groups)
+		return
+	}
+
+	rows := make([][]string, len(groups))
+	i := 0
+	for k, v := range groups {
+		rows[i] = []string{
+			k,
+			v.Users,
+			fmt.Sprintf("%d", v.N),
+			byteToHuman(v.BwIn, csvFlag),
+			byteToHuman(v.BwOut, csvFlag),
+		}
+		i++
+	}
+
+	if csvFlag {
+		displayCSV(rows)
+	} else {
+		displayTable([]string{"Group", "Users", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
 	}
 }
 
@@ -386,7 +421,7 @@ func newShowParser(csvFlag *bool, jsonFlag *bool, allFlag *bool) *flag.FlagSet {
 	fs := flag.NewFlagSet("show", flag.ExitOnError)
 	fs.BoolVar(csvFlag, "csv", false, "show results in CSV format")
 	fs.BoolVar(jsonFlag, "json", false, "show results in JSON format")
-	fs.BoolVar(allFlag, "all", false, "show all connections / users")
+	fs.BoolVar(allFlag, "all", false, "show all connections / users / groups")
 	fs.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s show [OPTIONS] COMMAND
 
@@ -394,6 +429,7 @@ The commands are:
   connections   show connections stored in etcd
   hosts         show hosts stored in etcd
   users         show users stored in etcd
+  groups        show groups stored in etcd
 
 The options are:
 `, os.Args[0])
@@ -517,6 +553,8 @@ func main() {
 			showConnections(*configFile, csvFlag, jsonFlag, allFlag)
 		case "users":
 			showUsers(*configFile, csvFlag, jsonFlag, allFlag)
+		case "groups":
+			showGroups(*configFile, csvFlag, jsonFlag, allFlag)
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand: %s\n\n", subcmd)
 			usage()

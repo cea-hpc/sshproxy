@@ -13,7 +13,7 @@ services:
             - server1
             - server2
             - server3
-        command: ["/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
+        command: ["sleep", "3600"]
 
     gateway1:
         container_name: gateway1
