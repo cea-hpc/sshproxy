@@ -119,7 +119,7 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 				}
 				log.Infof("cannot connect %s to already existing connection(s) to %s: host %s", key, dest, checker.LastState)
 			} else {
-				log.Infof("cannoc connect %s to already existing connection(s) to %s: not in routes", key, dest)
+				log.Infof("cannot connect %s to already existing connection(s) to %s: not in routes", key, dest)
 			}
 		}
 	}
