@@ -494,13 +494,13 @@ type user struct {
 	N int
 }
 
-func getEtcdUsers(allFlag bool) (map[string]user, string) {
+func getEtcdUsers(mode string, allFlag bool) (map[string]user, string) {
 	all := ""
 	if allFlag {
 		all = " -all"
 	}
 	ctx := context.Background()
-	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json users%s", SSHPROXYCTL, all)}, nil, nil)
+	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json %s%s", SSHPROXYCTL, mode, all)}, nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -537,7 +537,7 @@ func TestEtcdUsers(t *testing.T) {
 	defer process2.Kill()
 
 	time.Sleep(time.Second)
-	users, jsonStr := getEtcdUsers(false)
+	users, jsonStr := getEtcdUsers("users", false)
 	if len(users) != 1 {
 		t.Errorf("%s found %d aggregated users, want 1", jsonStr, len(users))
 		return
@@ -545,7 +545,7 @@ func TestEtcdUsers(t *testing.T) {
 		t.Errorf("%s found %d aggregated user connections, want 2", jsonStr, users["centos"].N)
 		return
 	}
-	users, jsonStr = getEtcdUsers(true)
+	users, jsonStr = getEtcdUsers("users", true)
 	if len(users) != 2 {
 		t.Errorf("%s found %d users, want 2", jsonStr, len(users))
 		return
@@ -554,6 +554,49 @@ func TestEtcdUsers(t *testing.T) {
 		return
 	} else if users["centos@service3"].N != 1 {
 		t.Errorf("%s found %d user connections, want 1", jsonStr, users["centos@service3"].N)
+	}
+}
+
+func TestEtcdGroups(t *testing.T) {
+	// remove old connections stored in etcd
+	time.Sleep(4 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	ch := make(chan *os.Process)
+	args, _ := prepareCommand("gateway1", 2023, "sleep 20")
+	go func() {
+		runCommand(ctx, "ssh", args, nil, ch)
+	}()
+	process1 := <-ch
+	defer process1.Kill()
+
+	args, _ = prepareCommand("gateway1", 2024, "sleep 20")
+	go func() {
+		runCommand(ctx, "ssh", args, nil, ch)
+	}()
+	process2 := <-ch
+	defer process2.Kill()
+
+	time.Sleep(time.Second)
+	groups, jsonStr := getEtcdUsers("groups", false)
+	if len(groups) != 1 {
+		t.Errorf("%s found %d aggregated groups, want 1", jsonStr, len(groups))
+		return
+	} else if groups["centos"].N != 2 {
+		t.Errorf("%s found %d aggregated group connections, want 2", jsonStr, groups["centos"].N)
+		return
+	}
+	groups, jsonStr = getEtcdUsers("groups", true)
+	if len(groups) != 2 {
+		t.Errorf("%s found %d groups, want 2", jsonStr, len(groups))
+		return
+	} else if groups["centos@service2"].N != 1 {
+		t.Errorf("%s found %d group connections, want 1", jsonStr, groups["centos@service2"].N)
+		return
+	} else if groups["centos@service3"].N != 1 {
+		t.Errorf("%s found %d group connections, want 1", jsonStr, groups["centos@service3"].N)
 	}
 }
 
