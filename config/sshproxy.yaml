@@ -74,7 +74,7 @@
 # "default" can be used to define a default route and does not need the source
 # key. The source value is the IP address or DNS name of the listening SSH
 # daemon (with an optional port). The dest value is an array of destination
-# hosts (with an optional port). The route_select value difines how the host
+# hosts (with an optional port). The route_select value defines how the host
 # destination will be chosen. It can be "ordered" (the default), "random",
 # "connections" or "bandwidth". If "ordered", the hosts are tried in the order
 # listed until a successful connection is made. The list is first randomly
@@ -87,7 +87,7 @@
 # the stickiness of a connection. It can be "sticky" or "balanced". If
 # "sticky", then all connections of a user will be made on the same destination
 # host. If "balanced", the route_select algorithm will be used for every
-# connections.
+# connection.
 #routes:
 #    service1:
 #        source: ["192.168.0.1"]
