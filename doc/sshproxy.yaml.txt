@@ -63,11 +63,17 @@ user needs to have the right to write in this directory. For example:
 It can also be a network address where to send dumps if specified as
 'TCP:host:port' (the TCP is case sensitive), e.g.  'TCP:collector:5555'.
 
-*stats_interval*::
+*log_stats_interval*::
 	a string specifying the interval at which basic statistics of
-	transferred bytes are logged.  It is empty by default. The string can
-	contain a unit suffix such as 'h', 'm' and 's' (e.g. '2m30s'). These
-	statistics are only available when the 'dump' option is set.
+	transferred bytes are logged. 0 by default. The string can contain a
+	unit suffix such as 'h', 'm' and 's' (e.g. '2m30s'). These statistics
+	are only available when the 'dump' option is set.
+
+*etcd_stats_interval*::
+	a string specifying the interval at which bandwidth is updated in
+	etcd. 0 by default. The string can contain a unit suffix such as 'h',
+	'm' and 's' (e.g. '2m30s'). These statistics are only available when
+	the 'dump' option is set.
 
 etcd configuration is provided in an associative array *etcd* whose keys are:
 

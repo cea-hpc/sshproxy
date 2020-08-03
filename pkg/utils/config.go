@@ -25,18 +25,19 @@ var (
 
 // Config represents the configuration for sshproxy.
 type Config struct {
-	Debug         bool
-	Log           string
-	CheckInterval Duration `yaml:"check_interval"` // Minimum interval between host checks
-	Dump          string
-	Etcd          etcdConfig
-	StatsInterval Duration `yaml:"stats_interval"`
-	BgCommand     string   `yaml:"bg_command"`
-	SSH           sshConfig
-	Environment   map[string]string
-	Routes        map[string]*RouteConfig
-	Users         map[string]subConfig
-	Groups        map[string]subConfig
+	Debug             bool
+	Log               string
+	CheckInterval     Duration `yaml:"check_interval"` // Minimum interval between host checks
+	Dump              string
+	Etcd              etcdConfig
+	EtcdStatsInterval Duration `yaml:"etcd_stats_interval"`
+	LogStatsInterval  Duration `yaml:"log_stats_interval"`
+	BgCommand         string   `yaml:"bg_command"`
+	SSH               sshConfig
+	Environment       map[string]string
+	Routes            map[string]*RouteConfig
+	Users             map[string]subConfig
+	Groups            map[string]subConfig
 }
 
 // RouteConfig represents the configuration of a route. Dest is mandatory,
@@ -71,14 +72,15 @@ type etcdTLSConfig struct {
 // We use interface{} instead of real type to check if the option was specified
 // or not.
 type subConfig struct {
-	Debug         interface{}
-	Log           interface{}
-	Dump          interface{}
-	StatsInterval interface{} `yaml:"stats_interval"`
-	BgCommand     interface{} `yaml:"bg_command"`
-	Environment   map[string]string
-	Routes        map[string]*RouteConfig
-	SSH           sshConfig
+	Debug             interface{}
+	Log               interface{}
+	Dump              interface{}
+	EtcdStatsInterval interface{} `yaml:"stats_interval"`
+	LogStatsInterval  interface{} `yaml:"stats_interval"`
+	BgCommand         interface{} `yaml:"bg_command"`
+	Environment       map[string]string
+	Routes            map[string]*RouteConfig
+	SSH               sshConfig
 }
 
 func parseSubConfig(config *Config, subconfig *subConfig) error {
@@ -94,9 +96,17 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 		config.Dump = subconfig.Dump.(string)
 	}
 
-	if subconfig.StatsInterval != nil {
+	if subconfig.EtcdStatsInterval != nil {
 		var err error
-		config.StatsInterval, err = ParseDuration(subconfig.StatsInterval.(string))
+		config.EtcdStatsInterval, err = ParseDuration(subconfig.EtcdStatsInterval.(string))
+		if err != nil {
+			return err
+		}
+	}
+
+	if subconfig.LogStatsInterval != nil {
+		var err error
+		config.LogStatsInterval, err = ParseDuration(subconfig.LogStatsInterval.(string))
 		if err != nil {
 			return err
 		}

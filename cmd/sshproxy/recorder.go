@@ -80,8 +80,9 @@ func (s *Splitter) Write(p []byte) (int, error) {
 type Recorder struct {
 	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors.
 	start                 time.Time          // when the Recorder was started
-	statsInterval         time.Duration      // interval at which basic statistics of transferred bytes are logged
-	bandwidth             map[int]uint64     // bytes for each recorded file descriptor transferred during last statsInterval
+	etcdStatsInterval     time.Duration      // interval at which bandwidth is updated in etcd
+	logStatsInterval      time.Duration      // interval at which basic statistics of transferred bytes are logged
+	bandwidth             map[int]uint64     // bytes/s for each recorded file descriptor
 	totals                map[int]uint64     // total of bytes for each recorded file descriptor
 	ch                    chan record.Record // channel to read record.Record structs
 	conninfo              *ConnInfo          // specific SSH connection information
@@ -93,28 +94,29 @@ type Recorder struct {
 // NewRecorder returns a new Recorder struct.
 //
 // If dumpfile is not empty, the intercepted raw data will be written in this
-// file. Logging of basic statistics will be done every statsInterval seconds.
+// file. Logging of basic statistics will be done every logStatsInterval seconds. Bandwidth will be updated in etcd every etcdStatsInterval seconds.
 // It will stop recording when the context is cancelled.
-func NewRecorder(conninfo *ConnInfo, dumpfile, command string, statsInterval time.Duration) *Recorder {
+func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval time.Duration, logStatsInterval time.Duration) *Recorder {
 	ch := make(chan record.Record)
 
 	return &Recorder{
-		Stdin:         NewSplitter(os.Stdin, ch),
-		Stdout:        NewSplitter(os.Stdout, ch),
-		Stderr:        NewSplitter(os.Stderr, ch),
-		statsInterval: statsInterval,
-		bandwidth:     map[int]uint64{0: 0, 1: 0, 2: 0},
-		totals:        map[int]uint64{0: 0, 1: 0, 2: 0},
-		ch:            ch,
-		conninfo:      conninfo,
-		command:       command,
-		dumpfile:      dumpfile,
-		writer:        nil,
+		Stdin:             NewSplitter(os.Stdin, ch),
+		Stdout:            NewSplitter(os.Stdout, ch),
+		Stderr:            NewSplitter(os.Stderr, ch),
+		etcdStatsInterval: etcdStatsInterval,
+		logStatsInterval:  logStatsInterval,
+		bandwidth:         map[int]uint64{0: 0, 1: 0, 2: 0},
+		totals:            map[int]uint64{0: 0, 1: 0, 2: 0},
+		ch:                ch,
+		conninfo:          conninfo,
+		command:           command,
+		dumpfile:          dumpfile,
+		writer:            nil,
 	}
 }
 
-// log formats the internal statistics and logs them.
-func (r *Recorder) log(ctx context.Context, cli *utils.Client, etcdPath string) {
+// updateStats writes the bandwidth to etcd
+func (r *Recorder) updateStats(ctx context.Context, cli *utils.Client, etcdPath string) {
 	if cli != nil {
 		if cli.IsAlive() {
 			keepAliveChan, err := cli.UpdateStats(ctx, etcdPath, r.bandwidth)
@@ -131,16 +133,19 @@ func (r *Recorder) log(ctx context.Context, cli *utils.Client, etcdPath string) 
 				}
 			}()
 		}
-	} else {
-		fds := []string{"stdin", "stdout", "stderr"}
-		t := []string{}
-		for fd, name := range fds {
-			t = append(t, fmt.Sprintf("%s: %d", name, r.totals[fd]))
-		}
-		// round to second
-		elapsed := time.Duration((time.Since(r.start) / time.Second) * time.Second)
-		log.Infof("bytes transferred in %s: %s", elapsed, strings.Join(t, ", "))
 	}
+}
+
+// log formats the internal statistics and logs them.
+func (r *Recorder) log(ctx context.Context, step string) {
+	fds := []string{"stdin", "stdout", "stderr"}
+	t := []string{}
+	for fd, name := range fds {
+		t = append(t, fmt.Sprintf("%s=%d", name, r.totals[fd]))
+	}
+	// round to second
+	elapsed := time.Duration((time.Since(r.start) / time.Second) * time.Second)
+	log.Infof("bytes transferred (%s): duration=%s %s", step, elapsed, strings.Join(t, " "))
 }
 
 // dump saves a record.Record in the dumpfile.
@@ -195,7 +200,7 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 		}
 	}
 	defer func() {
-		r.log(ctx, nil, "")
+		r.log(ctx, "final step")
 		if fd != nil {
 			fd.Close()
 		}
@@ -203,26 +208,37 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 
 	r.start = time.Now()
 
-	if r.statsInterval != 0 {
+	if r.logStatsInterval != 0 {
 		go func() {
 			for {
 				select {
-				case <-time.After(r.statsInterval):
-					r.log(ctx, cli, etcdPath)
+				case <-time.After(r.logStatsInterval):
+					r.log(ctx, "intermediate step")
 				case <-ctx.Done():
 					return
 				}
 			}
 		}()
-
+	}
+	if r.etcdStatsInterval != 0 {
+		go func() {
+			for {
+				select {
+				case <-time.After(r.etcdStatsInterval):
+					r.updateStats(ctx, cli, etcdPath)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
 		buf := map[int]uint64{0: 0, 1: 0, 2: 0}
-		timeout := time.After(r.statsInterval)
+		timeout := time.After(r.etcdStatsInterval)
 		for {
 			select {
 			case <-timeout:
-				timeout = time.After(r.statsInterval)
+				timeout = time.After(r.etcdStatsInterval)
 				for i := 0; i <= 2; i++ {
-					r.bandwidth[i] = buf[i] / uint64(r.statsInterval.Seconds())
+					r.bandwidth[i] = buf[i] / uint64(r.etcdStatsInterval.Seconds())
 					buf[i] = 0
 				}
 			case rec := <-r.ch:

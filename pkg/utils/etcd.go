@@ -108,13 +108,13 @@ type Client struct {
 	keyTTL         int64
 }
 
-// Host represent the state of a host.
+// Host represents the state of a host.
 type Host struct {
 	State State     // host state (see State const for available states)
 	Ts    time.Time // time of last check
 }
 
-// Bandwidth represent the amount of kB per statsInterval
+// Bandwidth represents the amount of kB/s
 type Bandwidth struct {
 	In  int // stdin
 	Out int // stdout + stderr

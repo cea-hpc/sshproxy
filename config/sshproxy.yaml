@@ -13,7 +13,7 @@
 # The string can contain a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s").
 #check_interval: ""
 
-# Where raw dumps are written.
+# Where raw dumps are written. Only interactive sessions are dumped.
 # Default is empty.
 # It can be a path which can (and should) contain one or more of the following
 # patterns:
@@ -29,10 +29,15 @@
 #dump: ""
 
 # Interval at which basic statistics of transferred bytes are logged.
-# Empty by default, the string can contain a unit suffix such as 'h', 'm' and
+# 0 by default, the string can contain a unit suffix such as 'h', 'm' and
 # 's' (e.g. "2m30s"). These statistics are only available when the 'dump'
 # option is set.
-#stats_interval: ""
+#log_stats_interval: "0"
+
+# Interval at which bandwidth is updated in etcd. 0 by default, the string can
+# contain a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s"). These
+# statistics are only available when the 'dump' option is set.
+#etcd_stats_interval: "0"
 
 # A command can be launched in the background for the session duration.
 # The standard and error outputs are only logged in debug mode.
