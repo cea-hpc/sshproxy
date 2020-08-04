@@ -63,6 +63,10 @@ user needs to have the right to write in this directory. For example:
 It can also be a network address where to send dumps if specified as
 'TCP:host:port' (the TCP is case sensitive), e.g.  'TCP:collector:5555'.
 
+*dump_limit_size*::
+	an integer specifying the maximum size (bytes) of a dump. Beyond this
+	size, records are no longer dumped. Defaults to 0 (no limit).
+
 *log_stats_interval*::
 	a string specifying the interval at which basic statistics of
 	transferred bytes are logged. 0 by default. The string can contain a

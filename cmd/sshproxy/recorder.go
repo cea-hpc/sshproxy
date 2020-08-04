@@ -23,6 +23,13 @@ import (
 	"github.com/cea-hpc/sshproxy/pkg/utils"
 )
 
+// Dup duplicates a []byte slice.
+func Dup(a []byte, n int) []byte {
+	b := make([]byte, n)
+	copy(b, a)
+	return b
+}
+
 // A Splitter reads from and/or writes to a file descriptor and sends a
 // record.Record struct to a channel for each read/write operation.
 type Splitter struct {
@@ -48,11 +55,12 @@ func (s *Splitter) Close() error {
 // its internal channel.
 func (s *Splitter) Read(p []byte) (int, error) {
 	n, err := s.f.Read(p)
+	pp := Dup(p, n)
 	s.ch <- record.Record{
 		Time: time.Now(),
 		Fd:   s.fd,
 		Size: n,
-		Data: p,
+		Data: pp,
 	}
 	return n, err
 }
@@ -60,11 +68,12 @@ func (s *Splitter) Read(p []byte) (int, error) {
 // Write implements the Writer Write method. It sends a copy of the written
 // slice to its internal channel.
 func (s *Splitter) Write(p []byte) (int, error) {
+	pp := Dup(p, len(p))
 	s.ch <- record.Record{
 		Time: time.Now(),
 		Fd:   s.fd,
 		Size: len(p),
-		Data: p,
+		Data: pp,
 	}
 	return s.f.Write(p)
 }
@@ -78,7 +87,7 @@ func (s *Splitter) Write(p []byte) (int, error) {
 // The file is a succession of serialized record.Record structs. See the
 // record.Record documentation for details on the format.
 type Recorder struct {
-	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors.
+	Stdin, Stdout, Stderr io.ReadWriteCloser // standard input, output and error to be used instead of the standard file descriptors
 	start                 time.Time          // when the Recorder was started
 	etcdStatsInterval     time.Duration      // interval at which bandwidth is updated in etcd
 	logStatsInterval      time.Duration      // interval at which basic statistics of transferred bytes are logged
@@ -87,8 +96,9 @@ type Recorder struct {
 	ch                    chan record.Record // channel to read record.Record structs
 	conninfo              *ConnInfo          // specific SSH connection information
 	command               string             // initial user command
-	dumpfile              string             // path to filename where the raw records are dumped.
-	writer                *record.Writer     // *record.Writer where the raw records are dumped.
+	dumpfile              string             // path to filename where the raw records are dumped
+	dumpLimitSize         uint64             // number of bytes beyond which records are no longer dumped
+	writer                *record.Writer     // *record.Writer where the raw records are dumped
 }
 
 // NewRecorder returns a new Recorder struct.
@@ -96,7 +106,7 @@ type Recorder struct {
 // If dumpfile is not empty, the intercepted raw data will be written in this
 // file. Logging of basic statistics will be done every logStatsInterval seconds. Bandwidth will be updated in etcd every etcdStatsInterval seconds.
 // It will stop recording when the context is cancelled.
-func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval time.Duration, logStatsInterval time.Duration) *Recorder {
+func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval time.Duration, logStatsInterval time.Duration, dumpLimitSize uint64) *Recorder {
 	ch := make(chan record.Record)
 
 	return &Recorder{
@@ -111,6 +121,7 @@ func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval
 		conninfo:          conninfo,
 		command:           command,
 		dumpfile:          dumpfile,
+		dumpLimitSize:     dumpLimitSize,
 		writer:            nil,
 	}
 }
@@ -246,6 +257,11 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 				r.totals[rec.Fd] += uint64(rec.Size)
 				if r.writer != nil {
 					r.dump(rec)
+					if r.dumpLimitSize != 0 && r.totals[rec.Fd] > r.dumpLimitSize {
+						fd.Close()
+						fd = nil
+						r.writer = nil
+					}
 				}
 			case <-ctx.Done():
 				return
@@ -258,6 +274,11 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 				r.totals[rec.Fd] += uint64(rec.Size)
 				if r.writer != nil {
 					r.dump(rec)
+					if r.dumpLimitSize != 0 && r.totals[rec.Fd] > r.dumpLimitSize {
+						fd.Close()
+						fd = nil
+						r.writer = nil
+					}
 				}
 			case <-ctx.Done():
 				return

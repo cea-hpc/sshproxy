@@ -28,8 +28,12 @@
 # 'TCP:host:port' (the TCP is case sensitive), e.g. 'TCP:collector:5555'.
 #dump: ""
 
+# Maximum size of a dump (bytes). Beyond the limit, records are no more dumped.
+# Defaults to 0 (no limit).
+#dump_limit_size: 0
+
 # Interval at which basic statistics of transferred bytes are logged.
-# 0 by default, the string can contain a unit suffix such as 'h', 'm' and
+# "0" by default, the string can contain a unit suffix such as 'h', 'm' and
 # 's' (e.g. "2m30s"). These statistics are only available when the 'dump'
 # option is set.
 #log_stats_interval: "0"

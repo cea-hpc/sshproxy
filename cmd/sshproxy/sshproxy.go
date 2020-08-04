@@ -300,6 +300,7 @@ func mainExitCode() int {
 	log.Debugf("config.log = %s", config.Log)
 	log.Debugf("config.check_interval = %s", config.CheckInterval.Duration())
 	log.Debugf("config.dump = %s", config.Dump)
+	log.Debugf("config.dump_limit_size = %d", config.DumpLimitSize)
 	log.Debugf("config.etcd_stats_interval = %s", config.EtcdStatsInterval.Duration())
 	log.Debugf("config.log_stats_interval = %s", config.LogStatsInterval.Duration())
 	log.Debugf("config.etcd = %+v", config.Etcd)
@@ -437,11 +438,7 @@ func mainExitCode() int {
 
 	var recorder *Recorder
 	if config.Dump != "" {
-		if !interactiveCommand {
-			// dont't dump non-interactive commands, but still log and update etcd
-			config.Dump = "etcd"
-		}
-		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration())
+		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize)
 
 		wg.Add(1)
 		go func() {

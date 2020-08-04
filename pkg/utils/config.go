@@ -29,6 +29,7 @@ type Config struct {
 	Log               string
 	CheckInterval     Duration `yaml:"check_interval"` // Minimum interval between host checks
 	Dump              string
+	DumpLimitSize     uint64   `yaml:"dump_limit_size"`
 	Etcd              etcdConfig
 	EtcdStatsInterval Duration `yaml:"etcd_stats_interval"`
 	LogStatsInterval  Duration `yaml:"log_stats_interval"`
@@ -75,8 +76,9 @@ type subConfig struct {
 	Debug             interface{}
 	Log               interface{}
 	Dump              interface{}
-	EtcdStatsInterval interface{} `yaml:"stats_interval"`
-	LogStatsInterval  interface{} `yaml:"stats_interval"`
+	DumpLimitSize     interface{} `yaml:"dump_limit_size"`
+	EtcdStatsInterval interface{} `yaml:"etcd_stats_interval"`
+	LogStatsInterval  interface{} `yaml:"log_stats_interval"`
 	BgCommand         interface{} `yaml:"bg_command"`
 	Environment       map[string]string
 	Routes            map[string]*RouteConfig
@@ -94,6 +96,10 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 
 	if subconfig.Dump != nil {
 		config.Dump = subconfig.Dump.(string)
+	}
+
+	if subconfig.DumpLimitSize != nil {
+		config.DumpLimitSize = subconfig.DumpLimitSize.(uint64)
 	}
 
 	if subconfig.EtcdStatsInterval != nil {
