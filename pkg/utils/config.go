@@ -1,5 +1,6 @@
 // Copyright 2015-2020 CEA/DAM/DIF
-//  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
+//  Author: Arnaud Guignard <arnaud.guignard@cea.fr>
+//  Contributor: Cyril Servant <cyril.servant@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and
 // abiding by the rules of distribution of free software.  You can  use,
@@ -30,6 +31,7 @@ type Config struct {
 	CheckInterval     Duration `yaml:"check_interval"` // Minimum interval between host checks
 	Dump              string
 	DumpLimitSize     uint64   `yaml:"dump_limit_size"`
+	DumpLimitWindow   Duration `yaml:"dump_limit_window"`
 	Etcd              etcdConfig
 	EtcdStatsInterval Duration `yaml:"etcd_stats_interval"`
 	LogStatsInterval  Duration `yaml:"log_stats_interval"`
@@ -77,6 +79,7 @@ type subConfig struct {
 	Log               interface{}
 	Dump              interface{}
 	DumpLimitSize     interface{} `yaml:"dump_limit_size"`
+	DumpLimitWindow   interface{} `yaml:"dump_limit_window"`
 	EtcdStatsInterval interface{} `yaml:"etcd_stats_interval"`
 	LogStatsInterval  interface{} `yaml:"log_stats_interval"`
 	BgCommand         interface{} `yaml:"bg_command"`
@@ -100,6 +103,14 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 
 	if subconfig.DumpLimitSize != nil {
 		config.DumpLimitSize = subconfig.DumpLimitSize.(uint64)
+	}
+
+	if subconfig.DumpLimitWindow != nil {
+		var err error
+		config.DumpLimitWindow, err = ParseDuration(subconfig.DumpLimitWindow.(string))
+		if err != nil {
+			return err
+		}
 	}
 
 	if subconfig.EtcdStatsInterval != nil {

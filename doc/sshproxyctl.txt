@@ -79,7 +79,8 @@ SEE ALSO
 
 AUTHORS
 -------
-sshproxyctl was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+sshproxyctl was written by Arnaud Guignard <arnaud.guignard@cea.fr> and Cyril
+Servant <cyril.servant@cea.fr>.
 
 COPYING
 -------

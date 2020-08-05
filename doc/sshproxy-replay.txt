@@ -54,7 +54,8 @@ SEE ALSO
 
 AUTHORS
 -------
-sshproxy-replay was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+sshproxy-replay was written by Arnaud Guignard <arnaud.guignard@cea.fr> and
+Cyril Servant <cyril.servant@cea.fr>.
 
 COPYING
 -------

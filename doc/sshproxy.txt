@@ -47,7 +47,8 @@ SEE ALSO
 
 AUTHORS
 -------
-sshproxy was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+sshproxy was written by Arnaud Guignard <arnaud.guignard@cea.fr> and Cyril
+Servant <cyril.servant@cea.fr>.
 
 COPYING
 -------

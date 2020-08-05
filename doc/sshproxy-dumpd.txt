@@ -44,7 +44,8 @@ SEE ALSO
 
 AUTHORS
 -------
-sshproxy-dumpd was written by Arnaud Guignard <arnaud.guignard@cea.fr>.
+sshproxy-dumpd was written by Arnaud Guignard <arnaud.guignard@cea.fr> and
+Cyril Servant <cyril.servant@cea.fr>.
 
 COPYING
 -------

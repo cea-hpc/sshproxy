@@ -1,5 +1,6 @@
 // Copyright 2015-2020 CEA/DAM/DIF
-//  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
+//  Author: Arnaud Guignard <arnaud.guignard@cea.fr>
+//  Contributor: Cyril Servant <cyril.servant@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and
 // abiding by the rules of distribution of free software.  You can  use,
@@ -98,6 +99,7 @@ type Recorder struct {
 	command               string             // initial user command
 	dumpfile              string             // path to filename where the raw records are dumped
 	dumpLimitSize         uint64             // number of bytes beyond which records are no longer dumped
+	dumpLimitWindow       time.Duration      // time window in which dump size is accounted
 	writer                *record.Writer     // *record.Writer where the raw records are dumped
 }
 
@@ -106,7 +108,7 @@ type Recorder struct {
 // If dumpfile is not empty, the intercepted raw data will be written in this
 // file. Logging of basic statistics will be done every logStatsInterval seconds. Bandwidth will be updated in etcd every etcdStatsInterval seconds.
 // It will stop recording when the context is cancelled.
-func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval time.Duration, logStatsInterval time.Duration, dumpLimitSize uint64) *Recorder {
+func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval time.Duration, logStatsInterval time.Duration, dumpLimitSize uint64, dumpLimitWindow time.Duration) *Recorder {
 	ch := make(chan record.Record)
 
 	return &Recorder{
@@ -122,6 +124,7 @@ func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval
 		command:           command,
 		dumpfile:          dumpfile,
 		dumpLimitSize:     dumpLimitSize,
+		dumpLimitWindow:   dumpLimitWindow,
 		writer:            nil,
 	}
 }
@@ -231,6 +234,12 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 			}
 		}()
 	}
+	bw := uint64(0)
+	bwBuf := uint64(0)
+	var bwTimeout <-chan time.Time
+	if r.dumpLimitWindow != 0 {
+		bwTimeout = time.After(r.dumpLimitWindow)
+	}
 	if r.etcdStatsInterval != 0 {
 		go func() {
 			for {
@@ -252,16 +261,22 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 					r.bandwidth[i] = buf[i] / uint64(r.etcdStatsInterval.Seconds())
 					buf[i] = 0
 				}
+			case <-bwTimeout:
+				bwTimeout = time.After(r.dumpLimitWindow)
+				bw = bwBuf
+				bwBuf = 0
 			case rec := <-r.ch:
 				buf[rec.Fd] += uint64(rec.Size)
 				r.totals[rec.Fd] += uint64(rec.Size)
 				if r.writer != nil {
-					r.dump(rec)
-					if r.dumpLimitSize != 0 && r.totals[rec.Fd] > r.dumpLimitSize {
+					if r.dumpLimitSize == 0 || (bw < r.dumpLimitSize && bwBuf < r.dumpLimitSize) {
+						r.dump(rec)
+					} else if r.dumpLimitWindow == 0 {
 						fd.Close()
 						fd = nil
 						r.writer = nil
 					}
+					bwBuf += uint64(rec.Size)
 				}
 			case <-ctx.Done():
 				return
@@ -270,15 +285,21 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 	} else {
 		for {
 			select {
+			case <-bwTimeout:
+				bwTimeout = time.After(r.dumpLimitWindow)
+				bw = bwBuf
+				bwBuf = 0
 			case rec := <-r.ch:
 				r.totals[rec.Fd] += uint64(rec.Size)
 				if r.writer != nil {
-					r.dump(rec)
-					if r.dumpLimitSize != 0 && r.totals[rec.Fd] > r.dumpLimitSize {
+					if r.dumpLimitSize == 0 || (bw < r.dumpLimitSize && bwBuf < r.dumpLimitSize) {
+						r.dump(rec)
+					} else if r.dumpLimitWindow == 0 {
 						fd.Close()
 						fd = nil
 						r.writer = nil
 					}
+					bwBuf += uint64(rec.Size)
 				}
 			case <-ctx.Done():
 				return

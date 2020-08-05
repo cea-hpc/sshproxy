@@ -75,10 +75,11 @@ license. See the included files +Licence_CeCILL-B_V1-en.txt+ (English version)
 and +Licence_CeCILL-B_V1-fr.txt+ (French version) or visit
 http://www.cecill.info for details.
 
-Author
-------
+Authors
+-------
 
 Arnaud Guignard <arnaud.guignard@cea.fr>
+Cyril Servant <cyril.servant@cea.fr>
 
 Documentation
 -------------

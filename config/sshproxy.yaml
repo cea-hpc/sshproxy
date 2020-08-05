@@ -28,19 +28,32 @@
 # 'TCP:host:port' (the TCP is case sensitive), e.g. 'TCP:collector:5555'.
 #dump: ""
 
-# Maximum size of a dump (bytes). Beyond the limit, records are no more dumped.
-# Defaults to 0 (no limit).
+# Maximum amount of bytes of a dump. Setting the 'dump_limit_window' option
+# will limit the amount of bytes per window. This option is only useful if the
+# 'dump' option is set to a file or to a network address. Defaults to 0 (no
+# limit).
 #dump_limit_size: 0
 
+# Duration of a dump measurement window. "0" by default, the string can contain
+# a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s"). When set to "0", a
+# dump will stop once it's too big (and the dump's file descriptor will be
+# closed. When set to a duration, the dump will pause when there is too much
+# data transferred in the current window (or the previous), and will resume
+# when few enough data are transferred during the previous window and the
+# current one. This option is only useful when the 'dump_limit_size' option is
+# set.
+#dump_limit_window: "0"
+
 # Interval at which basic statistics of transferred bytes are logged.
-# "0" by default, the string can contain a unit suffix such as 'h', 'm' and
-# 's' (e.g. "2m30s"). These statistics are only available when the 'dump'
-# option is set.
+# "0" by default (i.e. disabled), the string can contain a unit suffix such as
+# 'h', 'm' and 's' (e.g. "2m30s"). These statistics are only available when the
+# 'dump' option is set.
 #log_stats_interval: "0"
 
-# Interval at which bandwidth is updated in etcd. 0 by default, the string can
-# contain a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s"). These
-# statistics are only available when the 'dump' option is set.
+# Interval at which bandwidth is updated in etcd. "0" by default (i.e.
+# disabled), the string can contain a unit suffix such as 'h', 'm' and 's'
+# (e.g. "2m30s"). These statistics are only available when the 'dump' option is
+# set.
 #etcd_stats_interval: "0"
 
 # A command can be launched in the background for the session duration.

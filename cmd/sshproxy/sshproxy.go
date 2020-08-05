@@ -1,5 +1,6 @@
 // Copyright 2015-2020 CEA/DAM/DIF
-//  Contributor: Arnaud Guignard <arnaud.guignard@cea.fr>
+//  Author: Arnaud Guignard <arnaud.guignard@cea.fr>
+//  Contributor: Cyril Servant <cyril.servant@cea.fr>
 //
 // This software is governed by the CeCILL-B license under French law and
 // abiding by the rules of distribution of free software.  You can  use,
@@ -301,6 +302,7 @@ func mainExitCode() int {
 	log.Debugf("config.check_interval = %s", config.CheckInterval.Duration())
 	log.Debugf("config.dump = %s", config.Dump)
 	log.Debugf("config.dump_limit_size = %d", config.DumpLimitSize)
+	log.Debugf("config.dump_limit_window = %s", config.DumpLimitWindow.Duration())
 	log.Debugf("config.etcd_stats_interval = %s", config.EtcdStatsInterval.Duration())
 	log.Debugf("config.log_stats_interval = %s", config.LogStatsInterval.Duration())
 	log.Debugf("config.etcd = %+v", config.Etcd)
@@ -423,6 +425,10 @@ func mainExitCode() int {
 				"-oForwardAgent=no", "-oPermitLocalCommand=no",
 				"-oClearAllForwardings=yes", "-oProtocol=2",
 				"-s", "--", host, "sftp")
+			if config.Dump != "" {
+				// We don't want to dump sftp connections
+				config.Dump = "etcd"
+			}
 		} else {
 			if interactiveCommand {
 				// Force TTY allocation because the user probably asked for it.
@@ -438,7 +444,7 @@ func mainExitCode() int {
 
 	var recorder *Recorder
 	if config.Dump != "" {
-		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize)
+		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize, config.DumpLimitWindow.Duration())
 
 		wg.Add(1)
 		go func() {
