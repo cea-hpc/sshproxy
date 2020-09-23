@@ -3,7 +3,7 @@
 %global debug_package   %{nil}
 
 Name:           sshproxy
-Version:        1.3.0
+Version:        1.3.1
 Release:        1%{?dist}
 Summary:        SSH proxy
 License:        CeCILL-B
@@ -51,6 +51,9 @@ install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}/sshproxy
 %{_mandir}/man8/sshproxy-replay.8*
 
 %changelog
+* Wed Sep 23 2020 Cyril Servant <cyril.servant@cea.fr> - 1.3.1-1
+- sshproxy 1.3.1
+
 * Wed Aug 05 2020 Cyril Servant <cyril.servant@cea.fr> - 1.3.0-1
 - sshproxy 1.3.0
 

@@ -205,13 +205,13 @@ func (c *Client) GetDestination(key string) (string, error) {
 }
 
 // SetDestination set current destination in etcd.
-func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport string, dst string) (<-chan *clientv3.LeaseKeepAliveResponse, string, error) {
+func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport string, dst string) (<-chan *clientv3.LeaseKeepAliveResponse, string, clientv3.LeaseID, error) {
 	path := fmt.Sprintf("%s/%s/%s/%s", toConnectionKey(key), dst, sshdHostport, time.Now().Format(time.RFC3339Nano))
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
 	resp, err := c.cli.Grant(ctx, c.keyTTL)
 	cancel()
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
 
 	bytes, err := json.Marshal(&Bandwidth{
@@ -219,44 +219,37 @@ func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport strin
 		Out: 0,
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), c.requestTimeout)
 	_, err = c.cli.Put(ctx, path, string(bytes), clientv3.WithLease(resp.ID))
 	cancel()
 	if err != nil {
-		return nil, "", err
+		return nil, "", 0, err
 	}
 
 	k, e := c.cli.KeepAlive(rootctx, resp.ID)
-	return k, path, e
+	return k, path, resp.ID, e
 }
 
 // UpdateStats updates the stats (bandwidth in and out in kB/s) of a connection.
-func (c *Client) UpdateStats(rootctx context.Context, etcdPath string, stats map[int]uint64) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
+func (c *Client) UpdateStats(etcdPath string, stats map[int]uint64, leaseID clientv3.LeaseID) error {
 	bytes, err := json.Marshal(&Bandwidth{
 		In:  int(stats[0] / 1024),
 		Out: int((stats[1] + stats[2]) / 1024),
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-	resp, err := c.cli.Grant(ctx, c.keyTTL)
+	_, err = c.cli.Put(ctx, etcdPath, string(bytes), clientv3.WithLease(leaseID))
 	cancel()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	ctx, cancel = context.WithTimeout(context.Background(), c.requestTimeout)
-	_, err = c.cli.Put(ctx, etcdPath, string(bytes), clientv3.WithLease(resp.ID))
-	cancel()
-	if err != nil {
-		return nil, err
-	}
-
-	return c.cli.KeepAlive(rootctx, resp.ID)
+	return nil
 }
 
 // GetHost returns the host (passed as "host:port") details. If host is not

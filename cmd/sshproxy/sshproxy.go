@@ -32,6 +32,7 @@ import (
 
 	"github.com/docker/docker/pkg/term"
 	"github.com/op/go-logging"
+	"go.etcd.io/etcd/clientv3"
 )
 
 var (
@@ -351,11 +352,13 @@ func mainExitCode() int {
 	}()
 
 	var etcdPath string
+	var leaseID clientv3.LeaseID
 	// Register destination in etcd and keep it alive while running.
 	if cli != nil && cli.IsAlive() {
 		key := fmt.Sprintf("%s@%s", username, service)
-		keepAliveChan, eP, err := cli.SetDestination(ctx, key, sshInfos.Dst(), hostport)
+		keepAliveChan, eP, lID, err := cli.SetDestination(ctx, key, sshInfos.Dst(), hostport)
 		etcdPath = eP
+		leaseID = lID
 		if err != nil {
 			log.Warningf("setting destination in etcd: %v", err)
 		}
@@ -444,7 +447,7 @@ func mainExitCode() int {
 
 	var recorder *Recorder
 	if config.Dump != "" {
-		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize, config.DumpLimitWindow.Duration())
+		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize, config.DumpLimitWindow.Duration(), leaseID)
 
 		wg.Add(1)
 		go func() {
