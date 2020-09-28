@@ -18,6 +18,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cea-hpc/sshproxy/pkg/record"
@@ -103,6 +104,7 @@ type Recorder struct {
 	dumpLimitSize         uint64             // number of bytes beyond which records are no longer dumped
 	dumpLimitWindow       time.Duration      // time window in which dump size is accounted
 	leaseID               clientv3.LeaseID   // etcd lease ID used for updating stats
+	lock                  sync.RWMutex       // mutex to avoid concurrent reads and writes in bandwidth and totals maps
 	writer                *record.Writer     // *record.Writer where the raw records are dumped
 }
 
@@ -129,6 +131,7 @@ func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval
 		dumpLimitSize:     dumpLimitSize,
 		dumpLimitWindow:   dumpLimitWindow,
 		leaseID:           leaseID,
+		lock:              sync.RWMutex{},
 		writer:            nil,
 	}
 }
@@ -137,7 +140,10 @@ func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval
 func (r *Recorder) updateStats(cli *utils.Client, etcdPath string) {
 	if cli != nil {
 		if cli.IsAlive() {
-			err := cli.UpdateStats(etcdPath, r.bandwidth, r.leaseID)
+			r.lock.RLock()
+			stats := r.bandwidth
+			r.lock.RUnlock()
+			err := cli.UpdateStats(etcdPath, stats, r.leaseID)
 			if err != nil {
 				log.Errorf("updating stats: %v", err)
 			}
@@ -149,9 +155,11 @@ func (r *Recorder) updateStats(cli *utils.Client, etcdPath string) {
 func (r *Recorder) log(ctx context.Context, step string) {
 	fds := []string{"stdin", "stdout", "stderr"}
 	t := []string{}
+	r.lock.RLock()
 	for fd, name := range fds {
 		t = append(t, fmt.Sprintf("%s=%d", name, r.totals[fd]))
 	}
+	r.lock.RUnlock()
 	// round to second
 	elapsed := time.Duration((time.Since(r.start) / time.Second) * time.Second)
 	log.Infof("bytes transferred (%s): duration=%s %s", step, elapsed, strings.Join(t, " "))
@@ -237,6 +245,7 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 	}
 	if r.etcdStatsInterval != 0 {
 		go func() {
+			time.Sleep(time.Second)
 			for {
 				select {
 				case <-time.After(r.etcdStatsInterval):
@@ -252,17 +261,21 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 			select {
 			case <-timeout:
 				timeout = time.After(r.etcdStatsInterval)
+				r.lock.Lock()
 				for i := 0; i <= 2; i++ {
 					r.bandwidth[i] = buf[i] / uint64(r.etcdStatsInterval.Seconds())
 					buf[i] = 0
 				}
+				r.lock.Unlock()
 			case <-bwTimeout:
 				bwTimeout = time.After(r.dumpLimitWindow)
 				bw = bwBuf
 				bwBuf = 0
 			case rec := <-r.ch:
 				buf[rec.Fd] += uint64(rec.Size)
+				r.lock.Lock()
 				r.totals[rec.Fd] += uint64(rec.Size)
+				r.lock.Unlock()
 				if r.writer != nil {
 					if r.dumpLimitSize == 0 || (bw < r.dumpLimitSize && bwBuf < r.dumpLimitSize) {
 						r.dump(rec)
@@ -285,7 +298,9 @@ func (r *Recorder) Run(ctx context.Context, cli *utils.Client, etcdPath string) 
 				bw = bwBuf
 				bwBuf = 0
 			case rec := <-r.ch:
+				r.lock.Lock()
 				r.totals[rec.Fd] += uint64(rec.Size)
+				r.lock.Unlock()
 				if r.writer != nil {
 					if r.dumpLimitSize == 0 || (bw < r.dumpLimitSize && bwBuf < r.dumpLimitSize) {
 						r.dump(rec)
