@@ -585,7 +585,7 @@ func (c *Client) GetAllGroups(allFlag bool) (map[string]*FlatGroup, error) {
 
 // IsAlive checks if etcd client is still usable.
 func (c *Client) IsAlive() bool {
-	return c.cli != nil && c.active == true
+	return c.cli != nil && c.active
 }
 
 // Enable enables the etcd client.

@@ -684,7 +684,7 @@ func TestSCP(t *testing.T) {
 			line := "dump: etcd"
 			addLineSSHProxyConf(line)
 			defer removeLineSSHProxyConf(line)
-			line = "stats_interval: 5s"
+			line = "etcd_stats_interval: 5s"
 			addLineSSHProxyConf(line)
 			defer removeLineSSHProxyConf(line)
 		}

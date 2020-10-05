@@ -375,9 +375,6 @@ func mainExitCode() int {
 							keepAliveChan = tmpKeepAliveChan
 							cli.Enable()
 						}
-					} else {
-						// Avoid looping too fast in case of a loss of etcd
-						time.Sleep(time.Second)
 					}
 				case <-ctx.Done():
 					return
