@@ -107,6 +107,8 @@ type Client struct {
 	log            *logging.Logger
 	requestTimeout time.Duration
 	keyTTL         int64
+	active         bool
+	leaseID        clientv3.LeaseID
 }
 
 // Host represents the state of a host.
@@ -172,6 +174,7 @@ func NewEtcdClient(config *Config, log *logging.Logger) (*Client, error) {
 		log:            log,
 		requestTimeout: 2 * time.Second,
 		keyTTL:         keyTTL,
+		active:         true,
 	}, nil
 }
 
@@ -205,13 +208,13 @@ func (c *Client) GetDestination(key string) (string, error) {
 }
 
 // SetDestination set current destination in etcd.
-func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport string, dst string) (<-chan *clientv3.LeaseKeepAliveResponse, string, clientv3.LeaseID, error) {
+func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport string, dst string) (<-chan *clientv3.LeaseKeepAliveResponse, string, error) {
 	path := fmt.Sprintf("%s/%s/%s/%s", toConnectionKey(key), dst, sshdHostport, time.Now().Format(time.RFC3339Nano))
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
 	resp, err := c.cli.Grant(ctx, c.keyTTL)
 	cancel()
 	if err != nil {
-		return nil, "", 0, err
+		return nil, "", err
 	}
 
 	bytes, err := json.Marshal(&Bandwidth{
@@ -219,21 +222,36 @@ func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport strin
 		Out: 0,
 	})
 	if err != nil {
-		return nil, "", 0, err
+		return nil, "", err
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), c.requestTimeout)
 	_, err = c.cli.Put(ctx, path, string(bytes), clientv3.WithLease(resp.ID))
 	cancel()
 	if err != nil {
-		return nil, "", 0, err
+		return nil, "", err
 	}
 
 	k, e := c.cli.KeepAlive(rootctx, resp.ID)
-	return k, path, resp.ID, e
+	c.leaseID = resp.ID
+	return k, path, e
+}
+
+// NewLease creates a new lease in etcd.
+func (c *Client) NewLease(rootctx context.Context) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Grant(ctx, c.keyTTL)
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	k, e := c.cli.KeepAlive(rootctx, resp.ID)
+	c.leaseID = resp.ID
+	return k, e
 }
 
 // UpdateStats updates the stats (bandwidth in and out in kB/s) of a connection.
-func (c *Client) UpdateStats(etcdPath string, stats map[int]uint64, leaseID clientv3.LeaseID) error {
+func (c *Client) UpdateStats(etcdPath string, stats map[int]uint64) error {
 	bytes, err := json.Marshal(&Bandwidth{
 		In:  int(stats[0] / 1024),
 		Out: int((stats[1] + stats[2]) / 1024),
@@ -243,7 +261,7 @@ func (c *Client) UpdateStats(etcdPath string, stats map[int]uint64, leaseID clie
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-	_, err = c.cli.Put(ctx, etcdPath, string(bytes), clientv3.WithLease(leaseID))
+	_, err = c.cli.Put(ctx, etcdPath, string(bytes), clientv3.WithLease(c.leaseID))
 	cancel()
 	if err != nil {
 		return err
@@ -567,5 +585,15 @@ func (c *Client) GetAllGroups(allFlag bool) (map[string]*FlatGroup, error) {
 
 // IsAlive checks if etcd client is still usable.
 func (c *Client) IsAlive() bool {
-	return c.cli != nil
+	return c.cli != nil && c.active == true
+}
+
+// Enable enables the etcd client.
+func (c *Client) Enable() {
+	c.active = true
+}
+
+// Disable disables the etcd client.
+func (c *Client) Disable() {
+	c.active = false
 }

@@ -23,8 +23,6 @@ import (
 
 	"github.com/cea-hpc/sshproxy/pkg/record"
 	"github.com/cea-hpc/sshproxy/pkg/utils"
-
-	"go.etcd.io/etcd/clientv3"
 )
 
 // Dup duplicates a []byte slice.
@@ -103,7 +101,6 @@ type Recorder struct {
 	dumpfile              string             // path to filename where the raw records are dumped
 	dumpLimitSize         uint64             // number of bytes beyond which records are no longer dumped
 	dumpLimitWindow       time.Duration      // time window in which dump size is accounted
-	leaseID               clientv3.LeaseID   // etcd lease ID used for updating stats
 	lock                  sync.RWMutex       // mutex to avoid concurrent reads and writes in bandwidth and totals maps
 	writer                *record.Writer     // *record.Writer where the raw records are dumped
 }
@@ -113,7 +110,7 @@ type Recorder struct {
 // If dumpfile is not empty, the intercepted raw data will be written in this
 // file. Logging of basic statistics will be done every logStatsInterval seconds. Bandwidth will be updated in etcd every etcdStatsInterval seconds.
 // It will stop recording when the context is cancelled.
-func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval time.Duration, logStatsInterval time.Duration, dumpLimitSize uint64, dumpLimitWindow time.Duration, leaseID clientv3.LeaseID) *Recorder {
+func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval time.Duration, logStatsInterval time.Duration, dumpLimitSize uint64, dumpLimitWindow time.Duration) *Recorder {
 	ch := make(chan record.Record)
 
 	return &Recorder{
@@ -130,7 +127,6 @@ func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval
 		dumpfile:          dumpfile,
 		dumpLimitSize:     dumpLimitSize,
 		dumpLimitWindow:   dumpLimitWindow,
-		leaseID:           leaseID,
 		lock:              sync.RWMutex{},
 		writer:            nil,
 	}
@@ -138,15 +134,14 @@ func NewRecorder(conninfo *ConnInfo, dumpfile, command string, etcdStatsInterval
 
 // updateStats writes the bandwidth to etcd
 func (r *Recorder) updateStats(cli *utils.Client, etcdPath string) {
-	if cli != nil {
-		if cli.IsAlive() {
-			r.lock.RLock()
-			stats := r.bandwidth
-			r.lock.RUnlock()
-			err := cli.UpdateStats(etcdPath, stats, r.leaseID)
-			if err != nil {
-				log.Errorf("updating stats: %v", err)
-			}
+	if cli != nil && cli.IsAlive() {
+		r.lock.RLock()
+		stats := r.bandwidth
+		r.lock.RUnlock()
+		err := cli.UpdateStats(etcdPath, stats)
+		if err != nil {
+			log.Errorf("updating stats: %v", err)
+			cli.Disable()
 		}
 	}
 }

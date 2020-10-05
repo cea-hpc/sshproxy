@@ -352,13 +352,12 @@ func mainExitCode() int {
 	}()
 
 	var etcdPath string
-	var leaseID clientv3.LeaseID
+	var tmpKeepAliveChan <-chan *clientv3.LeaseKeepAliveResponse
 	// Register destination in etcd and keep it alive while running.
 	if cli != nil && cli.IsAlive() {
 		key := fmt.Sprintf("%s@%s", username, service)
-		keepAliveChan, eP, lID, err := cli.SetDestination(ctx, key, sshInfos.Dst(), hostport)
+		keepAliveChan, eP, err := cli.SetDestination(ctx, key, sshInfos.Dst(), hostport)
 		etcdPath = eP
-		leaseID = lID
 		if err != nil {
 			log.Warningf("setting destination in etcd: %v", err)
 		}
@@ -368,6 +367,18 @@ func mainExitCode() int {
 			for {
 				select {
 				case <-keepAliveChan:
+					if !cli.IsAlive() {
+						tmpKeepAliveChan, err = cli.NewLease(ctx)
+						if err != nil {
+							log.Warningf("getting a new lease in etcd: %v", err)
+						} else {
+							keepAliveChan = tmpKeepAliveChan
+							cli.Enable()
+						}
+					} else {
+						// Avoid looping too fast in case of a loss of etcd
+						time.Sleep(time.Second)
+					}
 				case <-ctx.Done():
 					return
 				}
@@ -447,7 +458,7 @@ func mainExitCode() int {
 
 	var recorder *Recorder
 	if config.Dump != "" {
-		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize, config.DumpLimitWindow.Duration(), leaseID)
+		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize, config.DumpLimitWindow.Duration())
 
 		wg.Add(1)
 		go func() {
