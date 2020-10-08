@@ -78,8 +78,7 @@ http://www.cecill.info for details.
 Authors
 -------
 
-Arnaud Guignard <arnaud.guignard@cea.fr>
-Cyril Servant <cyril.servant@cea.fr>
+Arnaud Guignard <arnaud.guignard@cea.fr>, Cyril Servant <cyril.servant@cea.fr>
 
 Documentation
 -------------

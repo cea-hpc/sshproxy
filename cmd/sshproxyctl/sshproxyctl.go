@@ -282,6 +282,10 @@ func showUsers(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 		i++
 	}
 
+	sort.Slice(rows, func(i,j int) bool {
+		return rows[i][0] < rows[j][0]
+	})
+
 	if csvFlag {
 		displayCSV(rows)
 	} else {
@@ -315,6 +319,10 @@ func showGroups(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 		}
 		i++
 	}
+
+	sort.Slice(rows, func(i,j int) bool {
+		return rows[i][0] < rows[j][0]
+	})
 
 	if csvFlag {
 		displayCSV(rows)
