@@ -1,6 +1,6 @@
 os: linux
 
-dist: bionic
+dist: focal
 
 language: go
 
@@ -15,7 +15,6 @@ before_install:
   - sudo apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
 
 go:
-  - 1.12.x
   - 1.13.x
   - 1.14.x
   - 1.15.x
