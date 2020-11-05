@@ -298,6 +298,18 @@ func (c *Client) GetHost(hostport string) (*Host, error) {
 	// not reached
 }
 
+// DelHost deletes a host (passed as "host:port") in etcd.
+func (c *Client) DelHost(hostport string) error {
+	key := toHostKey(hostport)
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	_, err := c.cli.Delete(ctx, key)
+	cancel()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetHost sets a host (passed as "host:port") state and last checked time (ts)
 // in etcd.
 func (c *Client) SetHost(hostport string, state State, ts time.Time) error {

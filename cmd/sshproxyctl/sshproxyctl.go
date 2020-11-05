@@ -282,7 +282,7 @@ func showUsers(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 		i++
 	}
 
-	sort.Slice(rows, func(i,j int) bool {
+	sort.Slice(rows, func(i, j int) bool {
 		return rows[i][0] < rows[j][0]
 	})
 
@@ -320,7 +320,7 @@ func showGroups(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 		i++
 	}
 
-	sort.Slice(rows, func(i,j int) bool {
+	sort.Slice(rows, func(i, j int) bool {
 		return rows[i][0] < rows[j][0]
 	})
 
@@ -374,6 +374,14 @@ func enableHost(host, port, configFile string) error {
 	return cli.SetHost(key, utils.Up, time.Now())
 }
 
+func forgetHost(host, port, configFile string) error {
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
+
+	key := fmt.Sprintf("%s:%s", host, port)
+	return cli.DelHost(key)
+}
+
 func disableHost(host, port, configFile string) error {
 	cli := mustInitEtcdClient(configFile)
 	defer cli.Close()
@@ -394,6 +402,7 @@ The commands are:
   version       show version number and exit
   show          show states present in etcd
   enable        enable a host in etcd
+  forget        forget a host in etcd
   disable       disable a host in etcd
 
 The common options are:
@@ -461,6 +470,19 @@ Enable a previously disabled host in etcd. The default port is %s.
 	return fs
 }
 
+func newForgetParser() *flag.FlagSet {
+	fs := flag.NewFlagSet("forget", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s forget HOST [PORT]
+
+Forget a host in etcd. The default port is %s. Remember that if this host is
+used, it will appear back in the list.
+`, os.Args[0], defaultHostPort)
+		os.Exit(2)
+	}
+	return fs
+}
+
 func newDisableParser() *flag.FlagSet {
 	fs := flag.NewFlagSet("disable", flag.ExitOnError)
 	fs.Usage = func() {
@@ -482,6 +504,11 @@ func getHostPortFromCommandLine(args []string) (string, string, error) {
 		host = args[0]
 	default:
 		return "", "", fmt.Errorf("wrong number of arguments")
+	}
+	if iport, err := strconv.Atoi(port); err != nil {
+		return "", "", fmt.Errorf("port must be an integer")
+	} else if iport < 0 || iport > 65535 {
+		return "", "", fmt.Errorf("port must be in the 0-65535 range")
 	}
 	return host, port, nil
 }
@@ -521,6 +548,7 @@ func main() {
 		"version": newVersionParser(),
 		"show":    newShowParser(&csvFlag, &jsonFlag, &allFlag),
 		"enable":  newEnableParser(),
+		"forget":  newForgetParser(),
 		"disable": newDisableParser(),
 	}
 
@@ -577,6 +605,15 @@ func main() {
 			usage()
 		}
 		enableHost(host, port, *configFile)
+	case "forget":
+		p := parsers[cmd]
+		p.Parse(args)
+		host, port, err := getHostPortFromCommandLine(p.Args())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+			usage()
+		}
+		forgetHost(host, port, *configFile)
 	case "disable":
 		p := parsers[cmd]
 		p.Parse(args)
