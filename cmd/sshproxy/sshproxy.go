@@ -366,8 +366,9 @@ func mainExitCode() int {
 			defer wg.Done()
 			for {
 				select {
-				case <-keepAliveChan:
-					if !cli.IsAlive() {
+				case isChanAlive := <-keepAliveChan:
+					if isChanAlive == nil {
+						cli.Disable()
 						tmpKeepAliveChan, err = cli.NewLease(ctx)
 						if err != nil {
 							log.Warningf("getting a new lease in etcd: %v", err)
