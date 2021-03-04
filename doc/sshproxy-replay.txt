@@ -59,7 +59,7 @@ Cyril Servant <cyril.servant@cea.fr>.
 
 COPYING
 -------
-Copyright (C) 2015-2020 CEA/DAM/DIF. Free use of this software is granted
+Copyright (C) 2015-2021 CEA/DAM/DIF. Free use of this software is granted
 under the term of the CeCILL-B license.
 
 // vim:tw=78:ft=asciidoc:

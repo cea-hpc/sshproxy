@@ -51,7 +51,7 @@ install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}/sshproxy
 %{_mandir}/man8/sshproxy-replay.8*
 
 %changelog
-* Tue Feb 02 2021 Cyril Servant <cyril.servant@cea.fr> - 1.3.5-1
+* Thu Mar 04 2021 Cyril Servant <cyril.servant@cea.fr> - 1.3.5-1
 - sshproxy 1.3.5
 
 * Tue Feb 02 2021 Cyril Servant <cyril.servant@cea.fr> - 1.3.4-1
