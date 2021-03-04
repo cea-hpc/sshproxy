@@ -391,7 +391,12 @@ func mainExitCode() int {
 			defer wg.Done()
 			cmd := prepareBackgroundCommand(ctx, config.BgCommand, config.Debug)
 			if _, err := runCommand(cmd, false); err != nil {
-				log.Errorf("error running background command: %s", err)
+				select {
+				case <-ctx.Done():
+					// stay silent as the session is now finished
+				default:
+					log.Errorf("error running background command: %s", err)
+				}
 			}
 		}()
 	}
