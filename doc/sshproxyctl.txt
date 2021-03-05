@@ -50,6 +50,10 @@ COMMANDS
 	the 'enable' command. It could be used for host maintenance. The port
 	by default is 22 if not specified.
 
+*forget HOST [PORT]*::
+	Forget a host in etcd. The default port is 22. Remember that if this
+	host is used, it will appear back in the list.
+
 *show [-all] [-csv|-json] connections*::
 	Show users connections in etcd. Without '-all' only one entry per user
 	is displayed with the number of her/his connections. If '-all' is
