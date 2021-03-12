@@ -3,13 +3,15 @@ github.com/Azure/go-ansiterm
 github.com/Azure/go-ansiterm/winterm
 # github.com/Sirupsen/logrus v1.8.1 => github.com/sirupsen/logrus v1.8.1
 github.com/Sirupsen/logrus
-# github.com/coreos/etcd v3.3.10+incompatible
+# github.com/coreos/etcd v3.3.13+incompatible
 github.com/coreos/etcd/auth/authpb
 github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes
 github.com/coreos/etcd/etcdserver/etcdserverpb
 github.com/coreos/etcd/mvcc/mvccpb
 github.com/coreos/etcd/pkg/tlsutil
 github.com/coreos/etcd/pkg/types
+# github.com/creack/pty v1.1.7
+github.com/creack/pty
 # github.com/docker/docker v1.4.2-0.20170504205632-89658bed64c2
 github.com/docker/docker/pkg/term
 github.com/docker/docker/pkg/term/windows
@@ -23,15 +25,15 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/kr/pty v1.1.1
+# github.com/kr/pty v1.1.8
 github.com/kr/pty
-# github.com/mattn/go-runewidth v0.0.3
+# github.com/mattn/go-runewidth v0.0.9
 github.com/mattn/go-runewidth
-# github.com/olekukonko/tablewriter v0.0.0-20180912035003-be2c049b30cc
+# github.com/olekukonko/tablewriter v0.0.5
 github.com/olekukonko/tablewriter
 # github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 github.com/op/go-logging
-# go.etcd.io/etcd v3.3.10+incompatible
+# go.etcd.io/etcd v3.3.13+incompatible
 go.etcd.io/etcd/clientv3
 go.etcd.io/etcd/pkg/transport
 # golang.org/x/net v0.0.0-20200822124328-c89045814202

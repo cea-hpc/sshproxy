@@ -6,7 +6,7 @@ require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Sirupsen/logrus v1.8.1 // indirect
 	github.com/coreos/bbolt v1.3.5 // indirect
-	github.com/coreos/etcd v3.3.10+incompatible // indirect
+	github.com/coreos/etcd v3.3.13+incompatible // indirect
 	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f // indirect
 	github.com/docker/docker v1.4.2-0.20170504205632-89658bed64c2
@@ -14,14 +14,12 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.14.6 // indirect
 	github.com/jonboulle/clockwork v0.2.2 // indirect
-	github.com/kr/pty v1.1.1
-	github.com/mattn/go-runewidth v0.0.3 // indirect
-	github.com/olekukonko/tablewriter v0.0.0-20180912035003-be2c049b30cc
+	github.com/kr/pty v1.1.8
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
 	github.com/prometheus/client_golang v1.9.0 // indirect
 	github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802 // indirect
-	github.com/ugorji/go v1.2.4 // indirect
-	go.etcd.io/etcd v3.3.10+incompatible
+	go.etcd.io/etcd v3.3.13+incompatible
 	go.uber.org/zap v1.16.0 // indirect
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
 	golang.org/x/net v0.0.0-20200822124328-c89045814202 // indirect
