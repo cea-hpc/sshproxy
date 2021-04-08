@@ -141,8 +141,9 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 		config.SSH.Args = subconfig.SSH.Args
 	}
 
-	if subconfig.Routes != nil {
-		config.Routes = subconfig.Routes
+	// merge routes
+	for service, opts := range subconfig.Routes {
+		config.Routes[service] = opts
 	}
 
 	// merge environment

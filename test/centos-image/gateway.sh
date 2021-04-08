@@ -54,6 +54,20 @@ routes:
         dest: ["server2"]
     default:
         dest: ["server3"]
+
+groups:
+    user1:
+        routes:
+            service2:
+                source: ["gateway1:2023"]
+                dest: ["server2"]
+
+users:
+    user2:
+        routes:
+            service3:
+                source: ["gateway1:2024"]
+                dest: ["server1"]
 EOF
 
 exec "$@"

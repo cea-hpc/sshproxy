@@ -5,7 +5,7 @@ _sshproxyctl() {
         COMPREPLY=()
         cur="${COMP_WORDS[COMP_CWORD]}"
         prev="${COMP_WORDS[COMP_CWORD-1]}"
-        commands="enable disable help show version"
+        commands="disable enable forget help show version"
         opts="-h -c ${commands}"
 
         case "${prev}" in

@@ -209,19 +209,24 @@ func enableHost(host string) {
 }
 
 var simpleConnectTests = []struct {
+	user string
 	port int
 	want string
 }{
-	{2023, "server1"},
-	{2024, "server2"},
-	{2025, "server3"},
+	{"", 2023, "server1"},
+	{"", 2024, "server2"},
+	{"", 2025, "server3"},
+	{"user1@", 2023, "server2"},
+	{"user1@", 2024, "server2"},
+	{"user2@", 2023, "server2"},
+	{"user2@", 2024, "server1"},
 }
 
 func TestSimpleConnect(t *testing.T) {
 	for _, tt := range simpleConnectTests {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		args, cmd := prepareCommand("gateway1", tt.port, "hostname")
+		args, cmd := prepareCommand(tt.user+"gateway1", tt.port, "hostname")
 		_, stdout, stderr, err := runCommand(ctx, "ssh", args, nil, nil)
 		stdoutStr := strings.TrimSpace(string(stdout))
 		if err != nil {
