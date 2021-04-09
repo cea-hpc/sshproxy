@@ -27,7 +27,7 @@ yum -y install RPMS/x86_64/sshproxy*.rpm
 cat <<EOF >/etc/sshproxy/sshproxy.yaml
 ---
 debug: true
-log: /tmp/sshproxy.log
+log: /tmp/sshproxy-{user}.log
 
 etcd:
     endpoints:

@@ -10,9 +10,9 @@ RUN set -ex \
 RUN set -ex \
 	&& useradd centos \
 	&& install -d -m0755 -o centos -g centos /home/centos/.ssh \
-	&& useradd -G centos user1 \
+	&& useradd user1 \
 	&& install -d -m0755 -o user1 -g user1 /home/user1/.ssh \
-	&& useradd -g user1 -G centos user2 \
+	&& useradd -g user1 user2 \
 	&& install -d -m0755 -o user2 -g user1 /home/user2/.ssh
 
 # Copy centos public key to root authorized_keys
