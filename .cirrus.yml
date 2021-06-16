@@ -6,8 +6,10 @@ env:
 
 test_task:
   test_script:
-    - pwd
-    - ls -l
+    - GOPATH=/tmp/go
+    - mkdir -p /tmp/go/src/github.com/cea-hpc
+    - mv /tmp/cirrus-ci-build /tmp/go/src/github.com/cea-hpc/sshproxy
+    - cd /tmp/go/src/github.com/cea-hpc/sshproxy
     - make
     - make get-deps check
     - make test
