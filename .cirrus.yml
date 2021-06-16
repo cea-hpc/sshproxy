@@ -7,6 +7,7 @@ env:
 test_task:
   test_script:
     - GOPATH=/tmp/go
+    - echo $GOPATH
     - mkdir -p /tmp/go/src/github.com/cea-hpc
     - mv /tmp/cirrus-ci-build /tmp/go/src/github.com/cea-hpc/sshproxy
     - cd /tmp/go/src/github.com/cea-hpc/sshproxy
