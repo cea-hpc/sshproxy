@@ -6,11 +6,6 @@ env:
 
 test_task:
   test_script:
-    - GOPATH=/tmp/go
-    - mkdir -p $GOPATH/src/github.com/cea-hpc
-    - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
-    - cd $GOPATH/src/github.com/cea-hpc/sshproxy
-    - pwd
-    - make
+    - SSHPROXY_GIT_URL=. make
     - make get-deps check
     - make test
