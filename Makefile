@@ -24,6 +24,7 @@ PKGS	= $(shell $(GO) list ./... | grep -v /vendor/)
 TEST	= test/centos-image/sshproxy_test.go
 EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-replay sshproxyctl)
 MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8 doc/sshproxyctl.8
+PACKAGE = sshproxy_$(SSHPROXY_VERSION)_$(shell uname -s)_$(shell uname -p)
 
 all: exe doc
 
@@ -67,6 +68,13 @@ install-binaries: $(EXE)
 	install -d $(DESTDIR)$(bashcompdir)
 	install -p -m 0644 misc/sshproxyctl-completion.bash $(DESTDIR)$(bashcompdir)
 
+package: $(EXE)
+	mkdir $(PACKAGE)
+	cp $(EXE) $(PACKAGE)
+	tar cfz $(PACKAGE).tar.gz $(PACKAGE)
+	rm -f $(PACKAGE)/*
+	rmdir $(PACKAGE)
+
 fmt:
 	$(GO) fmt $(PKGS)
 	$(GO) fmt $(TEST)
@@ -87,6 +95,6 @@ test:
 	cd test && bash ./run.sh
 
 clean:
-	rm -f $(EXE) $(MANDOC) doc/*.xml
+	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy_*.tar.gz
 
 .PHONY: all exe doc install install-doc-man install-binaries fmt get-deps check clean test

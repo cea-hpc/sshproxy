@@ -8,3 +8,6 @@ bin/
 # generated doc
 doc/*.[58]
 doc/*.xml
+
+# packages
+sshproxy_*.tar.gz
