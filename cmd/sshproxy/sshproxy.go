@@ -301,6 +301,7 @@ func mainExitCode() int {
 	log.Debugf("config.debug = %v", config.Debug)
 	log.Debugf("config.log = %s", config.Log)
 	log.Debugf("config.check_interval = %s", config.CheckInterval.Duration())
+	log.Debugf("config.error_banner = %s", config.ErrorBanner)
 	log.Debugf("config.dump = %s", config.Dump)
 	log.Debugf("config.dump_limit_size = %d", config.DumpLimitSize)
 	log.Debugf("config.dump_limit_window = %s", config.DumpLimitWindow.Duration())
@@ -328,6 +329,13 @@ func mainExitCode() int {
 	case err != nil:
 		log.Fatalf("Finding destination: %s", err)
 	case hostport == "":
+		errorBanner, _, _ := cli.GetErrorBanner()
+		if errorBanner == "" {
+			errorBanner = config.ErrorBanner
+		}
+		if errorBanner != "" {
+			fmt.Println(errorBanner)
+		}
 		log.Fatal("Cannot find a valid destination")
 	}
 	host, port, err := utils.SplitHostPort(hostport)

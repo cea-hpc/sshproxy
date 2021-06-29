@@ -5,7 +5,7 @@ _sshproxyctl() {
         COMPREPLY=()
         cur="${COMP_WORDS[COMP_CWORD]}"
         prev="${COMP_WORDS[COMP_CWORD-1]}"
-        commands="disable enable forget help show version"
+        commands="disable enable error_banner forget help show version"
         opts="-h -c ${commands}"
 
         case "${prev}" in
@@ -13,7 +13,7 @@ _sshproxyctl() {
                 COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
                 ;;
             show)
-                COMPREPLY=( $(compgen -W '-all -csv -json connections hosts users groups' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all -csv -json connections hosts users groups error_banner' -- "${cur}") )
                 ;;
             connections)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
@@ -26,6 +26,9 @@ _sshproxyctl() {
                 ;;
             groups)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
+                ;;
+            error_banner)
+                COMPREPLY=( $(compgen -W '-expire' -- "${cur}") )
                 ;;
             -all)
                 COMPREPLY=( $(compgen -W '-csv -json connections users groups' -- "${cur}") )

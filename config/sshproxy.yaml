@@ -13,6 +13,11 @@
 # The string can contain a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s").
 #check_interval: ""
 
+# Banner displayed to the client when no backend can be reached (more
+# precisely, when all backends are either down or disabled in etcd). This
+# message can be multiline.
+#error_banner: ""
+
 # Where raw dumps are written. Only interactive sessions are dumped.
 # Default is empty.
 # It can be a path which can (and should) contain one or more of the following

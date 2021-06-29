@@ -330,6 +330,93 @@ func (c *Client) SetHost(hostport string, state State, ts time.Time) error {
 	return nil
 }
 
+// GetErrorBanner returns the current error banner. If error banner is not
+// present an empty string will be returned, without error.
+func (c *Client) GetErrorBanner() (string, string, error) {
+	key := "/sshproxy/error_banner/value"
+	keyExpire := "/sshproxy/error_banner/expire"
+
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Get(ctx, key)
+	expire, err2 := c.cli.Get(ctx, keyExpire)
+	cancel()
+	if err != nil {
+		return "", "", err
+	}
+	if err2 != nil {
+		return "", "", err2
+	}
+
+	switch len(resp.Kvs) {
+	case 0:
+		return "", "", nil
+	case 1:
+		switch len(expire.Kvs) {
+		case 0:
+			return string(resp.Kvs[0].Value), "", nil
+		case 1:
+			return string(resp.Kvs[0].Value), string(expire.Kvs[0].Value), nil
+		default:
+			return "", "", fmt.Errorf("got multiple responses for %s", keyExpire)
+		}
+	default:
+		return "", "", fmt.Errorf("got multiple responses for %s", key)
+	}
+
+	// not reached
+}
+
+// DelErrorBanner deletes the error banner in etcd.
+func (c *Client) DelErrorBanner() error {
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	_, err := c.cli.Delete(ctx, "/sshproxy/error_banner/value")
+	_, err2 := c.cli.Delete(ctx, "/sshproxy/error_banner/expire")
+	cancel()
+	if err != nil {
+		return err
+	}
+	if err2 != nil {
+		return err2
+	}
+	return nil
+}
+
+// SetErrorBanner sets the error banner in etcd during a given time.
+func (c *Client) SetErrorBanner(errorBanner string, expire time.Time) error {
+	key := "/sshproxy/error_banner/value"
+	keyExpire := "/sshproxy/error_banner/expire"
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	currentTime := time.Now()
+	diff := expire.Sub(currentTime)
+	seconds := int64(diff.Seconds())
+	if seconds > 0 {
+		resp, err := c.cli.Grant(context.TODO(), seconds)
+		if err != nil {
+			return err
+		}
+		_, err = c.cli.Put(ctx, key, errorBanner, clientv3.WithLease(resp.ID))
+		_, err2 := c.cli.Put(ctx, keyExpire, expire.Format("2006-01-02 15:04:05"), clientv3.WithLease(resp.ID))
+		cancel()
+		if err != nil {
+			return err
+		}
+		if err2 != nil {
+			return err2
+		}
+	} else {
+		_, err := c.cli.Put(ctx, key, errorBanner)
+		_, err2 := c.cli.Delete(ctx, keyExpire)
+		cancel()
+		if err != nil {
+			return err
+		}
+		if err2 != nil {
+			return err2
+		}
+	}
+	return nil
+}
+
 // FlatConnection is a structure used to flatten a connection informations
 // present in etcd.
 type FlatConnection struct {

@@ -29,6 +29,7 @@ type Config struct {
 	Debug             bool
 	Log               string
 	CheckInterval     Duration `yaml:"check_interval"` // Minimum interval between host checks
+	ErrorBanner       string   `yaml:"error_banner"`
 	Dump              string
 	DumpLimitSize     uint64   `yaml:"dump_limit_size"`
 	DumpLimitWindow   Duration `yaml:"dump_limit_window"`
@@ -77,6 +78,7 @@ type etcdTLSConfig struct {
 type subConfig struct {
 	Debug             interface{}
 	Log               interface{}
+	ErrorBanner       interface{} `yaml:"error_banner"`
 	Dump              interface{}
 	DumpLimitSize     interface{} `yaml:"dump_limit_size"`
 	DumpLimitWindow   interface{} `yaml:"dump_limit_window"`
@@ -95,6 +97,10 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 
 	if subconfig.Log != nil {
 		config.Log = subconfig.Log.(string)
+	}
+
+	if subconfig.ErrorBanner != nil {
+		config.ErrorBanner = subconfig.ErrorBanner.(string)
 	}
 
 	if subconfig.Dump != nil {

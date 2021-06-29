@@ -47,6 +47,15 @@ func mustInitEtcdClient(configFile string) *utils.Client {
 	return cli
 }
 
+func getErrorBanner(configFile string) string {
+	config, err := utils.LoadConfig(configFile, "", "", time.Now(), nil)
+	if err != nil {
+		log.Fatalf("reading configuration file %s: %v", configFile, err)
+	}
+
+	return config.ErrorBanner
+}
+
 func displayCSV(rows [][]string) {
 	w := csv.NewWriter(os.Stdout)
 	w.WriteAll(rows)
@@ -390,6 +399,33 @@ func disableHost(host, port, configFile string) error {
 	return cli.SetHost(key, utils.Disabled, time.Now())
 }
 
+func setErrorBanner(errorBanner string, expire time.Time, configFile string) error {
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
+
+	if errorBanner == "" {
+		return cli.DelErrorBanner()
+	}
+	return cli.SetErrorBanner(errorBanner, expire)
+}
+
+func showErrorBanner(configFile string) {
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
+	errorBanner, expire, err := cli.GetErrorBanner()
+	if err != nil {
+		log.Fatalf("ERROR: getting error banner from etcd: %v", err)
+	}
+
+	fmt.Fprintf(flag.CommandLine.Output(), "Default error banner:\n%s\n", getErrorBanner(configFile))
+	if errorBanner != "" {
+		if expire == "" {
+			expire = "never"
+		}
+		fmt.Fprintf(flag.CommandLine.Output(), "Current error banner (expiration date: %s):\n%s\n", expire, errorBanner)
+	}
+}
+
 func showVersion() {
 	fmt.Fprintf(flag.CommandLine.Output(), "%s version %s\n", os.Args[0], SshproxyVersion)
 }
@@ -404,6 +440,7 @@ The commands are:
   enable        enable a host in etcd
   forget        forget a host in etcd
   disable       disable a host in etcd
+  error_banner  set the error banner in etcd
 
 The common options are:
 `, os.Args[0])
@@ -448,6 +485,7 @@ The commands are:
   hosts         show hosts stored in etcd
   users         show users stored in etcd
   groups        show groups stored in etcd
+  error_banner  show error banner stored in etcd and in configuration
 
 The options are:
 `, os.Args[0])
@@ -495,6 +533,22 @@ Disabe a host in etcd. The default port is %s.
 	return fs
 }
 
+func newErrorBannerParser(expireFlag *string) *flag.FlagSet {
+	fs := flag.NewFlagSet("error_banner", flag.ExitOnError)
+	fs.StringVar(expireFlag, "expire", "", "set the expiration date of this error banner. Format: YYYY-MM-DD[ HH:MM[:SS]]")
+	fs.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s error_banner MESSAGE
+
+Set the error banner in etcd.
+
+The options are:
+`, os.Args[0])
+		fs.PrintDefaults()
+		os.Exit(2)
+	}
+	return fs
+}
+
 func getHostPortFromCommandLine(args []string) (string, string, error) {
 	host, port := "", "22"
 	switch len(args) {
@@ -513,6 +567,19 @@ func getHostPortFromCommandLine(args []string) (string, string, error) {
 	return host, port, nil
 }
 
+func getErrorBannerFromCommandLine(args []string) (string, error) {
+	errorBanner := ""
+	switch len(args) {
+	case 0:
+		errorBanner = ""
+	case 1:
+		errorBanner = args[0]
+	default:
+		return "", fmt.Errorf("wrong number of arguments")
+	}
+	return errorBanner, nil
+}
+
 func byteToHuman(b int, passthrough bool) string {
 	if passthrough {
 		return fmt.Sprintf("%d", b)
@@ -529,6 +596,23 @@ func byteToHuman(b int, passthrough bool) string {
 	return fmt.Sprintf("%.1f %cB/s", float32(b)/float32(div), "MGT"[exp])
 }
 
+func matchExpire(expire string) (time.Time, error) {
+	layouts := []string{"2006-01-02", "2006-01-02 15:04", "2006-01-02 15:04:05"}
+	loc, _ := time.LoadLocation("Local")
+	var err error
+	var t time.Time
+	for _, layout := range layouts {
+		t, err = time.ParseInLocation(layout, expire, loc)
+		if err == nil {
+			return t, nil
+		}
+	}
+	if expire != "" {
+		return t, err
+	}
+	return t, nil
+}
+
 func main() {
 	flag.Usage = usage
 	configFile := flag.String("c", defaultConfig, "path to configuration file")
@@ -542,14 +626,16 @@ func main() {
 	var csvFlag bool
 	var jsonFlag bool
 	var allFlag bool
+	var expire string
 
 	parsers := map[string]*flag.FlagSet{
-		"help":    newHelpParser(),
-		"version": newVersionParser(),
-		"show":    newShowParser(&csvFlag, &jsonFlag, &allFlag),
-		"enable":  newEnableParser(),
-		"forget":  newForgetParser(),
-		"disable": newDisableParser(),
+		"help":         newHelpParser(),
+		"version":      newVersionParser(),
+		"show":         newShowParser(&csvFlag, &jsonFlag, &allFlag),
+		"enable":       newEnableParser(),
+		"forget":       newForgetParser(),
+		"disable":      newDisableParser(),
+		"error_banner": newErrorBannerParser(&expire),
 	}
 
 	cmd := flag.Arg(0)
@@ -592,6 +678,8 @@ func main() {
 			showUsers(*configFile, csvFlag, jsonFlag, allFlag)
 		case "groups":
 			showGroups(*configFile, csvFlag, jsonFlag, allFlag)
+		case "error_banner":
+			showErrorBanner(*configFile)
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand: %s\n\n", subcmd)
 			usage()
@@ -623,6 +711,24 @@ func main() {
 			usage()
 		}
 		disableHost(host, port, *configFile)
+	case "error_banner":
+		p := parsers[cmd]
+		p.Parse(args)
+		errorBanner, err := getErrorBannerFromCommandLine(p.Args())
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+			usage()
+		}
+		t, err := matchExpire(expire)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+			usage()
+		}
+		if expire != "" && t.Before(time.Now()) {
+			fmt.Fprintf(os.Stderr, "ERROR: %s is in the past!\n\n", expire)
+			usage()
+		}
+		setErrorBanner(errorBanner, t, *configFile)
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR: unknown command: %s\n\n", cmd)
 		usage()

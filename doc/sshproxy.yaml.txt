@@ -42,6 +42,11 @@ The following keys can be defined:
 	alive.  It is empty by default (i.e. always check host). The string
 	can contain a unit suffix such as 'h', 'm' and 's' (e.g. '2m30s').
 
+*error_banner*::
+	a string displayed to the client when no backend can be reached (more
+	precisely, when all backends are either down or disabled in etcd).
+	This message can be multiline. It is empty by default.
+
 *bg_command*::
 	a string specifying a command which will be launched in the background
 	for the session duration. Its standard and error outputs are only
