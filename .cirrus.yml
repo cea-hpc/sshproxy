@@ -9,12 +9,11 @@ test_task:
     #- apt-get update
     #- apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
     - GOPATH=/tmp/go
-    - PATH="$PATH:$GOPATH"
+    - PATH="$PATH:$GOPATH/bin"
     - mkdir -p $GOPATH/src/github.com/cea-hpc
     - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
     - cd $GOPATH/src/github.com/cea-hpc/sshproxy
     #- make
     - make get-deps
-    - ls -l $GOPATH/bin
     - make check
     - make test
