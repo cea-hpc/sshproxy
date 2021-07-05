@@ -11,5 +11,4 @@ test_task:
     - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
     - cd $GOPATH/src/github.com/cea-hpc/sshproxy
     - make get-deps check
-    - rehash || echo "bof"
     - make test
