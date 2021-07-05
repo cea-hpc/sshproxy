@@ -89,9 +89,9 @@ check:
 	$(GO) vet $(TEST)
 	staticcheck ./...
 	staticcheck $(TEST)
+	$(GO) test -failfast -race -count=1 -timeout=10s ./...
 
 test:
-	$(GO) test -failfast -race -count=1 -timeout=10s ./...
 	cd test && bash ./run.sh
 
 clean:
