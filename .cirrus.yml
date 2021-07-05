@@ -15,5 +15,6 @@ test_task:
     - cd $GOPATH/src/github.com/cea-hpc/sshproxy
     #- make
     - make get-deps
+    - ls -l $GOPATH/bin
     - make check
     - make test
