@@ -1,7 +1,7 @@
 sshproxy
 ========
 
-image:https://travis-ci.org/cea-hpc/sshproxy.svg?branch=master["Build Status", link="https://travis-ci.org/cea-hpc/sshproxy"]
+image:https://api.cirrus-ci.com/github/cea-hpc/sshproxy.svg["Build Status", link="https://travis-ci.org/cea-hpc/sshproxy"]
 
 What is sshproxy?
 -----------------

@@ -6,17 +6,15 @@ env:
 
 test_task:
   test_script:
-    #- apt-get update
-    #- apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
+    - apt-get update
+    - apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
     - GOPATH=/tmp/go
     - PATH="$PATH:$GOPATH/bin"
     - mkdir -p $GOPATH/src/github.com/cea-hpc
     - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
     - cd $GOPATH/src/github.com/cea-hpc/sshproxy
-    #- make
-    - make get-deps
-    - make check
-    #- make test
+    - make
+    - make get-deps check
 
 docker_builder:
   depends_on:
