@@ -23,5 +23,8 @@ docker_builder:
     - test
   build_script:
     - GOPATH=/tmp/go
+    - PATH="$PATH:$GOPATH/bin"
+    - mkdir -p $GOPATH/src/github.com/cea-hpc
+    - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
     - cd $GOPATH/src/github.com/cea-hpc/sshproxy
     - make test
