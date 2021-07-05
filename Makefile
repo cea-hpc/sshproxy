@@ -83,12 +83,12 @@ get-deps:
 	$(GO) get -u golang.org/x/lint/golint honnef.co/go/tools/cmd/staticcheck
 
 check:
-	golint $(PKGS) || echo 'bad'
-	golint $(TEST) || echo 'bad'
-	$(GO) vet ./... || echo 'bad'
-	$(GO) vet $(TEST) || echo 'bad'
-	staticcheck ./... || echo 'bad'
-	staticcheck $(TEST) || echo 'bad'
+	golint $(PKGS)
+	golint $(TEST)
+	$(GO) vet ./...
+	$(GO) vet $(TEST)
+	staticcheck ./...
+	staticcheck $(TEST)
 
 test:
 	$(GO) test -failfast -race -count=1 -timeout=10s ./...

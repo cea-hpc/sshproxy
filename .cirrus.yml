@@ -12,7 +12,6 @@ test_task:
     - mkdir -p $GOPATH/src/github.com/cea-hpc
     - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
     - cd $GOPATH/src/github.com/cea-hpc/sshproxy
-    - pwd
-    - SSHPROXY_GIT_URL=. make
+    - make
     - make get-deps check
     - make test
