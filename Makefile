@@ -80,15 +80,15 @@ fmt:
 	$(GO) fmt $(TEST)
 
 get-deps:
-	$(GO) get -u golang.org/x/lint/golint honnef.co/go/tools/cmd/staticcheck
+	$(GO) get -v -u golang.org/x/lint/golint honnef.co/go/tools/cmd/staticcheck
 
 check:
-	golint $(PKGS)
-	golint $(TEST)
-	$(GO) vet ./...
-	$(GO) vet $(TEST)
-	staticcheck ./...
-	staticcheck $(TEST)
+	golint $(PKGS) || echo 'bad'
+	golint $(TEST) || echo 'bad'
+	$(GO) vet ./... || echo 'bad'
+	$(GO) vet $(TEST) || echo 'bad'
+	staticcheck ./... || echo 'bad'
+	staticcheck $(TEST) || echo 'bad'
 
 test:
 	$(GO) test -failfast -race -count=1 -timeout=10s ./...
