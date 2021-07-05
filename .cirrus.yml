@@ -6,6 +6,7 @@ env:
 
 test_task:
   test_script:
+    - apt-get update
     - apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
     - GOPATH=/tmp/go
     - mkdir -p $GOPATH/src/github.com/cea-hpc
