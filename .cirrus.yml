@@ -16,4 +16,12 @@ test_task:
     #- make
     - make get-deps
     - make check
+    #- make test
+
+docker_builder:
+  depends_on:
+    - test
+  build_script:
+    - GOPATH=/tmp/go
+    - cd $GOPATH/src/github.com/cea-hpc/sshproxy
     - make test
