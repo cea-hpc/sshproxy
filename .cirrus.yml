@@ -1,11 +1,28 @@
 container:
-  image: golang:latest
+  image: golang:1.13
 
 env:
   GOPROXY: https://proxy.golang.org
 
 test_task:
   test_script:
+    - apt-get update
+    - apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
+    - GOPATH=/tmp/go
+    - PATH="$PATH:$GOPATH/bin"
+    - mkdir -p $GOPATH/src/github.com/cea-hpc
+    - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
+    - cd $GOPATH/src/github.com/cea-hpc/sshproxy
     - make
     - make get-deps check
+
+docker_builder:
+  depends_on:
+    - test
+  build_script:
+    - GOPATH=/tmp/go
+    - PATH="$PATH:$GOPATH/bin"
+    - mkdir -p $GOPATH/src/github.com/cea-hpc
+    - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
+    - cd $GOPATH/src/github.com/cea-hpc/sshproxy
     - make test
