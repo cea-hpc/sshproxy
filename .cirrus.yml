@@ -1,10 +1,16 @@
-container:
-  image: golang:1.13
+task:
+  env:
+    GOPROXY: https://proxy.golang.org
+    matrix:
+      VERSION: 1.13
+      VERSION: 1.14
+      VERSION: 1.15
 
-env:
-  GOPROXY: https://proxy.golang.org
+  container:
+    image: golang:$VERSION
 
-test_task:
+  name: test-$VERSION
+
   test_script:
     - apt-get update
     - apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
@@ -17,8 +23,8 @@ test_task:
     - make get-deps check
 
 docker_builder:
-  depends_on:
-    - test
+  name: docker
+
   build_script:
     - GOPATH=/tmp/go
     - PATH="$PATH:$GOPATH/bin"

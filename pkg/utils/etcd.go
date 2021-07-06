@@ -386,6 +386,7 @@ func (c *Client) SetErrorBanner(errorBanner string, expire time.Time) error {
 	key := "/sshproxy/error_banner/value"
 	keyExpire := "/sshproxy/error_banner/expire"
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	defer cancel()
 	currentTime := time.Now()
 	diff := expire.Sub(currentTime)
 	seconds := int64(diff.Seconds())
@@ -396,7 +397,6 @@ func (c *Client) SetErrorBanner(errorBanner string, expire time.Time) error {
 		}
 		_, err = c.cli.Put(ctx, key, errorBanner, clientv3.WithLease(resp.ID))
 		_, err2 := c.cli.Put(ctx, keyExpire, expire.Format("2006-01-02 15:04:05"), clientv3.WithLease(resp.ID))
-		cancel()
 		if err != nil {
 			return err
 		}
@@ -406,7 +406,6 @@ func (c *Client) SetErrorBanner(errorBanner string, expire time.Time) error {
 	} else {
 		_, err := c.cli.Put(ctx, key, errorBanner)
 		_, err2 := c.cli.Delete(ctx, keyExpire)
-		cancel()
 		if err != nil {
 			return err
 		}
