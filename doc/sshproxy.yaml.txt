@@ -193,6 +193,16 @@ For example if we want to save debug messages for the 'foo' group we define:
 	    foo:
 	        debug: true
 
+It is possible to override the same options for multiple groups in a single
+line, with comma-separated groups.
+
+For example, if we want to save debug messages for the 'foo' and 'bar' groups
+we define:
+
+	groups:
+	    foo,bar:
+	        debug: true
+
 Routes, environment or SSH options can also be defined:
 
 	groups:
@@ -204,7 +214,7 @@ Routes, environment or SSH options can also be defined:
 	        ssh:
 	            args: ["-vvv", "-Y"]
 
-The routes are fully overridden and not merged with previous defined ones.
+The routes are merged with previous defined ones.
 
 If a user belongs to several groups and these groups are defined in the
 configuration file, each setting can be overridden by the next group.
@@ -220,13 +230,14 @@ in '/var/log/sshproxy/admin/\{user}.log' with the following configuration:
 	        log: /var/log/sshproxy/admin/{user}.log
 
 We can also override the parameters for a specific user with the 'users'
-associative array.
+associative array. We can also override the parameters for multiple users in a
+single line, with comma-separated users.
 
-For example if we want to save debug messages for the 'foo' user we
-define:
+For example if we want to save debug messages for the 'foo' and the 'bar'
+users we define:
 
 	users:
-	    foo:
+	    foo,bar:
 	        debug: true
 
 As for the groups, we can modify routes, environment or SSH options:

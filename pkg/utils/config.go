@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"regexp"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -170,9 +171,9 @@ func replace(src string, replacer *patternReplacer) string {
 }
 
 // LoadConfig load configuration file and adapt it according to specified user.
-func LoadConfig(filename, username, sid string, start time.Time, groups map[string]bool) (*Config, error) {
+func LoadConfig(filename, currentUsername, sid string, start time.Time, groups map[string]bool) (*Config, error) {
 	patterns := map[string]*patternReplacer{
-		"{user}": {regexp.MustCompile(`{user}`), username},
+		"{user}": {regexp.MustCompile(`{user}`), currentUsername},
 		"{sid}":  {regexp.MustCompile(`{sid}`), sid},
 		"{time}": {regexp.MustCompile(`{time}`), start.Format(time.RFC3339Nano)},
 	}
@@ -198,17 +199,27 @@ func LoadConfig(filename, username, sid string, start time.Time, groups map[stri
 		config.SSH.Args = defaultSSHArgs
 	}
 
-	for groupname, groupconfig := range config.Groups {
-		if groups[groupname] {
-			if err := parseSubConfig(&config, &groupconfig); err != nil {
-				return nil, err
+	for groupnames, groupconfig := range config.Groups {
+		for _, groupname := range strings.Split(groupnames, ",") {
+			if groups[groupname] {
+				if err := parseSubConfig(&config, &groupconfig); err != nil {
+					return nil, err
+				}
+				// no need to to parse the same subconfig twice
+				break
 			}
 		}
 	}
 
-	if userconfig, present := config.Users[username]; present {
-		if err := parseSubConfig(&config, &userconfig); err != nil {
-			return nil, err
+	for usernames, userconfig := range config.Users {
+		for _, username := range strings.Split(usernames, ",") {
+			if username == currentUsername {
+				if err := parseSubConfig(&config, &userconfig); err != nil {
+					return nil, err
+				}
+				// no need to to parse the same subconfig twice
+				break
+			}
 		}
 	}
 

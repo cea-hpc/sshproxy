@@ -127,14 +127,15 @@
 #    default:
 #        dest: ["host5:4222"]
 
-# Each option can be overridden for a Unix group of users.
+# Each option can be overridden for a Unix group of users. Multiple groups can
+# be defined on the same line, separated by commas.
 # If a user is in multiple groups and these groups are defined in the
 # configuration, the configuration of a previous group will be overridden by the
 # next ones.
 # The parameters defined in a "users" option (see below) will be applied last
 # and override groups parameters.
 #groups:
-#    foo:
+#    foo,bar:
 #        debug: true
 #        log: /tmp/sshproxy-foo/{user}.log
 #        # An associative array is used to specify environment, SSH options or
@@ -149,9 +150,10 @@
 #                dest: [hostx]
 
 # Each option can also be overridden for a specific user (eg. for debugging
-# purpose).
+# purpose). Multiple users can be defined on the same line, separated by
+# commas.
 #users:
-#    foo:
+#    foo,bar:
 #        debug: true
 #        log: /tmp/sshproxy-{user}.log
 #        dump: /tmp/sshproxy-{user}-{time}.dump

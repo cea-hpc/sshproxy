@@ -56,14 +56,14 @@ routes:
         dest: ["server3"]
 
 groups:
-    user1:
+    user1,unknowngroup:
         routes:
             service2:
                 source: ["gateway1:2023"]
                 dest: ["server2"]
 
 users:
-    user2:
+    unknownuser,user2:
         routes:
             service3:
                 source: ["gateway1:2024"]
