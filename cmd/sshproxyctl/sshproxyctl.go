@@ -682,7 +682,7 @@ func main() {
 			showErrorBanner(*configFile)
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand: %s\n\n", subcmd)
-			usage()
+			p.Usage()
 		}
 	case "enable":
 		p := parsers[cmd]
@@ -690,7 +690,7 @@ func main() {
 		host, port, err := getHostPortFromCommandLine(p.Args())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
-			usage()
+			p.Usage()
 		}
 		enableHost(host, port, *configFile)
 	case "forget":
@@ -699,7 +699,7 @@ func main() {
 		host, port, err := getHostPortFromCommandLine(p.Args())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
-			usage()
+			p.Usage()
 		}
 		forgetHost(host, port, *configFile)
 	case "disable":
@@ -708,7 +708,7 @@ func main() {
 		host, port, err := getHostPortFromCommandLine(p.Args())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
-			usage()
+			p.Usage()
 		}
 		disableHost(host, port, *configFile)
 	case "error_banner":
@@ -717,16 +717,16 @@ func main() {
 		errorBanner, err := getErrorBannerFromCommandLine(p.Args())
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
-			usage()
+			p.Usage()
 		}
 		t, err := matchExpire(expire)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
-			usage()
+			p.Usage()
 		}
 		if expire != "" && t.Before(time.Now()) {
 			fmt.Fprintf(os.Stderr, "ERROR: %s is in the past!\n\n", expire)
-			usage()
+			p.Usage()
 		}
 		setErrorBanner(errorBanner, t, *configFile)
 	default:
