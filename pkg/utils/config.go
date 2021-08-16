@@ -41,8 +41,8 @@ type Config struct {
 	SSH               sshConfig
 	Environment       map[string]string
 	Routes            map[string]*RouteConfig
-	Users             map[string]subConfig
-	Groups            map[string]subConfig
+	Users             []map[string]subConfig
+	Groups            []map[string]subConfig
 }
 
 // RouteConfig represents the configuration of a route. Dest is mandatory,
@@ -199,26 +199,32 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		config.SSH.Args = defaultSSHArgs
 	}
 
-	for groupnames, groupconfig := range config.Groups {
-		for _, groupname := range strings.Split(groupnames, ",") {
-			if groups[groupname] {
-				if err := parseSubConfig(&config, &groupconfig); err != nil {
-					return nil, err
+	// we have to use a slice of maps in order to have ordered maps
+	for _, groupconfigs := range config.Groups {
+		for groupnames, groupconfig := range groupconfigs {
+			for _, groupname := range strings.Split(groupnames, ",") {
+				if groups[groupname] {
+					if err := parseSubConfig(&config, &groupconfig); err != nil {
+						return nil, err
+					}
+					// no need to to parse the same subconfig twice
+					break
 				}
-				// no need to to parse the same subconfig twice
-				break
 			}
 		}
 	}
 
-	for usernames, userconfig := range config.Users {
-		for _, username := range strings.Split(usernames, ",") {
-			if username == currentUsername {
-				if err := parseSubConfig(&config, &userconfig); err != nil {
-					return nil, err
+	// we have to use a slice of maps in order to have ordered maps
+	for _, userconfigs := range config.Users {
+		for usernames, userconfig := range userconfigs {
+			for _, username := range strings.Split(usernames, ",") {
+				if username == currentUsername {
+					if err := parseSubConfig(&config, &userconfig); err != nil {
+						return nil, err
+					}
+					// no need to to parse the same subconfig twice
+					break
 				}
-				// no need to to parse the same subconfig twice
-				break
 			}
 		}
 	}

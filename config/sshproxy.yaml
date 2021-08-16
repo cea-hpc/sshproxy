@@ -135,7 +135,7 @@
 # The parameters defined in a "users" option (see below) will be applied last
 # and override groups parameters.
 #groups:
-#    foo,bar:
+#    - foo,bar:
 #        debug: true
 #        log: /tmp/sshproxy-foo/{user}.log
 #        # An associative array is used to specify environment, SSH options or
@@ -153,7 +153,7 @@
 # purpose). Multiple users can be defined on the same line, separated by
 # commas.
 #users:
-#    foo,bar:
+#    - foo,bar:
 #        debug: true
 #        log: /tmp/sshproxy-{user}.log
 #        dump: /tmp/sshproxy-{user}-{time}.dump

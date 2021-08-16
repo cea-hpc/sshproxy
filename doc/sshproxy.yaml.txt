@@ -190,7 +190,7 @@ Each of the previous parameters can be overridden for a group thanks to the
 For example if we want to save debug messages for the 'foo' group we define:
 
 	groups:
-	    foo:
+	    - foo:
 	        debug: true
 
 It is possible to override the same options for multiple groups in a single
@@ -200,17 +200,16 @@ For example, if we want to save debug messages for the 'foo' and 'bar' groups
 we define:
 
 	groups:
-	    foo,bar:
+	    - foo,bar:
 	        debug: true
 
 Routes, environment or SSH options can also be defined:
 
 	groups:
-	    foo:
+	    - foo:
 	        routes:
 	            default:
 	                dest: [hostx]
-	
 	        ssh:
 	            args: ["-vvv", "-Y"]
 
@@ -223,10 +222,9 @@ For example, if a user is in the 'admin' and 'users' groups the logs will be
 in '/var/log/sshproxy/admin/\{user}.log' with the following configuration:
 
 	groups:
-	    users:
+	    - users:
 	        log: /var/log/sshproxy/users/{user}.log
-	
-	    admin:
+	    - admin:
 	        log: /var/log/sshproxy/admin/{user}.log
 
 We can also override the parameters for a specific user with the 'users'
@@ -237,13 +235,13 @@ For example if we want to save debug messages for the 'foo' and the 'bar'
 users we define:
 
 	users:
-	    foo,bar:
+	    - foo,bar:
 	        debug: true
 
 As for the groups, we can modify routes, environment or SSH options:
 
 	users:
-	    foo:
+	    - foo:
 	        ssh:
 	            args: ["-vvv", "-Y"]
 
@@ -275,13 +273,13 @@ routes:
         route_select: random
 
 groups:
-    admin:
+    - admin:
         routes:
             default:
                 dest: [login0]
 
 users:
-    user1234:
+    - user1234:
         debug: true
         dump: /var/spool/sshproxy/{user}-{time}-{sid}.dump
 ------------------------------------------------------------------------------
