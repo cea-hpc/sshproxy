@@ -29,6 +29,18 @@ cat <<EOF >/etc/sshproxy/sshproxy.yaml
 debug: true
 log: /tmp/sshproxy-{user}.log
 
+translate_commands:
+    "/usr/libexec/openssh/sftp-server":
+        ssh_args:
+            - "-oForwardX11=no"
+            - "-oForwardAgent=no"
+            - "-oPermitLocalCommand=no"
+            - "-oClearAllForwardings=yes"
+            - "-oProtocol=2"
+            - "-s"
+        command: "sftp"
+        disable_dump: true
+
 etcd:
     endpoints:
         - "https://etcd:2379"
@@ -52,6 +64,11 @@ routes:
     service3:
         source: ["gateway1:2024"]
         dest: ["server2"]
+    sftp:
+        source: ["gateway2:2023"]
+        dest: ["server1"]
+        force_command: "/usr/libexec/openssh/sftp-server"
+        command_must_match: true
     default:
         dest: ["server3"]
 

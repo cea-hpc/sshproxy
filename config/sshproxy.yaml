@@ -61,6 +61,24 @@
 # set.
 #etcd_stats_interval: "0"
 
+# Commands can be translated between what is received by sshproxy and what is
+# executed by the ssh forked by sshproxy. The keys are strings containing the
+# exact user command. ssh_args contains an optional list of options that will
+# be passed to ssh. command is a mandatory string, the actual executed command.
+# disable_dump is false by default. If true, no dumps will be done for this
+# command.
+#translate_commands:
+#  "internal-sftp":
+#    ssh_args:
+#      - "-oForwardX11=no"
+#      - "-oForwardAgent=no"
+#      - "-oPermitLocalCommand=no"
+#      - "-oClearAllForwardings=yes"
+#      - "-oProtocol=2"
+#      - "-s"
+#    command: "sftp"
+#    disable_dump: true
+
 # A command can be launched in the background for the session duration.
 # The standard and error outputs are only logged in debug mode.
 #bg_command: ""
@@ -110,11 +128,14 @@
 # priority, then the hosts with less global connections, and in case of a draw,
 # the selection is random. For "bandwidth", it's the same as "connections", but
 # based on the bandwidth used, with a rollback on connections (which is
-# frequent for new simultaneous connections). Finally, the mode value defines
-# the stickiness of a connection. It can be "sticky" or "balanced". If
-# "sticky", then all connections of a user will be made on the same destination
-# host. If "balanced", the route_select algorithm will be used for every
-# connection.
+# frequent for new simultaneous connections). The mode value defines the
+# stickiness of a connection. It can be "sticky" or "balanced". If "sticky",
+# then all connections of a user will be made on the same destination host. If
+# "balanced", the route_select algorithm will be used for every connection.
+# Finally, the force_command can be set to override the command asked by the
+# user. If command_must_match is set to true, then the connection is closed if
+# the original command is not the same as the force_command. command_must_match
+# defaults to false.
 #routes:
 #    service1:
 #        source: ["192.168.0.1"]
@@ -124,6 +145,8 @@
 #        dest: [host3, host4]
 #        route_select: bandwidth
 #        mode: balanced
+#        force_command: "internal-sftp"
+#        command_must_match: true
 #    default:
 #        dest: ["host5:4222"]
 

@@ -670,6 +670,43 @@ func TestSFTP(t *testing.T) {
 	}
 }
 
+func TestOnlySFTP(t *testing.T) {
+	refSum := hash("/etc/passwd")
+
+	batchFile := "/tmp/sftp.batch.onlySFTP"
+	downloadFile := "/tmp/passwd.onlySFTP"
+	prepareSFTPBatchCommands(batchFile, downloadFile)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	defer cancel()
+	ch := make(chan *os.Process, 1)
+	go func() {
+		runCommand(ctx, "sftp", []string{"-P", strconv.Itoa(2023), "-b", batchFile, "gateway2"}, nil, ch)
+	}()
+	process := <-ch
+
+	time.Sleep(time.Second)
+
+	rc, _, _, _ := runCommand(ctx, "ssh", []string{"server1", "--", "pgrep -f sftp-server"}, nil, nil)
+	if rc != 0 {
+		t.Error("cannot find sftp-server running on server1")
+	}
+
+	process.Kill()
+
+	sum := hash(downloadFile)
+	if !reflect.DeepEqual(refSum, sum) {
+		t.Errorf("MD5 are different: got %v, want %v", sum, refSum)
+	}
+
+	// We have tested the sftp connection, now the non-sftp connection should fail
+	args, cmd := prepareCommand("gateway2", 2023, "exit 0")
+	rc, _, _, _ = runCommand(ctx, "ssh", args, nil, nil)
+	if rc != 1 {
+		t.Errorf("%s rc = %d, want 1", cmd, rc)
+	}
+}
+
 var scpTests = []struct {
 	source string
 	dest   string

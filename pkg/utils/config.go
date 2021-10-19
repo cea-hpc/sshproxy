@@ -29,7 +29,7 @@ var (
 type Config struct {
 	Debug             bool
 	Log               string
-	CheckInterval     Duration `yaml:"check_interval"` // Minimum interval between host checks
+	CheckInterval     Duration `yaml:"check_interval"`
 	ErrorBanner       string   `yaml:"error_banner"`
 	Dump              string
 	DumpLimitSize     uint64   `yaml:"dump_limit_size"`
@@ -39,20 +39,32 @@ type Config struct {
 	LogStatsInterval  Duration `yaml:"log_stats_interval"`
 	BgCommand         string   `yaml:"bg_command"`
 	SSH               sshConfig
+	TranslateCommands map[string]*TranslateCommandConfig `yaml:"translate_commands"`
 	Environment       map[string]string
 	Routes            map[string]*RouteConfig
 	Users             []map[string]subConfig
 	Groups            []map[string]subConfig
 }
 
+// TranslateCommandConfig represents the configuration of a translate_command.
+// SSHArgs is optional. Command is mandatory. DisableDump defaults to false
+type TranslateCommandConfig struct {
+	SSHArgs     []string `yaml:"ssh_args"`
+	Command     string
+	DisableDump bool `yaml:"disable_dump"`
+}
+
 // RouteConfig represents the configuration of a route. Dest is mandatory,
 // Source is mandatory if the associated service name is not the default one.
-// RouteSelect defaults to "ordered", Mode defaults to "stiky".
+// RouteSelect defaults to "ordered", Mode defaults to "stiky", ForceCommand is
+// optional, CommandMustMatch defaults to false
 type RouteConfig struct {
-	Source      []string
-	Dest        []string
-	RouteSelect string `yaml:"route_select"`
-	Mode        string
+	Source           []string
+	Dest             []string
+	RouteSelect      string `yaml:"route_select"`
+	Mode             string
+	ForceCommand     string `yaml:"force_command"`
+	CommandMustMatch bool   `yaml:"command_must_match"`
 }
 
 type sshConfig struct {
@@ -81,11 +93,12 @@ type subConfig struct {
 	Log               interface{}
 	ErrorBanner       interface{} `yaml:"error_banner"`
 	Dump              interface{}
-	DumpLimitSize     interface{} `yaml:"dump_limit_size"`
-	DumpLimitWindow   interface{} `yaml:"dump_limit_window"`
-	EtcdStatsInterval interface{} `yaml:"etcd_stats_interval"`
-	LogStatsInterval  interface{} `yaml:"log_stats_interval"`
-	BgCommand         interface{} `yaml:"bg_command"`
+	DumpLimitSize     interface{}                        `yaml:"dump_limit_size"`
+	DumpLimitWindow   interface{}                        `yaml:"dump_limit_window"`
+	EtcdStatsInterval interface{}                        `yaml:"etcd_stats_interval"`
+	LogStatsInterval  interface{}                        `yaml:"log_stats_interval"`
+	BgCommand         interface{}                        `yaml:"bg_command"`
+	TranslateCommands map[string]*TranslateCommandConfig `yaml:"translate_commands"`
 	Environment       map[string]string
 	Routes            map[string]*RouteConfig
 	SSH               sshConfig
@@ -151,6 +164,11 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 	// merge routes
 	for service, opts := range subconfig.Routes {
 		config.Routes[service] = opts
+	}
+
+	// merge translate_commands
+	for k, v := range subconfig.TranslateCommands {
+		config.TranslateCommands[k] = v
 	}
 
 	// merge environment

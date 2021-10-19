@@ -92,10 +92,11 @@ func (c *etcdChecker) doCheck(hostport string) utils.State {
 
 // findDestination finds a reachable destination for the sshd server according
 // to the etcd database if available or the routes and route_select algorithm.
-// It returns a string with the service name and a string with host:port, a
+// It returns a string with the service name, a string with host:port, a string
+// containing ForceCommand value and a bool containing CommandMustMatch; a
 // string with the service name and an empty string if no destination is found
 // or an error if any.
-func findDestination(cli *utils.Client, username string, routes map[string]*utils.RouteConfig, sshdHostport string, checkInterval utils.Duration) (string, string, error) {
+func findDestination(cli *utils.Client, username string, routes map[string]*utils.RouteConfig, sshdHostport string, checkInterval utils.Duration) (string, string, string, bool, error) {
 	checker := &etcdChecker{
 		checkInterval: checkInterval,
 		cli:           cli,
@@ -103,7 +104,7 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 
 	service, err := findService(routes, sshdHostport)
 	if err != nil {
-		return "", "", err
+		return "", "", "", false, err
 	}
 	key := fmt.Sprintf("%s@%s", username, service)
 
@@ -117,7 +118,7 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 			if utils.IsDestinationInRoutes(dest, routes[service].Dest) {
 				if checker.Check(dest) {
 					log.Debugf("found destination in etcd: %s", dest)
-					return service, dest, nil
+					return service, dest, routes[service].ForceCommand, routes[service].CommandMustMatch, nil
 				}
 				log.Infof("cannot connect %s to already existing connection(s) to %s: host %s", key, dest, checker.LastState)
 			} else {
@@ -128,10 +129,10 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 
 	if len(routes[service].Dest) > 0 {
 		selected, err := utils.SelectRoute(routes[service].RouteSelect, routes[service].Dest, checker, cli, key)
-		return service, selected, err
+		return service, selected, routes[service].ForceCommand, routes[service].CommandMustMatch, err
 	}
 
-	return service, "", fmt.Errorf("no destination set for service %s", service)
+	return service, "", "", false, fmt.Errorf("no destination set for service %s", service)
 }
 
 // findService finds the first service containing a suitable source in the conf,
@@ -309,6 +310,7 @@ func mainExitCode() int {
 	log.Debugf("config.log_stats_interval = %s", config.LogStatsInterval.Duration())
 	log.Debugf("config.etcd = %+v", config.Etcd)
 	log.Debugf("config.bg_command = %s", config.BgCommand)
+	log.Debugf("config.translate_commands = %v", config.TranslateCommands)
 	log.Debugf("config.environment = %v", config.Environment)
 	log.Debugf("config.routes = %v", config.Routes)
 	log.Debugf("config.ssh.exe = %s", config.SSH.Exe)
@@ -324,7 +326,7 @@ func mainExitCode() int {
 		log.Errorf("Cannot contact etcd cluster to update state: %v", err)
 	}
 
-	service, hostport, err := findDestination(cli, username, config.Routes, sshInfos.Dst(), config.CheckInterval)
+	service, hostport, forceCommand, commandMustMatch, err := findDestination(cli, username, config.Routes, sshInfos.Dst(), config.CheckInterval)
 	switch {
 	case err != nil:
 		log.Fatalf("Finding destination: %s", err)
@@ -442,24 +444,39 @@ func mainExitCode() int {
 	if port != utils.DefaultSSHPort {
 		sshArgs = append(sshArgs, "-p", port)
 	}
-	if originalCmd != "" {
-		if strings.Contains(originalCmd, "sftp-server") {
-			// Ask for sftp subsystem on destination (arguments are
-			// the same used by sftp client command).
-			sshArgs = append(sshArgs, "-oForwardX11=no",
-				"-oForwardAgent=no", "-oPermitLocalCommand=no",
-				"-oClearAllForwardings=yes", "-oProtocol=2",
-				"-s", "--", host, "sftp")
-			if config.Dump != "" {
-				// We don't want to dump sftp connections
-				config.Dump = "etcd"
+	doCmd := ""
+	if forceCommand != "" {
+		log.Debugf("forceCommand = %s", forceCommand)
+		doCmd = forceCommand
+	} else if originalCmd != "" {
+		doCmd = originalCmd
+	}
+	commandTranslated := false
+	if doCmd != "" {
+		if commandMustMatch && originalCmd != doCmd {
+			log.Errorf("error executing proxied ssh command: originalCmd \"%s\" does not match forceCommand \"%s\"", originalCmd, forceCommand)
+			return 1
+		}
+		for fromCmd, translateCmdConf := range config.TranslateCommands {
+			if doCmd == fromCmd {
+				log.Debugf("translateCmdConf = %+v", translateCmdConf)
+				for _, sshArg := range translateCmdConf.SSHArgs {
+					sshArgs = append(sshArgs, sshArg)
+				}
+				sshArgs = append(sshArgs, "--", host, translateCmdConf.Command)
+				if config.Dump != "" && translateCmdConf.DisableDump {
+					config.Dump = "etcd"
+				}
+				commandTranslated = true
+				break
 			}
-		} else {
+		}
+		if !commandTranslated {
 			if interactiveCommand {
 				// Force TTY allocation because the user probably asked for it.
 				sshArgs = append(sshArgs, "-t")
 			}
-			sshArgs = append(sshArgs, host, originalCmd)
+			sshArgs = append(sshArgs, host, doCmd)
 		}
 	} else {
 		sshArgs = append(sshArgs, host)
@@ -469,7 +486,7 @@ func mainExitCode() int {
 
 	var recorder *Recorder
 	if config.Dump != "" {
-		recorder = NewRecorder(conninfo, config.Dump, originalCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize, config.DumpLimitWindow.Duration())
+		recorder = NewRecorder(conninfo, config.Dump, doCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize, config.DumpLimitWindow.Duration())
 
 		wg.Add(1)
 		go func() {
