@@ -460,9 +460,7 @@ func mainExitCode() int {
 		for fromCmd, translateCmdConf := range config.TranslateCommands {
 			if doCmd == fromCmd {
 				log.Debugf("translateCmdConf = %+v", translateCmdConf)
-				for _, sshArg := range translateCmdConf.SSHArgs {
-					sshArgs = append(sshArgs, sshArg)
-				}
+				sshArgs = append(sshArgs, translateCmdConf.SSHArgs...)
 				sshArgs = append(sshArgs, "--", host, translateCmdConf.Command)
 				if config.Dump != "" && translateCmdConf.DisableDump {
 					config.Dump = "etcd"
