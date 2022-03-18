@@ -237,6 +237,32 @@ func TestSimpleConnect(t *testing.T) {
 	}
 }
 
+var environmentTests = []struct {
+	user string
+	port int
+	want string
+}{
+	{"", 2023, "globalEnv_centos"},
+	{"", 2024, "serviceEnv_centos"},
+	{"user2@", 2023, "globalUserEnv_user2"},
+	{"user2@", 2024, "serviceUserEnv_user2"},
+}
+
+func TestEnvironment(t *testing.T) {
+	for _, tt := range environmentTests {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		args, cmd := prepareCommand(tt.user+"gateway1", tt.port, "echo $XMODIFIERS")
+		_, stdout, stderr, err := runCommand(ctx, "ssh", args, nil, nil)
+		stdoutStr := strings.TrimSpace(string(stdout))
+		if err != nil {
+			t.Errorf("%s unexpected error: %v | stderr = %s", cmd, err, string(stderr))
+		} else if stdoutStr != tt.want {
+			t.Errorf("%s hostname = %s, want %s", cmd, stdoutStr, tt.want)
+		}
+	}
+}
+
 func TestReturnCode(t *testing.T) {
 	for _, exitCode := range []int{0, 3} {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -342,6 +368,68 @@ func TestStickyConnections(t *testing.T) {
 		log.Fatal(err)
 	}
 	process1.Kill()
+	dest := strings.TrimSpace(string(stdout))
+	if dest != "server2" {
+		t.Errorf("%s got %s, expected server2", cmdStr, dest)
+	}
+}
+
+func TestNotLongStickyConnections(t *testing.T) {
+	// remove old connections stored in etcd
+	time.Sleep(4 * time.Second)
+
+	disableHost("server1")
+	checkHostState(t, "server1", "disabled")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	args, _ := prepareCommand("gateway1", 2022, "hostname")
+	_, _, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	time.Sleep(2 * time.Second)
+	enableHost("server1")
+	checkHostState(t, "server1", "up")
+
+	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
+	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	dest := strings.TrimSpace(string(stdout))
+	if dest != "server1" {
+		t.Errorf("%s got %s, expected server1", cmdStr, dest)
+	}
+}
+
+func TestLongStickyConnections(t *testing.T) {
+	// remove old connections stored in etcd
+	time.Sleep(4 * time.Second)
+
+	updateLineSSHProxyConf("etcd_keyttl", "3")
+	disableHost("server1")
+	checkHostState(t, "server1", "disabled")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	args, _ := prepareCommand("gateway1", 2022, "hostname")
+	_, _, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	time.Sleep(2 * time.Second)
+	enableHost("server1")
+	checkHostState(t, "server1", "up")
+
+	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
+	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	updateLineSSHProxyConf("etcd_keyttl", "0")
 	dest := strings.TrimSpace(string(stdout))
 	if dest != "server2" {
 		t.Errorf("%s got %s, expected server2", cmdStr, dest)

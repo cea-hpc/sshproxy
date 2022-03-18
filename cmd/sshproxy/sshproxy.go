@@ -93,10 +93,11 @@ func (c *etcdChecker) doCheck(hostport string) utils.State {
 // findDestination finds a reachable destination for the sshd server according
 // to the etcd database if available or the routes and route_select algorithm.
 // It returns a string with the service name, a string with host:port, a string
-// containing ForceCommand value and a bool containing CommandMustMatch; a
+// containing ForceCommand value, a bool containing CommandMustMatch, an int64
+// with etcd_keyttl and a map of strings with the environment variables; a
 // string with the service name and an empty string if no destination is found
 // or an error if any.
-func findDestination(cli *utils.Client, username string, routes map[string]*utils.RouteConfig, sshdHostport string, checkInterval utils.Duration) (string, string, string, bool, error) {
+func findDestination(cli *utils.Client, username string, routes map[string]*utils.RouteConfig, sshdHostport string, checkInterval utils.Duration) (string, string, string, bool, int64, map[string]string, error) {
 	checker := &etcdChecker{
 		checkInterval: checkInterval,
 		cli:           cli,
@@ -104,12 +105,12 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 
 	service, err := findService(routes, sshdHostport)
 	if err != nil {
-		return "", "", "", false, err
+		return "", "", "", false, 0, nil, err
 	}
 	key := fmt.Sprintf("%s@%s", username, service)
 
 	if routes[service].Mode == "sticky" && cli != nil && cli.IsAlive() {
-		dest, err := cli.GetDestination(key)
+		dest, err := cli.GetDestination(key, routes[service].EtcdKeyTTL)
 		if err != nil {
 			if err != utils.ErrKeyNotFound {
 				log.Errorf("problem with etcd: %v", err)
@@ -118,7 +119,7 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 			if utils.IsDestinationInRoutes(dest, routes[service].Dest) {
 				if checker.Check(dest) {
 					log.Debugf("found destination in etcd: %s", dest)
-					return service, dest, routes[service].ForceCommand, routes[service].CommandMustMatch, nil
+					return service, dest, routes[service].ForceCommand, routes[service].CommandMustMatch, routes[service].EtcdKeyTTL, routes[service].Environment, nil
 				}
 				log.Infof("cannot connect %s to already existing connection(s) to %s: host %s", key, dest, checker.LastState)
 			} else {
@@ -129,10 +130,10 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 
 	if len(routes[service].Dest) > 0 {
 		selected, err := utils.SelectRoute(routes[service].RouteSelect, routes[service].Dest, checker, cli, key)
-		return service, selected, routes[service].ForceCommand, routes[service].CommandMustMatch, err
+		return service, selected, routes[service].ForceCommand, routes[service].CommandMustMatch, routes[service].EtcdKeyTTL, routes[service].Environment, err
 	}
 
-	return service, "", "", false, fmt.Errorf("no destination set for service %s", service)
+	return service, "", "", false, 0, nil, fmt.Errorf("no destination set for service %s", service)
 }
 
 // findService finds the first service containing a suitable source in the conf,
@@ -326,7 +327,7 @@ func mainExitCode() int {
 		log.Errorf("Cannot contact etcd cluster to update state: %v", err)
 	}
 
-	service, hostport, forceCommand, commandMustMatch, err := findDestination(cli, username, config.Routes, sshInfos.Dst(), config.CheckInterval)
+	service, hostport, forceCommand, commandMustMatch, etcdKeyTTL, environment, err := findDestination(cli, username, config.Routes, sshInfos.Dst(), config.CheckInterval)
 	switch {
 	case err != nil:
 		log.Fatalf("Finding destination: %s", err)
@@ -344,6 +345,8 @@ func mainExitCode() int {
 	if err != nil {
 		log.Fatalf("Invalid destination '%s': %s", hostport, err)
 	}
+
+	setEnvironment(environment)
 
 	// waitgroup and channel to stop our background command when exiting.
 	var wg sync.WaitGroup
@@ -366,7 +369,7 @@ func mainExitCode() int {
 	// Register destination in etcd and keep it alive while running.
 	if cli != nil && cli.IsAlive() {
 		key := fmt.Sprintf("%s@%s", username, service)
-		keepAliveChan, eP, err := cli.SetDestination(ctx, key, sshInfos.Dst(), hostport)
+		keepAliveChan, eP, err := cli.SetDestination(ctx, key, sshInfos.Dst(), hostport, etcdKeyTTL)
 		etcdPath = eP
 		if err != nil {
 			log.Warningf("setting destination in etcd: %v", err)

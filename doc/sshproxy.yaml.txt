@@ -102,11 +102,14 @@ executed by the ssh forked by sshproxy. *translate_commands* is an associative
 array which keys are strings containing the exact user command. The value is
 an associative array containing:
 
-*ssh_args*::
-	an optional list of options that will be passed to ssh.
+An associative array *ssh* specifies the SSH options:
 
-*command*::
-	a mandatory string, the actual executed command.
+*exe*::
+	path or command to use for the SSH client ('ssh' by default).
+
+*args*::
+	a list of arguments for the SSH client. Its default value is: '["-q",
+	"-Y"]'.
 
 *disable_dump*::
 	false by default. If true, no dumps will be done for this command.
@@ -178,6 +181,9 @@ listening IP address of the SSH daemon:
 	        mode: balanced
 		force_command: "internal-sftp"
 		command_must_match: true
+		etcd_keyttl: 3600
+		environment:
+		    XAUTHORITY: /dev/shm/.Xauthority_{user}
 	    default:
 	        dest: ["host5:4222"]
 
@@ -195,27 +201,22 @@ priority, then the hosts with less global connections, and in case of a draw,
 the selection is random. For 'bandwidth', it's the same as 'connections', but
 based on the bandwidth used, with a rollback on connections (which is
 frequent for new simultaneous connections). The mode value defines the
-stickiness of a connection. It can be 'sticky' or 'balanced'. If 'sticky',
-then all connections of a user will be made on the same destination host. If
-'balanced', the route_select algorithm will be used for every connections.
-Finally, the force_command can be set to override the command asked by the
-user. If command_must_match is set to true, then the connection is closed if
-the original command is not the same as the force_command. command_must_match
-defaults to false.
+stickiness of a connection. It can be 'sticky' or 'balanced' (defaults to
+'sticky'). If 'sticky', then all connections of a user will be made on the
+same destination host. If 'balanced', the route_select algorithm will be used
+for every connections.  Finally, the force_command can be set to override the
+command asked by the user. If command_must_match is set to true, then the
+connection is closed if the original command is not the same as the
+force_command. command_must_match defaults to false. etcd_keyttl defauts to 0.
+If a value is set (in seconds), the chosen backen will be remembered for this
+amount of time. An associative array *environment* can be used to set
+environment variables. The pattern '\{user}' will be replaced with the user
+login.
 
 In the previous example, a client connected to '192.168.0.1' will be proxied
 to 'host1' and, if the host is not reachable, to 'host2'. If a client does not
 connect to '192.168.0.1' or '192.168.0.2' it will be proxied to the sshd
 daemon listening on port 4222 on 'host5'.
-
-An associative array *ssh* specifies the SSH options:
-
-*exe*::
-	path or command to use for the SSH client ('ssh' by default).
-
-*args*::
-	a list of arguments for the SSH client. Its default value is: '["-q",
-	"-Y"]'.
 
 Each of the previous parameters can be overridden for a group thanks to the
 *groups* associative array.

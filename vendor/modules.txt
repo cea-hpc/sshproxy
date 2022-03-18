@@ -1,0 +1,71 @@
+# github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1
+github.com/Azure/go-ansiterm
+github.com/Azure/go-ansiterm/winterm
+# github.com/coreos/etcd v2.3.8+incompatible
+## explicit
+github.com/coreos/etcd/Godeps/_workspace/src/github.com/gogo/protobuf/proto
+github.com/coreos/etcd/Godeps/_workspace/src/github.com/golang/protobuf/proto
+github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/context
+github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/http2
+github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/http2/hpack
+github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/internal/timeseries
+github.com/coreos/etcd/Godeps/_workspace/src/golang.org/x/net/trace
+github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc
+github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc/codes
+github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc/credentials
+github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc/grpclog
+github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc/metadata
+github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc/naming
+github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc/peer
+github.com/coreos/etcd/Godeps/_workspace/src/google.golang.org/grpc/transport
+github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes
+github.com/coreos/etcd/etcdserver/etcdserverpb
+github.com/coreos/etcd/storage/storagepb
+# github.com/creack/pty v1.1.11
+github.com/creack/pty
+# github.com/docker/docker v20.10.13+incompatible
+## explicit
+github.com/docker/docker/pkg/term
+# github.com/gogo/protobuf v1.3.2
+## explicit
+# github.com/golang/protobuf v1.5.2
+## explicit
+# github.com/kr/pty v1.1.8
+## explicit
+github.com/kr/pty
+# github.com/mattn/go-runewidth v0.0.9
+github.com/mattn/go-runewidth
+# github.com/moby/term v0.0.0-20210619224110-3f7ff695adc6
+## explicit
+github.com/moby/term
+github.com/moby/term/windows
+# github.com/olekukonko/tablewriter v0.0.5
+## explicit
+github.com/olekukonko/tablewriter
+# github.com/op/go-logging v0.0.0-20160315200505-970db520ece7
+## explicit
+github.com/op/go-logging
+# go.etcd.io/etcd v2.3.8+incompatible
+## explicit
+go.etcd.io/etcd/clientv3
+go.etcd.io/etcd/pkg/transport
+# golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8
+## explicit
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# gopkg.in/yaml.v2 v2.4.0
+## explicit
+gopkg.in/yaml.v2
+# github.com/BurntSushi/toml v1.0.0
+## explicit
+github.com/BurntSushi/toml
+# golang.org/x/lint v0.0.0-20210508222113-6edffad5e616
+## explicit
+golang.org/x/lint
+# golang.org/x/tools v0.1.10
+## explicit
+golang.org/x/tools
+# honnef.co/go/tools v0.2.2
+## explicit
+honnef.co/go/tools

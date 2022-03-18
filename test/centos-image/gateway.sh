@@ -28,6 +28,10 @@ cat <<EOF >/etc/sshproxy/sshproxy.yaml
 ---
 debug: true
 log: /tmp/sshproxy-{user}.log
+environment:
+    XMODIFIERS: globalEnv_{user}
+ssh:
+    args: ["-q", "-Y", "-o SendEnv=XMODIFIERS"]
 
 translate_commands:
     "/usr/libexec/openssh/sftp-server":
@@ -58,12 +62,15 @@ routes:
         dest: ["server1", "server2"]
         route_select: ordered
         mode: sticky
+        etcd_keyttl: 0
     service2:
         source: ["gateway1:2023"]
         dest: ["server1"]
     service3:
         source: ["gateway1:2024"]
         dest: ["server2"]
+        environment:
+            XMODIFIERS: serviceEnv_{user}
     sftp:
         source: ["gateway2:2023"]
         dest: ["server1"]
@@ -81,10 +88,14 @@ groups:
 
 users:
     - unknownuser,user2:
+        environment:
+            XMODIFIERS: globalUserEnv_{user}
         routes:
             service3:
                 source: ["gateway1:2024"]
                 dest: ["server1"]
+                environment:
+                    XMODIFIERS: serviceUserEnv_{user}
 EOF
 
 exec "$@"

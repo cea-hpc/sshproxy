@@ -2,9 +2,9 @@ task:
   env:
     GOPROXY: https://proxy.golang.org
     matrix:
-      VERSION: 1.13
       VERSION: 1.14
       VERSION: 1.15
+      VERSION: 1.16
 
   container:
     image: golang:$VERSION

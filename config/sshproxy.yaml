@@ -129,13 +129,16 @@
 # the selection is random. For "bandwidth", it's the same as "connections", but
 # based on the bandwidth used, with a rollback on connections (which is
 # frequent for new simultaneous connections). The mode value defines the
-# stickiness of a connection. It can be "sticky" or "balanced". If "sticky",
-# then all connections of a user will be made on the same destination host. If
-# "balanced", the route_select algorithm will be used for every connection.
-# Finally, the force_command can be set to override the command asked by the
-# user. If command_must_match is set to true, then the connection is closed if
-# the original command is not the same as the force_command. command_must_match
-# defaults to false.
+# stickiness of a connection. It can be "sticky" or "balanced" (defaults to
+# sticky). If "sticky", then all connections of a user will be made on the same
+# destination host. If "balanced", the route_select algorithm will be used for
+# every connection.  Finally, the force_command can be set to override the
+# command asked by the user. If command_must_match is set to true, then the
+# connection is closed if the original command is not the same as the
+# force_command. command_must_match defaults to false. etcd_keyttl defauts to
+# 0. If a value is set (in seconds), the chosen backen will be remembered for
+# this amount of time. Environment variables can be set if needed. The '{user}'
+# pattern will be replaced with the user login.
 #routes:
 #    service1:
 #        source: ["192.168.0.1"]
@@ -147,6 +150,9 @@
 #        mode: balanced
 #        force_command: "internal-sftp"
 #        command_must_match: true
+#        etcd_keyttl: 3600
+#        environment:
+#            XAUTHORITY: /dev/shm/.Xauthority_{user}
 #    default:
 #        dest: ["host5:4222"]
 

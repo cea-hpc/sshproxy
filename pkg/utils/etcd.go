@@ -19,6 +19,7 @@ import (
 	"net"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -87,6 +88,7 @@ func (s State) MarshalJSON() ([]byte, error) {
 var (
 	etcdRootPath        = "/sshproxy"
 	etcdConnectionsPath = etcdRootPath + "/connections"
+	etcdHistoryPath     = etcdRootPath + "/history"
 	etcdHostsPath       = etcdRootPath + "/hosts"
 
 	// ErrKeyNotFound is returned when key is not found in etcd.
@@ -95,6 +97,10 @@ var (
 
 func toConnectionKey(d string) string {
 	return fmt.Sprintf("%s/%s", etcdConnectionsPath, d)
+}
+
+func toHistoryKey(d string) string {
+	return fmt.Sprintf("%s/%s", etcdHistoryPath, d)
 }
 
 func toHostKey(h string) string {
@@ -187,9 +193,10 @@ func (c *Client) Close() {
 }
 
 // GetDestination returns the destination found in etcd for a user connected to
-// an SSH daemon (key). If the key is not present the error will be
+// an SSH daemon (key). If the key is not present and etcdKeyTTL is defined,
+// the key is searched in history. If it's not found, the error will be
 // etcd.ErrKeyNotFound.
-func (c *Client) GetDestination(key string) (string, error) {
+func (c *Client) GetDestination(key string, etcdKeyTTL int64) (string, error) {
 	path := toConnectionKey(key)
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
 	resp, err := c.cli.Get(ctx, path, clientv3.WithPrefix(), clientv3.WithKeysOnly(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortDescend))
@@ -199,6 +206,19 @@ func (c *Client) GetDestination(key string) (string, error) {
 	}
 
 	if len(resp.Kvs) == 0 {
+		if etcdKeyTTL > 0 {
+			history := toHistoryKey(key)
+			ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+			resp, err := c.cli.Get(ctx, history, clientv3.WithPrefix())
+			cancel()
+			if err != nil {
+				return "", err
+			}
+
+			if len(resp.Kvs) != 0 {
+				return string(resp.Kvs[0].Value), nil
+			}
+		}
 		return "", ErrKeyNotFound
 	}
 
@@ -207,10 +227,42 @@ func (c *Client) GetDestination(key string) (string, error) {
 	return dest[0], nil
 }
 
+func (c *Client) getExistingLease(key string) (string, error) {
+	history := toHistoryKey(key)
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Get(ctx, history, clientv3.WithPrefix(), clientv3.WithKeysOnly())
+	cancel()
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.Kvs) == 0 {
+		return "", ErrKeyNotFound
+	}
+
+	lease := string(resp.Kvs[0].Key)[len(history)+1:]
+	return lease, nil
+}
+
 // SetDestination set current destination in etcd.
-func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport string, dst string) (<-chan *clientv3.LeaseKeepAliveResponse, string, error) {
+func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport string, dst string, etcdKeyTTL int64) (<-chan *clientv3.LeaseKeepAliveResponse, string, error) {
 	path := fmt.Sprintf("%s/%s/%s/%s", toConnectionKey(key), dst, sshdHostport, time.Now().Format(time.RFC3339Nano))
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	var history string
+	var historyID clientv3.LeaseID
+	if etcdKeyTTL > 0 {
+		lease, err := c.getExistingLease(key)
+		if err == nil {
+			tmpHistoryID, _ := strconv.Atoi(lease)
+			historyID = clientv3.LeaseID(tmpHistoryID)
+		} else {
+			respHistory, err := c.cli.Grant(ctx, etcdKeyTTL)
+			if err == nil {
+				historyID = respHistory.ID
+			}
+		}
+		history = fmt.Sprintf("%s/%d", toHistoryKey(key), int64(historyID))
+	}
 	resp, err := c.cli.Grant(ctx, c.keyTTL)
 	cancel()
 	if err != nil {
@@ -226,12 +278,18 @@ func (c *Client) SetDestination(rootctx context.Context, key, sshdHostport strin
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), c.requestTimeout)
 	_, err = c.cli.Put(ctx, path, string(bytes), clientv3.WithLease(resp.ID))
+	if etcdKeyTTL > 0 {
+		_, err = c.cli.Put(ctx, history, dst, clientv3.WithLease(historyID))
+	}
 	cancel()
 	if err != nil {
 		return nil, "", err
 	}
 
 	k, e := c.cli.KeepAlive(rootctx, resp.ID)
+	if etcdKeyTTL > 0 {
+		c.cli.KeepAlive(rootctx, historyID)
+	}
 	c.leaseID = resp.ID
 	return k, path, e
 }

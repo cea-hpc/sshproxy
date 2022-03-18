@@ -65,6 +65,8 @@ type RouteConfig struct {
 	Mode             string
 	ForceCommand     string `yaml:"force_command"`
 	CommandMustMatch bool   `yaml:"command_must_match"`
+	EtcdKeyTTL       int64  `yaml:"etcd_keyttl"`
+	Environment      map[string]string
 }
 
 type sshConfig struct {
@@ -253,6 +255,12 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 
 	for k, v := range config.Environment {
 		config.Environment[k] = replace(v, patterns["{user}"])
+	}
+
+	for service, opts := range config.Routes {
+		for k, v := range opts.Environment {
+			config.Routes[service].Environment[k] = replace(v, patterns["{user}"])
+		}
 	}
 
 	// replace sources and destinations (with possible missing port) with host:port.
