@@ -311,13 +311,15 @@ func mainExitCode() int {
 	log.Debugf("config.log_stats_interval = %s", config.LogStatsInterval.Duration())
 	log.Debugf("config.etcd = %+v", config.Etcd)
 	log.Debugf("config.bg_command = %s", config.BgCommand)
-	log.Debugf("config.translate_commands = %v", config.TranslateCommands)
+	for k, v := range config.TranslateCommands {
+		log.Debugf("config.TranslateCommands.%s = %+v", k, v)
+	}
 	log.Debugf("config.environment = %v", config.Environment)
-	log.Debugf("config.routes = %v", config.Routes)
+	for k, v := range config.Routes {
+		log.Debugf("config.routes.%s = %+v", k, v)
+	}
 	log.Debugf("config.ssh.exe = %s", config.SSH.Exe)
 	log.Debugf("config.ssh.args = %v", config.SSH.Args)
-
-	setEnvironment(config.Environment)
 
 	log.Infof("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
 	defer log.Info("disconnected")
@@ -346,7 +348,13 @@ func mainExitCode() int {
 		log.Fatalf("Invalid destination '%s': %s", hostport, err)
 	}
 
-	setEnvironment(environment)
+	log.Debugf("service = %s", service)
+
+	// merge service environment with global environment
+	for k, v := range environment {
+		config.Environment[k] = v
+	}
+	setEnvironment(config.Environment)
 
 	// waitgroup and channel to stop our background command when exiting.
 	var wg sync.WaitGroup
@@ -496,7 +504,7 @@ func mainExitCode() int {
 		}()
 	}
 
-	log.Infof("proxied to %s", hostport)
+	log.Infof("proxied to %s (service: %s)", hostport, service)
 
 	var rc int
 	if interactiveCommand {

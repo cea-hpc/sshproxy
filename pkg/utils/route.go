@@ -62,7 +62,7 @@ var (
 
 // CanConnect tests if a connection to host:port can be made (with a 1s timeout).
 func CanConnect(hostport string) bool {
-	c, err := net.DialTimeout("tcp", hostport, 1*time.Second)
+	c, err := net.DialTimeout("tcp", hostport, time.Second)
 	if err != nil {
 		mylog.Infof("cannot connect to %s: %s", hostport, err)
 		return false

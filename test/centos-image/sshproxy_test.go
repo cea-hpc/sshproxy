@@ -224,7 +224,7 @@ var simpleConnectTests = []struct {
 
 func TestSimpleConnect(t *testing.T) {
 	for _, tt := range simpleConnectTests {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
 		defer cancel()
 		args, cmd := prepareCommand(tt.user+"gateway1", tt.port, "hostname")
 		_, stdout, stderr, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -250,7 +250,7 @@ var environmentTests = []struct {
 
 func TestEnvironment(t *testing.T) {
 	for _, tt := range environmentTests {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
 		defer cancel()
 		args, cmd := prepareCommand(tt.user+"gateway1", tt.port, "echo $XMODIFIERS")
 		_, stdout, stderr, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -265,7 +265,7 @@ func TestEnvironment(t *testing.T) {
 
 func TestReturnCode(t *testing.T) {
 	for _, exitCode := range []int{0, 3} {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
 		defer cancel()
 		args, cmd := prepareCommand("gateway1", 2023, fmt.Sprintf("exit %d", exitCode))
 		rc, _, _, _ := runCommand(ctx, "ssh", args, nil, nil)
@@ -276,7 +276,7 @@ func TestReturnCode(t *testing.T) {
 }
 
 func TestMainSSHDied(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120 * time.Second)
 	defer cancel()
 	args, _ := prepareCommand("gateway1", 2023, "sleep 60")
 	ch := make(chan *os.Process, 1)
@@ -295,7 +295,7 @@ func TestEtcdConnections(t *testing.T) {
 	// remove old connections stored in etcd
 	time.Sleep(4 * time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 	defer cancel()
 	args, _ := prepareCommand("gateway1", 2023, "sleep 20")
 	ch := make(chan *os.Process)
@@ -349,7 +349,7 @@ func TestStickyConnections(t *testing.T) {
 	disableHost("server1")
 	checkHostState(t, "server1", "disabled")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 	defer cancel()
 	args, _ := prepareCommand("gateway1", 2022, "sleep 20")
 	ch := make(chan *os.Process)
@@ -381,7 +381,7 @@ func TestNotLongStickyConnections(t *testing.T) {
 	disableHost("server1")
 	checkHostState(t, "server1", "disabled")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 	defer cancel()
 	args, _ := prepareCommand("gateway1", 2022, "hostname")
 	_, _, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -412,7 +412,7 @@ func TestLongStickyConnections(t *testing.T) {
 	disableHost("server1")
 	checkHostState(t, "server1", "disabled")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 	defer cancel()
 	args, _ := prepareCommand("gateway1", 2022, "hostname")
 	_, _, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -440,7 +440,7 @@ func TestBalancedConnections(t *testing.T) {
 	// remove old connections stored in etcd
 	time.Sleep(4 * time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30 * time.Second)
 	defer cancel()
 	args, _ := prepareCommand("gateway1", 2022, "sleep 20")
 	ch := make(chan *os.Process)
@@ -468,7 +468,7 @@ func TestBalancedConnections(t *testing.T) {
 }
 
 func checkHostCheck(t *testing.T, host string, check time.Time) time.Time {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
 	defer cancel()
 	args, _ := prepareCommand("gateway1", 2023, "hostname")
 	want := time.Now()
@@ -482,7 +482,7 @@ func checkHostCheck(t *testing.T, host string, check time.Time) time.Time {
 			found = true
 			lastCheck = h.Ts
 			if check.IsZero() {
-				if lastCheck.Sub(want) > 1*time.Second {
+				if lastCheck.Sub(want) > 1 * time.Second {
 					t.Errorf("%s %s check at %s, want near %s", jsonStr, host, lastCheck, want)
 				}
 			} else {
@@ -534,7 +534,7 @@ func checkHostState(t *testing.T, host, state string) {
 
 func TestEnableDisableHost(t *testing.T) {
 	args, cmdStr := prepareCommand("gateway1", 2022, "hostname")
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
 	defer cancel()
 
 	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -611,7 +611,7 @@ func TestEtcdUsers(t *testing.T) {
 	// remove old connections stored in etcd
 	time.Sleep(4 * time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
 	defer cancel()
 
 	ch := make(chan *os.Process)
@@ -654,7 +654,7 @@ func TestEtcdGroups(t *testing.T) {
 	// remove old connections stored in etcd
 	time.Sleep(4 * time.Second)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60 * time.Second)
 	defer cancel()
 
 	ch := make(chan *os.Process)
@@ -734,7 +734,7 @@ func TestSFTP(t *testing.T) {
 		downloadFile := fmt.Sprintf("/tmp/passwd.%d", i)
 		prepareSFTPBatchCommands(batchFile, downloadFile)
 
-		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 20 * time.Second)
 		defer cancel()
 		ch := make(chan *os.Process, 1)
 		go func() {
@@ -765,7 +765,7 @@ func TestOnlySFTP(t *testing.T) {
 	downloadFile := "/tmp/passwd.onlySFTP"
 	prepareSFTPBatchCommands(batchFile, downloadFile)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 25 * time.Second)
 	defer cancel()
 	ch := make(chan *os.Process, 1)
 	go func() {
@@ -819,7 +819,7 @@ func TestSCP(t *testing.T) {
 			defer removeLineSSHProxyConf(line)
 		}
 		for _, tt := range scpTests {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
 			defer cancel()
 			_, _, _, err := runCommand(ctx, "scp", []string{"-P", strconv.Itoa(tt.port), tt.source, tt.dest}, nil, nil)
 			if err != nil {
