@@ -79,12 +79,13 @@ fmt:
 	$(GO) fmt $(PKGS)
 	$(GO) fmt $(TEST)
 
+get-old-deps:
+	$(GO) get -u honnef.co/go/tools/cmd/staticcheck@2021.1.2
+
 get-deps:
-	$(GO) get -u golang.org/x/lint/golint honnef.co/go/tools/cmd/staticcheck
+	$(GO) get -u honnef.co/go/tools/cmd/staticcheck
 
 check:
-	golint $(PKGS)
-	golint $(TEST)
 	$(GO) vet ./...
 	$(GO) vet $(TEST)
 	staticcheck ./...
@@ -97,4 +98,4 @@ test:
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy_*.tar.gz
 
-.PHONY: all exe doc install install-doc-man install-binaries fmt get-deps check clean test
+.PHONY: all exe doc install install-doc-man install-binaries package fmt get-old-deps get-deps check test clean

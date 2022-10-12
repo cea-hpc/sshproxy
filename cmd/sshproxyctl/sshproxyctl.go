@@ -1,4 +1,4 @@
-// Copyright 2015-2021 CEA/DAM/DIF
+// Copyright 2015-2022 CEA/DAM/DIF
 //  Author: Arnaud Guignard <arnaud.guignard@cea.fr>
 //  Contributor: Cyril Servant <cyril.servant@cea.fr>
 //
@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"sort"
 	"strconv"
@@ -550,7 +551,7 @@ The options are:
 }
 
 func getHostPortFromCommandLine(args []string) (string, string, error) {
-	host, port := "", "22"
+	host, port := "", defaultHostPort
 	switch len(args) {
 	case 2:
 		host, port = args[0], args[1]
@@ -563,6 +564,9 @@ func getHostPortFromCommandLine(args []string) (string, string, error) {
 		return "", "", fmt.Errorf("port must be an integer")
 	} else if iport < 0 || iport > 65535 {
 		return "", "", fmt.Errorf("port must be in the 0-65535 range")
+	}
+	if _, _, err := net.SplitHostPort(host + ":" + port); err != nil {
+		return "", "", fmt.Errorf("%s", err)
 	}
 	return host, port, nil
 }

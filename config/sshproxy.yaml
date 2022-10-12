@@ -136,7 +136,7 @@
 # command asked by the user. If command_must_match is set to true, then the
 # connection is closed if the original command is not the same as the
 # force_command. command_must_match defaults to false. etcd_keyttl defauts to
-# 0. If a value is set (in seconds), the chosen backen will be remembered for
+# 0. If a value is set (in seconds), the chosen backend will be remembered for
 # this amount of time. Environment variables can be set if needed. The '{user}'
 # pattern will be replaced with the user login.
 #routes:

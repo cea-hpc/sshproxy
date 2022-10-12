@@ -1,4 +1,4 @@
-// Copyright 2015-2021 CEA/DAM/DIF
+// Copyright 2015-2022 CEA/DAM/DIF
 //  Author: Arnaud Guignard <arnaud.guignard@cea.fr>
 //  Contributor: Cyril Servant <cyril.servant@cea.fr>
 //

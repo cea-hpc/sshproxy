@@ -208,7 +208,7 @@ for every connections.  Finally, the force_command can be set to override the
 command asked by the user. If command_must_match is set to true, then the
 connection is closed if the original command is not the same as the
 force_command. command_must_match defaults to false. etcd_keyttl defauts to 0.
-If a value is set (in seconds), the chosen backen will be remembered for this
+If a value is set (in seconds), the chosen backend will be remembered for this
 amount of time. An associative array *environment* can be used to set
 environment variables. The pattern '\{user}' will be replaced with the user
 login.
@@ -334,7 +334,7 @@ Servant <cyril.servant@cea.fr>.
 
 COPYING
 -------
-Copyright (C) 2015-2021 CEA/DAM/DIF. Free use of this software is granted
+Copyright (C) 2015-2022 CEA/DAM/DIF. Free use of this software is granted
 under the term of the CeCILL-B license.
 
 // vim:tw=78:ft=asciidoc:

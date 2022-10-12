@@ -58,7 +58,7 @@ and +sshproxy-replay+ in +/usr/bin+.
 Configuration
 -------------
 
-There are commented configuration files in the +config+ directory.
+There is a commented configuration file in the +config+ directory.
 
 Configure +/etc/sshproxy/sshproxy.yaml+ to suit your needs.
 
@@ -69,7 +69,7 @@ Modify the SSH daemon configuration +/etc/ssh/sshd_config+ by adding:
 Copying
 -------
 
-Copyright (C) 2015-2021 CEA/DAM/DIF
+Copyright (C) 2015-2022 CEA/DAM/DIF
 
 sshproxy is distributed under the CeCILL-B, a French transposition of the BSD
 license. See the included files +Licence_CeCILL-B_V1-en.txt+ (English version)
