@@ -23,6 +23,8 @@ import (
 var (
 	defaultSSHExe  = "ssh"
 	defaultSSHArgs = []string{"-q", "-Y"}
+	defaultRoutes  = map[string]*RouteConfig{"default": &RouteConfig{
+		Dest: []string{}}}
 )
 
 // Config represents the configuration for sshproxy.
@@ -217,6 +219,10 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 
 	if config.SSH.Args == nil {
 		config.SSH.Args = defaultSSHArgs
+	}
+
+	if config.Routes == nil {
+		config.Routes = defaultRoutes
 	}
 
 	// we have to use a slice of maps in order to have ordered maps
