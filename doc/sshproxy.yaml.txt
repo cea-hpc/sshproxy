@@ -65,6 +65,8 @@ The subdirectories will be created if needed with the user as owner. So the
 user needs to have the right to write in this directory. For example:
 '/var/spool/sshproxy/\{user}/\{time}-\{sid}.dump'
 
+It can also be "etcd", in order to store stats into etcd.
+
 It can also be a network address where to send dumps if specified as
 'TCP:host:port' (the TCP is case sensitive), e.g.  'TCP:collector:5555'.
 
@@ -99,20 +101,10 @@ It can also be a network address where to send dumps if specified as
 
 Commands can be translated between what is received by sshproxy and what is
 executed by the ssh forked by sshproxy. *translate_commands* is an associative
-array which keys are strings containing the exact user command. The value is
-an associative array containing:
-
-An associative array *ssh* specifies the SSH options:
-
-*exe*::
-	path or command to use for the SSH client ('ssh' by default).
-
-*args*::
-	a list of arguments for the SSH client. Its default value is: '["-q",
-	"-Y"]'.
-
-*disable_dump*::
-	false by default. If true, no dumps will be done for this command.
+array whose keys are strings containing the exact user command.  *ssh_args*
+contains an optional list of options that will be passed to ssh. *command* is
+a mandatory string, the actual executed command.  *disable_dump* is false by
+default. If true, no dumps will be done for this command.
 
 For example, we can have the following:
 
@@ -127,6 +119,15 @@ For example, we can have the following:
 	            - "-s"
 	        command: "sftp"
 	        disable_dump: true
+
+An associative array *ssh* specifies the SSH options:
+
+*exe*::
+	path or command to use for the SSH client ('ssh' by default).
+
+*args*::
+	a list of arguments for the SSH client. Its default value is: '["-q",
+	"-Y"]'.
 
 etcd configuration is provided in an associative array *etcd* whose keys are:
 
