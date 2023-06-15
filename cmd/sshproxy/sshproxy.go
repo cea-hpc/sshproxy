@@ -1,4 +1,4 @@
-// Copyright 2015-2022 CEA/DAM/DIF
+// Copyright 2015-2023 CEA/DAM/DIF
 //  Author: Arnaud Guignard <arnaud.guignard@cea.fr>
 //  Contributor: Cyril Servant <cyril.servant@cea.fr>
 //
@@ -334,7 +334,10 @@ func mainExitCode() int {
 	case err != nil:
 		log.Fatalf("Finding destination: %s", err)
 	case hostport == "":
-		errorBanner, _, _ := cli.GetErrorBanner()
+		errorBanner := ""
+		if cli != nil && cli.IsAlive() {
+			errorBanner, _, _ = cli.GetErrorBanner()
+		}
 		if errorBanner == "" {
 			errorBanner = config.ErrorBanner
 		}
