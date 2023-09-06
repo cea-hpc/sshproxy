@@ -32,9 +32,10 @@ import (
 type State int
 
 // These are the possible states of an host:
-//   Up: host is up,
-//   Down: host is down,
-//   Disabled: host was disabled by an admin.
+//
+//	Up: host is up,
+//	Down: host is down,
+//	Disabled: host was disabled by an admin.
 const (
 	Unknown State = iota
 	Up
@@ -529,6 +530,35 @@ func (c *Client) GetAllConnections() ([]*FlatConnection, error) {
 	return conns, nil
 }
 
+// GetUserConnectionsCount returns the number of active connections of a user, based on etcd.
+func (c *Client) GetUserConnectionsCount(username string) (int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Get(ctx, etcdConnectionsPath, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+	cancel()
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, ev := range resp.Kvs {
+		subkey := string(ev.Key)[len(etcdConnectionsPath)+1:]
+		fields := strings.Split(subkey, "/")
+		if len(fields) != 4 {
+			return 0, fmt.Errorf("bad key format %s", subkey)
+		}
+
+		subfields := strings.Split(fields[0], "@")
+		if len(subfields) != 2 {
+			return 0, fmt.Errorf("bad subkey format %s", fields[0])
+		}
+		if subfields[0] == username {
+			count++
+		}
+	}
+
+	return count, nil
+}
+
 // FlatHost is a structure used to flatten a host informations present in etcd.
 type FlatHost struct {
 	Hostname string
@@ -539,7 +569,7 @@ type FlatHost struct {
 	*Host
 }
 
-// GetUserHosts returns a list of hosts used by a user, based on etcd.
+// GetUserHosts returns a list of hosts used by a user@service, based on etcd.
 func (c *Client) GetUserHosts(key string) (map[string]*FlatHost, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
 	resp, err := c.cli.Get(ctx, etcdConnectionsPath, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))

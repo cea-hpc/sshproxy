@@ -167,7 +167,6 @@ func setEnvironment(environment map[string]string) {
 	}
 }
 
-//
 func usage() {
 	fmt.Fprintf(os.Stderr, "usage: sshproxy [config]\n")
 	flag.PrintDefaults()
@@ -318,6 +317,7 @@ func mainExitCode() int {
 	for k, v := range config.Routes {
 		log.Debugf("config.routes.%s = %+v", k, v)
 	}
+	log.Debugf("config.max_connections_per_user = %d", config.MaxConnectionsPerUser)
 	log.Debugf("config.ssh.exe = %s", config.SSH.Exe)
 	log.Debugf("config.ssh.args = %v", config.SSH.Args)
 
@@ -327,6 +327,24 @@ func mainExitCode() int {
 	cli, err := utils.NewEtcdClient(config, log)
 	if err != nil {
 		log.Errorf("Cannot contact etcd cluster to update state: %v", err)
+	}
+
+	if cli != nil && cli.IsAlive() {
+		if config.MaxConnectionsPerUser > 0 {
+			userConnectionsCount, err := cli.GetUserConnectionsCount(username)
+			if err != nil {
+				log.Fatalf("Getting user connections count: %s", err)
+			}
+			log.Debugf("Number of connections of %s: %d", username, userConnectionsCount)
+			if userConnectionsCount >= config.MaxConnectionsPerUser {
+				fmt.Fprintln(os.Stderr, "Too many simultaneous connections")
+				log.Fatalf("Max connections per user reached for %s", username)
+			}
+		}
+	} else {
+		if config.Etcd.Mandatory {
+			log.Fatal("Etcd is mandatory but unavailable")
+		}
 	}
 
 	service, hostport, forceCommand, commandMustMatch, etcdKeyTTL, environment, err := findDestination(cli, username, config.Routes, sshInfos.Dst(), config.CheckInterval)

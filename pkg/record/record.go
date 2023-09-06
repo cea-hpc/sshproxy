@@ -18,16 +18,17 @@
 // - data.
 //
 // A file record has a header with the following fields:
-// - an unsigned 16 bits integer for the version number,
-// - an unsigned 16 bits integer indicating the header size (from byte 0 to the
-//   start of the first record),
-// - an unsigned 128 bits integer for the source IP address,
-// - an unsigned 16 bits integer for the source port,
-// - an unsigned 128 bits integer for the destination IP address,
-// - an unsigned 16 bits integer for the destination port,
-// - an unsigned 64 bits integer for the start of connection (in ns),
-// - a NULL terminated string with the user name,
-// - a NULL terminated string with the command run by the user (can be empty
+//   - an unsigned 16 bits integer for the version number,
+//   - an unsigned 16 bits integer indicating the header size (from byte 0 to the
+//     start of the first record),
+//   - an unsigned 128 bits integer for the source IP address,
+//   - an unsigned 16 bits integer for the source port,
+//   - an unsigned 128 bits integer for the destination IP address,
+//   - an unsigned 16 bits integer for the destination port,
+//   - an unsigned 64 bits integer for the start of connection (in ns),
+//   - a NULL terminated string with the user name,
+//   - a NULL terminated string with the command run by the user (can be empty
+//
 // with only its NULL end).
 //
 // All integers are big endian.

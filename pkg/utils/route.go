@@ -20,7 +20,7 @@ import (
 	"github.com/op/go-logging"
 )
 
-var mylog = logging.MustGetLogger("sshproxy/route")
+var mylog = logging.MustGetLogger("sshproxy")
 
 type selectDestinationFunc func([]string, HostChecker, *Client, string) (string, error)
 

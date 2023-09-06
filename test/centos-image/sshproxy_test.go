@@ -1,3 +1,4 @@
+//go:build docker
 // +build docker
 
 package main
@@ -339,6 +340,56 @@ func TestEtcdConnections(t *testing.T) {
 	if len(connections) != 0 {
 		t.Errorf("%s found %d connections, want 0", jsonStr, len(connections))
 		return
+	}
+}
+
+func TestWithoutEtcd(t *testing.T) {
+	updateLineSSHProxyConf("endpoints", "[\"https:\\/\\/void:2379\"]")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	args, cmdStr := prepareCommand("gateway1", 2023, "hostname")
+	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	updateLineSSHProxyConf("endpoints", "[\"https:\\/\\/etcd:2379\"]")
+	if err != nil {
+		log.Fatal(err)
+	}
+	dest := strings.TrimSpace(string(stdout))
+	if dest != "server1" {
+		t.Errorf("%s got %s, expected server1", cmdStr, dest)
+	}
+
+	updateLineSSHProxyConf("endpoints", "[\"https:\\/\\/void:2379\"]")
+	updateLineSSHProxyConf("mandatory", "true")
+	_, _, _, err = runCommand(ctx, "ssh", args, nil, nil)
+	updateLineSSHProxyConf("endpoints", "[\"https:\\/\\/etcd:2379\"]")
+	updateLineSSHProxyConf("mandatory", "false")
+	if err == nil {
+		t.Error("the connection should have been rejected")
+	}
+}
+
+func TestMaxConnectionsPerUser(t *testing.T) {
+	// remove old connections stored in etcd
+	time.Sleep(4 * time.Second)
+
+	updateLineSSHProxyConf("max_connections_per_user", "1")
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	args, _ := prepareCommand("gateway1", 2023, "sleep 20")
+	ch := make(chan *os.Process)
+	go func() {
+		runCommand(ctx, "ssh", args, nil, ch)
+	}()
+	process1 := <-ch
+
+	time.Sleep(time.Second)
+
+	args, _ = prepareCommand("gateway1", 2023, "hostname")
+	_, _, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	process1.Kill()
+	updateLineSSHProxyConf("max_connections_per_user", "0")
+	if err == nil {
+		t.Error("the second connection should have been rejected")
 	}
 }
 

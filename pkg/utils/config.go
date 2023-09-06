@@ -29,23 +29,24 @@ var (
 
 // Config represents the configuration for sshproxy.
 type Config struct {
-	Debug             bool
-	Log               string
-	CheckInterval     Duration `yaml:"check_interval"`
-	ErrorBanner       string   `yaml:"error_banner"`
-	Dump              string
-	DumpLimitSize     uint64   `yaml:"dump_limit_size"`
-	DumpLimitWindow   Duration `yaml:"dump_limit_window"`
-	Etcd              etcdConfig
-	EtcdStatsInterval Duration `yaml:"etcd_stats_interval"`
-	LogStatsInterval  Duration `yaml:"log_stats_interval"`
-	BgCommand         string   `yaml:"bg_command"`
-	SSH               sshConfig
-	TranslateCommands map[string]*TranslateCommandConfig `yaml:"translate_commands"`
-	Environment       map[string]string
-	Routes            map[string]*RouteConfig
-	Users             []map[string]subConfig
-	Groups            []map[string]subConfig
+	Debug                 bool
+	Log                   string
+	CheckInterval         Duration `yaml:"check_interval"`
+	ErrorBanner           string   `yaml:"error_banner"`
+	Dump                  string
+	DumpLimitSize         uint64   `yaml:"dump_limit_size"`
+	DumpLimitWindow       Duration `yaml:"dump_limit_window"`
+	Etcd                  etcdConfig
+	EtcdStatsInterval     Duration `yaml:"etcd_stats_interval"`
+	LogStatsInterval      Duration `yaml:"log_stats_interval"`
+	BgCommand             string   `yaml:"bg_command"`
+	SSH                   sshConfig
+	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands"`
+	Environment           map[string]string
+	Routes                map[string]*RouteConfig
+	MaxConnectionsPerUser int `yaml:"max_connections_per_user"`
+	Users                 []map[string]subConfig
+	Groups                []map[string]subConfig
 }
 
 // TranslateCommandConfig represents the configuration of a translate_command.
@@ -82,6 +83,7 @@ type etcdConfig struct {
 	Username  string
 	Password  string
 	KeyTTL    int64
+	Mandatory bool
 }
 
 type etcdTLSConfig struct {
@@ -93,19 +95,20 @@ type etcdTLSConfig struct {
 // We use interface{} instead of real type to check if the option was specified
 // or not.
 type subConfig struct {
-	Debug             interface{}
-	Log               interface{}
-	ErrorBanner       interface{} `yaml:"error_banner"`
-	Dump              interface{}
-	DumpLimitSize     interface{}                        `yaml:"dump_limit_size"`
-	DumpLimitWindow   interface{}                        `yaml:"dump_limit_window"`
-	EtcdStatsInterval interface{}                        `yaml:"etcd_stats_interval"`
-	LogStatsInterval  interface{}                        `yaml:"log_stats_interval"`
-	BgCommand         interface{}                        `yaml:"bg_command"`
-	TranslateCommands map[string]*TranslateCommandConfig `yaml:"translate_commands"`
-	Environment       map[string]string
-	Routes            map[string]*RouteConfig
-	SSH               sshConfig
+	Debug                 interface{}
+	Log                   interface{}
+	ErrorBanner           interface{} `yaml:"error_banner"`
+	Dump                  interface{}
+	DumpLimitSize         interface{}                        `yaml:"dump_limit_size"`
+	DumpLimitWindow       interface{}                        `yaml:"dump_limit_window"`
+	EtcdStatsInterval     interface{}                        `yaml:"etcd_stats_interval"`
+	LogStatsInterval      interface{}                        `yaml:"log_stats_interval"`
+	BgCommand             interface{}                        `yaml:"bg_command"`
+	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands"`
+	Environment           map[string]string
+	Routes                map[string]*RouteConfig
+	MaxConnectionsPerUser interface{} `yaml:"max_connections_per_user"`
+	SSH                   sshConfig
 }
 
 func parseSubConfig(config *Config, subconfig *subConfig) error {
@@ -168,6 +171,10 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 	// merge routes
 	for service, opts := range subconfig.Routes {
 		config.Routes[service] = opts
+	}
+
+	if subconfig.MaxConnectionsPerUser != nil {
+		config.MaxConnectionsPerUser = subconfig.MaxConnectionsPerUser.(int)
 	}
 
 	// merge translate_commands

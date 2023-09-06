@@ -91,6 +91,8 @@
 # - password: password if basic authentication is enabled.
 # - keyttl: time to live in second for a connection stored in etcd after it has
 #   ended. Default is 5 seconds.
+# - mandatory: if true, connections will be allowed only if etcd is available.
+#   Default is false.
 #etcd:
 #    endpoints:
 #        - "host1:port1"
@@ -102,6 +104,7 @@
 #    username: ""
 #    password: ""
 #    keyttl: 5
+#    mandatory: false
 
 # Environment.
 # Environment variables can be set if needed. The '{user}' pattern will be
@@ -113,6 +116,11 @@
 #ssh:
 #    exe: ssh
 #    args: ["-q", "-Y"]
+
+# Maximum number of connections allowed per user.  Connections are counted in
+# the etcd database. If set to 0, there is no limit number of connections per
+# user. Default is 0.
+#max_connections_per_user: 0
 
 # Routes definition.
 # The key is the service name (only used for display). The special service name

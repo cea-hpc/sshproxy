@@ -28,6 +28,7 @@ cat <<EOF >/etc/sshproxy/sshproxy.yaml
 ---
 debug: true
 log: /tmp/sshproxy-{user}.log
+max_connections_per_user: 0
 environment:
     XMODIFIERS: globalEnv_{user}
 ssh:
@@ -46,8 +47,7 @@ translate_commands:
         disable_dump: true
 
 etcd:
-    endpoints:
-        - "https://etcd:2379"
+    endpoints: ["https://etcd:2379"]
     tls:
         cafile: "/etc/etcd/ca.pem"
         keyfile: "/etc/etcd/sshproxy-key.pem"
@@ -55,6 +55,7 @@ etcd:
     username: "sshproxy"
     password: "sshproxy"
     keyttl: 1
+    mandatory: false
 
 routes:
     service1:

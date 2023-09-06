@@ -99,6 +99,11 @@ It can also be a network address where to send dumps if specified as
 	suffix such as 'h', 'm' and 's' (e.g. '2m30s'). These statistics are
 	only available when the 'dump' option is set.
 
+*max_connections_per_user*::
+	an integer setting the maximum number of connections allowed per user.
+	Connections are counted in the etcd database. If set to 0, there is no
+	limit number of connections per user. Default is 0.
+
 Commands can be translated between what is received by sshproxy and what is
 executed by the ssh forked by sshproxy. *translate_commands* is an associative
 array whose keys are strings containing the exact user command.  *ssh_args*
@@ -150,6 +155,10 @@ etcd configuration is provided in an associative array *etcd* whose keys are:
 	is up. It will be removed from etcd after this number of seconds.
 	Default is 5 seconds.
 
+*mandatory*::
+	a boolean. If true, connections will be allowed only if etcd is
+	available.  Default is false.
+
 For example, we can have the following:
 
 	etcd:
@@ -161,6 +170,7 @@ For example, we can have the following:
 	        certfile: "/etc/sshproxy/sshproxy.pem"
 	    username: "sshproxy"
 	    password: "sshproxypassword"
+	    mandatory: true
 
 An associative array *environment* can be used to set environment variables.
 The pattern '\{user}' will be replaced with the user login:
