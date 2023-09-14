@@ -169,6 +169,9 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 	}
 
 	// merge routes
+	if config.Routes == nil {
+		config.Routes = defaultRoutes
+	}
 	for service, opts := range subconfig.Routes {
 		config.Routes[service] = opts
 	}
@@ -226,10 +229,6 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 
 	if config.SSH.Args == nil {
 		config.SSH.Args = defaultSSHArgs
-	}
-
-	if config.Routes == nil {
-		config.Routes = defaultRoutes
 	}
 
 	// we have to use a slice of maps in order to have ordered maps
