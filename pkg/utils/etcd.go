@@ -13,10 +13,13 @@ package utils
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -25,7 +28,6 @@ import (
 
 	"github.com/op/go-logging"
 	"go.etcd.io/etcd/client/v3"
-	"go.etcd.io/etcd/pkg/transport"
 )
 
 // State of a host.
@@ -133,30 +135,22 @@ type Bandwidth struct {
 // NewEtcdClient creates a new etcd client.
 func NewEtcdClient(config *Config, log *logging.Logger) (*Client, error) {
 	var tlsConfig *tls.Config
-	var pTLSInfo *transport.TLSInfo
-	tlsInfo := transport.TLSInfo{}
 
-	if config.Etcd.TLS.CertFile != "" {
-		tlsInfo.CertFile = config.Etcd.TLS.CertFile
-		pTLSInfo = &tlsInfo
-	}
-
-	if config.Etcd.TLS.KeyFile != "" {
-		tlsInfo.KeyFile = config.Etcd.TLS.KeyFile
-		pTLSInfo = &tlsInfo
-	}
-
-	if config.Etcd.TLS.CAFile != "" {
-		tlsInfo.TrustedCAFile = config.Etcd.TLS.CAFile
-		pTLSInfo = &tlsInfo
-	}
-
-	if pTLSInfo != nil {
-		var err error
-		tlsConfig, err = tlsInfo.ClientConfig()
+	if config.Etcd.TLS.CertFile != "" && config.Etcd.TLS.KeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(config.Etcd.TLS.CertFile, config.Etcd.TLS.KeyFile)
 		if err != nil {
 			return nil, fmt.Errorf("configuring TLS for etcd: %v", err)
 		}
+		cfg := &tls.Config{Certificates: []tls.Certificate{cert}}
+
+		if config.Etcd.TLS.CAFile != "" {
+			cfg.RootCAs, err = newCertPool(config.Etcd.TLS.CAFile)
+			if err != nil {
+				return nil, fmt.Errorf("configuring TLS for etcd: %v", err)
+			}
+		}
+
+		tlsConfig = cfg
 	}
 
 	cli, err := clientv3.New(clientv3.Config{
@@ -183,6 +177,31 @@ func NewEtcdClient(config *Config, log *logging.Logger) (*Client, error) {
 		keyTTL:         keyTTL,
 		active:         true,
 	}, nil
+}
+
+// NewCertPool creates x509 certPool with provided CA files.
+func newCertPool(CAFile string) (*x509.CertPool, error) {
+	certPool := x509.NewCertPool()
+
+	pemByte, err := os.ReadFile(CAFile)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		var block *pem.Block
+		block, pemByte = pem.Decode(pemByte)
+		if block == nil {
+			break
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return nil, err
+		}
+		certPool.AddCert(cert)
+	}
+
+	return certPool, nil
 }
 
 // Close terminates the etcd client.

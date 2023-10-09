@@ -20,8 +20,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/moby/term"
 	"github.com/kr/pty"
+	"github.com/moby/term"
 )
 
 // runCommand executes the *exec.Cmd command and waits for its completion.
