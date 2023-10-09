@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -94,10 +93,10 @@ func runCommand(ctx context.Context, name string, args []string, env []string, p
 		processChan <- cmd.Process
 	}
 
-	stdout, _ := ioutil.ReadAll(stdoutPipe)
+	stdout, _ := io.ReadAll(stdoutPipe)
 	stderr := []byte{}
 	if ctx.Err() != context.DeadlineExceeded {
-		stderr, _ = ioutil.ReadAll(stderrPipe)
+		stderr, _ = io.ReadAll(stderrPipe)
 	}
 
 	err = cmd.Wait()

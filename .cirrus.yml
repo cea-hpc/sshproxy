@@ -2,31 +2,9 @@ task:
   env:
     GOPROXY: https://proxy.golang.org
     matrix:
-      VERSION: 1.15
-      VERSION: 1.16
-
-  container:
-    image: golang:$VERSION
-
-  name: test-$VERSION
-
-  test_script:
-    - apt-get update
-    - apt-get install -y asciidoc docbook-utils docbook-xml libxml2-utils xsltproc
-    - GOPATH=/tmp/go
-    - PATH="$PATH:$GOPATH/bin"
-    - mkdir -p $GOPATH/src/github.com/cea-hpc
-    - mv /tmp/cirrus-ci-build $GOPATH/src/github.com/cea-hpc/sshproxy
-    - cd $GOPATH/src/github.com/cea-hpc/sshproxy
-    - make
-    - make get-old-deps check
-
-task:
-  env:
-    GOPROXY: https://proxy.golang.org
-    matrix:
-      VERSION: 1.17
-      VERSION: 1.18
+      VERSION: 1.19
+      VERSION: 1.20
+      VERSION: 1.21
 
   container:
     image: golang:$VERSION

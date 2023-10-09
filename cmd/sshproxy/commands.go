@@ -20,7 +20,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/term"
 	"github.com/kr/pty"
 )
 

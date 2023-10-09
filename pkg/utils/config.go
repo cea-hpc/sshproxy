@@ -12,7 +12,7 @@ package utils
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -207,7 +207,7 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		"{time}": {regexp.MustCompile(`{time}`), start.Format(time.RFC3339Nano)},
 	}
 
-	yamlFile, err := ioutil.ReadFile(filename)
+	yamlFile, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}

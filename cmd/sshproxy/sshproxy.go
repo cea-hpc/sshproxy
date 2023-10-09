@@ -30,9 +30,9 @@ import (
 
 	"github.com/cea-hpc/sshproxy/pkg/utils"
 
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/term"
 	"github.com/op/go-logging"
-	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/client/v3"
 )
 
 var (

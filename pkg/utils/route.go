@@ -87,7 +87,6 @@ func selectDestinationOrdered(destinations []string, checker HostChecker, cli *C
 // destinations and selects the first reachable one. It returns its host and
 // port.
 func selectDestinationRandom(destinations []string, checker HostChecker, cli *Client, key string) (string, error) {
-	rand.Seed(time.Now().UnixNano())
 	rdestinations := make([]string, len(destinations))
 	perm := rand.Perm(len(destinations))
 	for i, v := range perm {
@@ -126,7 +125,6 @@ func selectDestinationConnections(destinations []string, checker HostChecker, cl
 			case hostsc[destinations[i]] != hostsc[destinations[j]]:
 				return hostsc[destinations[i]] < hostsc[destinations[j]]
 			default:
-				rand.Seed(time.Now().UnixNano())
 				return rand.Intn(2) != 0
 			}
 		})
@@ -165,7 +163,6 @@ func selectDestinationBandwidth(destinations []string, checker HostChecker, cli 
 			case hostsbw[destinations[i]] != hostsbw[destinations[j]]:
 				return hostsbw[destinations[i]] < hostsbw[destinations[j]]
 			default:
-				rand.Seed(time.Now().UnixNano())
 				return rand.Intn(2) != 0
 			}
 		})

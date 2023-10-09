@@ -1,4 +1,4 @@
-// Copyright 2015 The etcd Authors
+// Copyright 2015 CoreOS, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,12 +30,17 @@ type keepAliveConn interface {
 // Be careful when wrap around KeepAliveListener with another Listener if TLSInfo is not nil.
 // Some pkgs (like go/http) might expect Listener to return TLSConn type to start TLS handshake.
 // http://tldp.org/HOWTO/TCP-Keepalive-HOWTO/overview.html
-func NewKeepAliveListener(l net.Listener, scheme string, tlscfg *tls.Config) (net.Listener, error) {
+func NewKeepAliveListener(l net.Listener, scheme string, info TLSInfo) (net.Listener, error) {
 	if scheme == "https" {
-		if tlscfg == nil {
+		if info.Empty() {
 			return nil, fmt.Errorf("cannot listen on TLS for given listener: KeyFile and CertFile are not presented")
 		}
-		return newTLSKeepaliveListener(l, tlscfg), nil
+		cfg, err := info.ServerConfig()
+		if err != nil {
+			return nil, err
+		}
+
+		return newTLSKeepaliveListener(l, cfg), nil
 	}
 
 	return &keepaliveListener{
@@ -79,7 +84,7 @@ func (l *tlsKeepaliveListener) Accept() (c net.Conn, err error) {
 	kac.SetKeepAlive(true)
 	kac.SetKeepAlivePeriod(30 * time.Second)
 	c = tls.Server(c, l.config)
-	return c, nil
+	return
 }
 
 // NewListener creates a Listener which accepts connections from an inner

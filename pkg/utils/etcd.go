@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/op/go-logging"
-	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/pkg/transport"
 )
 
