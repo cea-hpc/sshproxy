@@ -2,6 +2,8 @@
 
 set -eux
 
+git config --global --add safe.directory /sshproxy
+
 # Create rpmbuild directories
 mkdir -p /root/rpmbuild/SOURCES
 mkdir -p /root/rpmbuild/SPECS

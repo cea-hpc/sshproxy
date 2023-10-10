@@ -2,7 +2,6 @@ task:
   env:
     GOPROXY: https://proxy.golang.org
     matrix:
-      VERSION: 1.19
       VERSION: 1.20
       VERSION: 1.21
 

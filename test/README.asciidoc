@@ -44,22 +44,14 @@ diff --git a/test/docker-compose.yaml b/test/docker-compose.yaml
 index 65ae927..0621932 100644
 --- a/test/docker-compose.yaml
 +++ b/test/docker-compose.yaml
-@@ -5,14 +5,14 @@ services:
-         container_name: tester
-         hostname: tester
-         build: centos-image
--        user: centos
--        working_dir: /home/centos
-+        volumes:
-+            - ../test:/sshproxy-test
-         depends_on:
-             - gateway1
-             - gateway2
+@@ -13,8 +13,8 @@ services:
              - server1
              - server2
              - server3
+-        #command: ["/usr/bin/sleep", "1000"]
 -        command: ["/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
-+        command: ["/usr/sbin/sshd", "-De"]
++        command: ["/usr/bin/sleep", "1000"]
++        #command: ["/usr/bin/go", "test", "-v", "-failfast", "-tags", "docker", "./sshproxy_test.go"]
  
      gateway1:
          container_name: gateway1
@@ -72,13 +64,7 @@ Then we start (and build if necessary) all containers:
 Once every container is started, we can connect to the tester container:
 
 	$ docker-compose exec tester /bin/bash
-	[root@tester /]#
-
-It is then recommended to change the test file by a link to the one found in
-the repository (thanks to the volume mounted in the container):
-
-	[root@tester /]# su - centos
-	[centos@tester ~]$ ln -s -f /sshproxy-test/centos-image/sshproxy_test.go
+	[centos@tester ~]$
 
 We then use the +go test+ command to run the tests:
 

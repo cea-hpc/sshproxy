@@ -1,10 +1,9 @@
-FROM centos:7
+FROM fedora:latest
 
 # Install development environment to compile RPM
 RUN set -ex \
-	&& yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
 	&& yum -y update \
-	&& yum -y install asciidoc etcd git golang iproute make openssh-server rpm-build
+	&& yum -y install asciidoc etcd git golang hostname iproute make openssh-server rpm-build
 
 # Create centos, user1 and user2 users ; centos and user1 groups
 RUN set -ex \

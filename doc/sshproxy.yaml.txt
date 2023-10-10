@@ -345,7 +345,7 @@ Servant <cyril.servant@cea.fr>.
 
 COPYING
 -------
-Copyright (C) 2015-2022 CEA/DAM/DIF. Free use of this software is granted
+Copyright (C) 2015-2023 CEA/DAM/DIF. Free use of this software is granted
 under the term of the CeCILL-B license.
 
 // vim:tw=78:ft=asciidoc:

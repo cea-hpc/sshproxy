@@ -9,7 +9,7 @@ Summary:        SSH proxy
 License:        CeCILL-B
 Source:         https://github.com/cea-hpc/%{name}/archive/v%{version}/%{name}-%{version}.tar.gz
 ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 %{arm} aarch64}
-BuildRequires:  %{?go_compiler:compiler(go-compiler)}%{!?go_compiler:golang}
+BuildRequires:  golang
 BuildRequires:  asciidoc
 
 Summary:        SSH proxy

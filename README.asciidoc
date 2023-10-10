@@ -31,7 +31,8 @@ be replayed with the +sshproxy-replay+ command.
 Compilation
 -----------
 
-Install the Go compiler suite: see http://golang.org/doc/install for details.
+Install the Go (version >= 1.20) compiler suite: see
+http://golang.org/doc/install for details.
 
 Define and export the +$GOPATH+ directory where the source code will be
 unpacked (e.g. '$HOME/go'):
@@ -69,7 +70,7 @@ Modify the SSH daemon configuration +/etc/ssh/sshd_config+ by adding:
 Copying
 -------
 
-Copyright (C) 2015-2022 CEA/DAM/DIF
+Copyright (C) 2015-2023 CEA/DAM/DIF
 
 sshproxy is distributed under the CeCILL-B, a French transposition of the BSD
 license. See the included files +Licence_CeCILL-B_V1-en.txt+ (English version)
