@@ -486,7 +486,7 @@ The commands are:
   hosts         show hosts stored in etcd
   users         show users stored in etcd
   groups        show groups stored in etcd
-  error_banner  show error banner stored in etcd and in configuration
+  error_banner  show error banners stored in etcd and in configuration
 
 The options are:
 `, os.Args[0])
