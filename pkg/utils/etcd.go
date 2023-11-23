@@ -28,6 +28,8 @@ import (
 
 	"github.com/op/go-logging"
 	"go.etcd.io/etcd/client/v3"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 // State of a host.
@@ -159,6 +161,13 @@ func NewEtcdClient(config *Config, log *logging.Logger) (*Client, error) {
 		TLS:         tlsConfig,
 		Username:    config.Etcd.Username,
 		Password:    config.Etcd.Password,
+		DialOptions: []grpc.DialOption{grpc.WithBlock()},
+		LogConfig: &zap.Config{
+			Level:            zap.NewAtomicLevelAt(zap.ErrorLevel),
+			Encoding:         "json",
+			OutputPaths:      []string{"/dev/null"},
+			ErrorOutputPaths: []string{"/dev/null"},
+		},
 	})
 
 	if err != nil {

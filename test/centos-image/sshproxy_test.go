@@ -940,7 +940,7 @@ func TestMain(m *testing.M) {
 		"gateway2:2023",
 		"gateway2:2024",
 		"gateway2:2025",
-	}, time.Minute)
+	}, 2*time.Minute)
 	setupEtcd()
 	os.Exit(m.Run())
 }
