@@ -3,7 +3,7 @@ FROM fedora:latest
 # Install development environment to compile RPM
 RUN set -ex \
 	&& yum -y update \
-	&& yum -y install asciidoc etcd git golang hostname iproute make openssh-server rpm-build
+	&& yum -y install asciidoc etcd git golang hostname iproute make openssh-server rpm-build procps
 
 # Create centos, user1 and user2 users ; centos and user1 groups
 RUN set -ex \

@@ -596,7 +596,7 @@ func TestEnableDisableHost(t *testing.T) {
 		t.Errorf("%s got %s, expected server1", cmdStr, dest)
 	}
 
-	disableHost("server1")
+	disableHost("server[1,100]")
 	checkHostState(t, "server1", "disabled")
 
 	_, stdout, _, err = runCommand(ctx, "ssh", args, nil, nil)

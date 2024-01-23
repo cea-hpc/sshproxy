@@ -40,19 +40,20 @@ COMMANDS
 	Show version number and exit.
 
 *enable HOST [PORT]*::
-	Enable a destination host in etcd. The host was previously disabled by
+	Enable a destination host in etcd if the host was previously disabled by
 	the 'disable' command (see below). The port by default is 22 if not
-	specified.
+	specified. Host and port can be nodesets.
 
 *disable HOST [PORT]*::
 	Disable a destination host in etcd. A disabled host will not be
 	proposed as a destination. The only way to enable it again is to send
 	the 'enable' command. It could be used for host maintenance. The port
-	by default is 22 if not specified.
+	by default is 22 if not specified. Host and port can be nodesets.
 
 *forget HOST [PORT]*::
-	Forget a host in etcd. The default port is 22. Remember that if this
-	host is used, it will appear back in the list.
+	Forget a host in etcd. Remember that if this host is used, it will
+	appear back in the list. The port by default is 22 if not specified.
+	Host and port can be nodesets.
 
 *error_banner [-expire] MESSAGE*::
 	Set the error banner in etcd. Removes the error banner in etcd if
