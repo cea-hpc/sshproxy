@@ -3,7 +3,7 @@
 %global debug_package   %{nil}
 
 Name:           sshproxy
-Version:        1.6.1
+Version:        1.6.2
 Release:        1%{?dist}
 Summary:        SSH proxy
 License:        CeCILL-B
@@ -51,6 +51,9 @@ install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}/sshproxy
 %{_mandir}/man8/sshproxy-replay.8*
 
 %changelog
+* Wed Jan 24 2024 Cyril Servant <cyril.servant@cea.fr> - 1.6.2-1
+- sshproxy 1.6.2
+
 * Mon Nov 27 2023 Cyril Servant <cyril.servant@cea.fr> - 1.6.1-1
 - sshproxy 1.6.1
 
