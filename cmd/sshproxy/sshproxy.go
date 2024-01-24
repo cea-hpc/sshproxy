@@ -298,28 +298,9 @@ func mainExitCode() int {
 	syslogformat := fmt.Sprintf("%%{level} %s: %%{message}", sid)
 	utils.MustSetupLogging("sshproxy", config.Log, logformat, syslogformat, config.Debug)
 
-	log.Debugf("groups = %v", groups)
-	log.Debugf("config.debug = %v", config.Debug)
-	log.Debugf("config.log = %s", config.Log)
-	log.Debugf("config.check_interval = %s", config.CheckInterval.Duration())
-	log.Debugf("config.error_banner = %s", config.ErrorBanner)
-	log.Debugf("config.dump = %s", config.Dump)
-	log.Debugf("config.dump_limit_size = %d", config.DumpLimitSize)
-	log.Debugf("config.dump_limit_window = %s", config.DumpLimitWindow.Duration())
-	log.Debugf("config.etcd_stats_interval = %s", config.EtcdStatsInterval.Duration())
-	log.Debugf("config.log_stats_interval = %s", config.LogStatsInterval.Duration())
-	log.Debugf("config.etcd = %+v", config.Etcd)
-	log.Debugf("config.bg_command = %s", config.BgCommand)
-	for k, v := range config.TranslateCommands {
-		log.Debugf("config.TranslateCommands.%s = %+v", k, v)
+	for _, configLine := range utils.PrintConfig(config, groups) {
+		log.Debug(configLine)
 	}
-	log.Debugf("config.environment = %v", config.Environment)
-	for k, v := range config.Routes {
-		log.Debugf("config.routes.%s = %+v", k, v)
-	}
-	log.Debugf("config.max_connections_per_user = %d", config.MaxConnectionsPerUser)
-	log.Debugf("config.ssh.exe = %s", config.SSH.Exe)
-	log.Debugf("config.ssh.args = %v", config.SSH.Args)
 
 	log.Infof("%s connected from %s to sshd listening on %s", username, sshInfos.Src(), sshInfos.Dst())
 	defer log.Info("disconnected")

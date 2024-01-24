@@ -111,6 +111,33 @@ type subConfig struct {
 	SSH                   sshConfig
 }
 
+// Return slice of strings containing formatted configuration values
+func PrintConfig(config *Config, groups map[string]bool) []string {
+	output := []string{fmt.Sprintf("groups = %v", groups)}
+	output = append(output, fmt.Sprintf("config.debug = %v", config.Debug))
+	output = append(output, fmt.Sprintf("config.log = %s", config.Log))
+	output = append(output, fmt.Sprintf("config.check_interval = %s", config.CheckInterval.Duration()))
+	output = append(output, fmt.Sprintf("config.error_banner = %s", config.ErrorBanner))
+	output = append(output, fmt.Sprintf("config.dump = %s", config.Dump))
+	output = append(output, fmt.Sprintf("config.dump_limit_size = %d", config.DumpLimitSize))
+	output = append(output, fmt.Sprintf("config.dump_limit_window = %s", config.DumpLimitWindow.Duration()))
+	output = append(output, fmt.Sprintf("config.etcd_stats_interval = %s", config.EtcdStatsInterval.Duration()))
+	output = append(output, fmt.Sprintf("config.log_stats_interval = %s", config.LogStatsInterval.Duration()))
+	output = append(output, fmt.Sprintf("config.etcd = %+v", config.Etcd))
+	output = append(output, fmt.Sprintf("config.bg_command = %s", config.BgCommand))
+	for k, v := range config.TranslateCommands {
+		output = append(output, fmt.Sprintf("config.TranslateCommands.%s = %+v", k, v))
+	}
+	output = append(output, fmt.Sprintf("config.environment = %v", config.Environment))
+	for k, v := range config.Routes {
+		output = append(output, fmt.Sprintf("config.routes.%s = %+v", k, v))
+	}
+	output = append(output, fmt.Sprintf("config.max_connections_per_user = %d", config.MaxConnectionsPerUser))
+	output = append(output, fmt.Sprintf("config.ssh.exe = %s", config.SSH.Exe))
+	output = append(output, fmt.Sprintf("config.ssh.args = %v", config.SSH.Args))
+	return output
+}
+
 func parseSubConfig(config *Config, subconfig *subConfig) error {
 	if subconfig.Debug != nil {
 		config.Debug = subconfig.Debug.(bool)

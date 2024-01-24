@@ -18,8 +18,10 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/user"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cea-hpc/sshproxy/pkg/utils"
@@ -443,6 +445,7 @@ The commands are:
   forget        forget a host in etcd
   disable       disable a host in etcd
   error_banner  set the error banner in etcd
+  get_config    display the calculated configuration
 
 The common options are:
 `, os.Args[0])
@@ -552,6 +555,24 @@ The options are:
 	return fs
 }
 
+func newGetConfigParser(userFlag *string, groupsFlag *string) *flag.FlagSet {
+	fs := flag.NewFlagSet("get_config", flag.ExitOnError)
+	fs.StringVar(userFlag, "user", "", "get the config for this specific user")
+	fs.StringVar(groupsFlag, "groups", "", "get the config for these specific groups (comma separated)")
+	fs.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s get_config [-user USER] [-groups GROUPS]
+
+Display the calculated configuration. If a user is given, its system groups (if
+any) are added to the given groups.
+
+The options are:
+`, os.Args[0])
+		fs.PrintDefaults()
+		os.Exit(2)
+	}
+	return fs
+}
+
 func getHostPortFromCommandLine(args []string) ([]string, []string, error) {
 	hostsNodeset, portsNodeset := "", defaultHostPort
 	switch len(args) {
@@ -645,6 +666,8 @@ func main() {
 	var jsonFlag bool
 	var allFlag bool
 	var expire string
+	var userString string
+	var groupsString string
 
 	parsers := map[string]*flag.FlagSet{
 		"help":         newHelpParser(),
@@ -654,6 +677,7 @@ func main() {
 		"forget":       newForgetParser(),
 		"disable":      newDisableParser(),
 		"error_banner": newErrorBannerParser(&expire),
+		"get_config":   newGetConfigParser(&userString, &groupsString),
 	}
 
 	cmd := flag.Arg(0)
@@ -759,6 +783,33 @@ func main() {
 			p.Usage()
 		}
 		setErrorBanner(errorBanner, t, *configFile)
+	case "get_config":
+		p := parsers[cmd]
+		p.Parse(args)
+		groupsMap := make(map[string]bool)
+		userComment := ""
+		// get system groups of given user, if it exists
+		userObject, err := user.Lookup(userString)
+		if err != nil {
+			userComment = " (unknown on this system)"
+		} else {
+			groupsMap, _ = utils.GetGroupUser(userObject)
+		}
+		// add given groups to system groups
+		for _, group := range strings.Split(groupsString, ",") {
+			if group != "" {
+				groupsMap[group] = true
+			}
+		}
+		// get config for given user / groups
+		config, err := utils.LoadConfig(*configFile, userString, "", time.Now(), groupsMap)
+		if err != nil {
+			log.Fatalf("reading configuration file %s: %v", *configFile, err)
+		}
+		fmt.Fprintf(os.Stdout, "user = %s%s\n", userString, userComment)
+		for _, configLine := range utils.PrintConfig(config, groupsMap) {
+			fmt.Fprintln(os.Stdout, configLine)
+		}
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR: unknown command: %s\n\n", cmd)
 		usage()

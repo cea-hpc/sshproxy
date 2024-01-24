@@ -55,7 +55,7 @@ COMMANDS
 	appear back in the list. The port by default is 22 if not specified.
 	Host and port can be nodesets.
 
-*error_banner [-expire] MESSAGE*::
+*error_banner [-expire EXPIRATION] MESSAGE*::
 	Set the error banner in etcd. Removes the error banner in etcd if
 	'MESSAGE' is absent. 'MESSAGE' can be multiline. The error banner is
 	displayed to the client when no backend can be reached (more
@@ -82,6 +82,12 @@ COMMANDS
 
 *show error_banner*::
 	Show error banners stored in etcd and in configuration.
+
+*get_config [-user USER] [-groups GROUPS]*::
+	Display the calculated configuration. If a user is given, its system
+	groups (if any) are added to the given groups. If a user and/or groups
+	are given with '-user' and '-groups' options, the configuration will
+	be calculated for these specific user/groups.
 
 
 FILES
