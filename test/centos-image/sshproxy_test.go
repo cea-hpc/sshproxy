@@ -458,7 +458,7 @@ func TestLongStickyConnections(t *testing.T) {
 	// remove old connections stored in etcd
 	time.Sleep(4 * time.Second)
 
-	updateLineSSHProxyConf("etcd_keyttl", "3")
+	updateLineSSHProxyConf("etcd_keyttl", "10")
 	disableHost("server1")
 	checkHostState(t, "server1", "disabled")
 
