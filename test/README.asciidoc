@@ -8,8 +8,8 @@ The functional tests are run with +docker-compose+. The +run.sh+ script is a
 wrapper to automatically start the tests (e.g. when using +make test+).
 
 Every container is created with the same +Dockerfile+ found in the
-+centos-image+ directory. All scripts started in the containers are located in
-the +centos-image+ directory.
++fedora-image+ directory. All scripts started in the containers are located in
+the +fedora-image+ directory.
 
 The following containers will be created:
 
@@ -31,7 +31,7 @@ server{1,2,3}::
 	destinations configured in sshproxy. They all execute an SSH server.
 
 The tests that run on tester use the Go test framework and can be found in the
-+centos-image/sshproxy_test.go+ file.
++fedora-image/sshproxy_test.go+ file.
 
 How to debug the tests?
 -----------------------
@@ -64,12 +64,12 @@ Then we start (and build if necessary) all containers:
 Once every container is started, we can connect to the tester container:
 
 	$ docker-compose exec tester /bin/bash
-	[centos@tester ~]$
+	[fedora@tester ~]$
 
 We then use the +go test+ command to run the tests:
 
 ------------------------------------------------------------------------------
-[centos@tester ~]$ go test -v -failfast -tags docker sshproxy_test.go
+[fedora@tester ~]$ go test -v -failfast -tags docker sshproxy_test.go
 === RUN   TestSimpleConnect
 --- PASS: TestSimpleConnect (1.58s)
 === RUN   TestReturnCode
