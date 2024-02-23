@@ -4,9 +4,9 @@ services:
     tester:
         container_name: tester
         hostname: tester
-        build: centos-image
-        user: centos
-        working_dir: /home/centos
+        build: fedora-image
+        user: fedora
+        working_dir: /home/fedora
         depends_on:
             - gateway1
             - gateway2
@@ -19,7 +19,7 @@ services:
     gateway1:
         container_name: gateway1
         hostname: gateway1
-        build: centos-image
+        build: fedora-image
         volumes:
             - ../../sshproxy:/sshproxy
         expose:
@@ -34,7 +34,7 @@ services:
     gateway2:
         container_name: gateway2
         hostname: gateway2
-        build: centos-image
+        build: fedora-image
         volumes:
             - ../../sshproxy:/sshproxy
         expose:
@@ -49,7 +49,7 @@ services:
     etcd:
         container_name: etcd
         hostname: etcd
-        build: centos-image
+        build: fedora-image
         expose:
             - "2379"
             - "2380"
@@ -58,7 +58,7 @@ services:
     server1:
         container_name: server1
         hostname: server1
-        build: centos-image
+        build: fedora-image
         expose:
             - "22"
         command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.server1"]
@@ -66,7 +66,7 @@ services:
     server2:
         container_name: server2
         hostname: server2
-        build: centos-image
+        build: fedora-image
         expose:
             - "22"
         command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.server2"]
@@ -74,7 +74,7 @@ services:
     server3:
         container_name: server3
         hostname: server3
-        build: centos-image
+        build: fedora-image
         expose:
             - "22"
         command: ["/usr/sbin/sshd", "-Def", "/etc/ssh/sshd_config.server1"]
