@@ -11,7 +11,6 @@
 package utils
 
 import (
-	"fmt"
 	"math/rand"
 	"net"
 	"sort"
@@ -108,7 +107,7 @@ func selectDestinationConnections(destinations []string, checker HostChecker, cl
 		}
 		userHostsc := map[string]int{}
 		for _, userHost := range userHosts {
-			userHostsc[fmt.Sprintf("%s:%s", userHost.Hostname, userHost.Port)] = userHost.N
+			userHostsc[userHost.Hostname] = userHost.N
 		}
 		hosts, err := cli.GetAllHosts()
 		if err != nil {
@@ -116,7 +115,7 @@ func selectDestinationConnections(destinations []string, checker HostChecker, cl
 		}
 		hostsc := map[string]int{}
 		for _, host := range hosts {
-			hostsc[fmt.Sprintf("%s:%s", host.Hostname, host.Port)] = host.N
+			hostsc[host.Hostname] = host.N
 		}
 		sort.Slice(destinations, func(i, j int) bool {
 			switch {
@@ -146,7 +145,7 @@ func selectDestinationBandwidth(destinations []string, checker HostChecker, cli 
 		}
 		userHostsbw := map[string]uint64{}
 		for _, userHost := range userHosts {
-			userHostsbw[fmt.Sprintf("%s:%s", userHost.Hostname, userHost.Port)] = (uint64(userHost.BwIn) * uint64(userHost.BwIn)) + (uint64(userHost.BwOut) * uint64(userHost.BwOut)) + uint64(userHost.N)
+			userHostsbw[userHost.Hostname] = (uint64(userHost.BwIn) * uint64(userHost.BwIn)) + (uint64(userHost.BwOut) * uint64(userHost.BwOut)) + uint64(userHost.N)
 		}
 		hosts, err := cli.GetAllHosts()
 		if err != nil {
@@ -154,7 +153,7 @@ func selectDestinationBandwidth(destinations []string, checker HostChecker, cli 
 		}
 		hostsbw := map[string]int{}
 		for _, host := range hosts {
-			hostsbw[fmt.Sprintf("%s:%s", host.Hostname, host.Port)] = (host.BwIn * host.BwIn) + (host.BwOut * host.BwOut) + host.N
+			hostsbw[host.Hostname] = (host.BwIn * host.BwIn) + (host.BwOut * host.BwOut) + host.N
 		}
 		sort.Slice(destinations, func(i, j int) bool {
 			switch {

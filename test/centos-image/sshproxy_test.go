@@ -397,7 +397,7 @@ func TestStickyConnections(t *testing.T) {
 	time.Sleep(4 * time.Second)
 
 	disableHost("server1")
-	checkHostState(t, "server1", "disabled")
+	checkHostState(t, "server1:22", "disabled")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -410,7 +410,7 @@ func TestStickyConnections(t *testing.T) {
 
 	time.Sleep(time.Second)
 	enableHost("server1")
-	checkHostState(t, "server1", "up")
+	checkHostState(t, "server1:22", "up")
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
 	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -429,7 +429,7 @@ func TestNotLongStickyConnections(t *testing.T) {
 	time.Sleep(4 * time.Second)
 
 	disableHost("server1")
-	checkHostState(t, "server1", "disabled")
+	checkHostState(t, "server1:22", "disabled")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -441,7 +441,7 @@ func TestNotLongStickyConnections(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 	enableHost("server1")
-	checkHostState(t, "server1", "up")
+	checkHostState(t, "server1:22", "up")
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
 	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -460,7 +460,7 @@ func TestLongStickyConnections(t *testing.T) {
 
 	updateLineSSHProxyConf("etcd_keyttl", "10")
 	disableHost("server1")
-	checkHostState(t, "server1", "disabled")
+	checkHostState(t, "server1:22", "disabled")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -472,7 +472,7 @@ func TestLongStickyConnections(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 	enableHost("server1")
-	checkHostState(t, "server1", "up")
+	checkHostState(t, "server1:22", "up")
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
 	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -554,15 +554,15 @@ func checkHostCheck(t *testing.T, host string, check time.Time) time.Time {
 func TestEtcdHosts(t *testing.T) {
 	timeZero := time.Time{}
 
-	lastCheck := checkHostCheck(t, "server1", timeZero)
+	lastCheck := checkHostCheck(t, "server1:22", timeZero)
 
 	line := "check_interval: 5s"
 	addLineSSHProxyConf(line)
 	defer removeLineSSHProxyConf(line)
-	checkHostCheck(t, "server1", lastCheck)
+	checkHostCheck(t, "server1:22", lastCheck)
 
 	time.Sleep(5 * time.Second)
-	checkHostCheck(t, "server1", timeZero)
+	checkHostCheck(t, "server1:22", timeZero)
 }
 
 func checkHostState(t *testing.T, host, state string) {
@@ -597,7 +597,7 @@ func TestEnableDisableHost(t *testing.T) {
 	}
 
 	disableHost("server[1,100]")
-	checkHostState(t, "server1", "disabled")
+	checkHostState(t, "server1:22", "disabled")
 
 	_, stdout, _, err = runCommand(ctx, "ssh", args, nil, nil)
 	if err != nil {
@@ -609,7 +609,7 @@ func TestEnableDisableHost(t *testing.T) {
 	}
 
 	enableHost("server1")
-	checkHostState(t, "server1", "up")
+	checkHostState(t, "server1:22", "up")
 
 	// test stickyness
 	_, stdout, _, err = runCommand(ctx, "ssh", args, nil, nil)
