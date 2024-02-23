@@ -241,9 +241,9 @@ func (fc flatConnections) displayTable(allFlag bool) {
 
 	var headers []string
 	if allFlag {
-		headers = []string{"User", "Service", "From", "Destination", "Start time", "Bandwidth in", "Bandwidth out"}
+		headers = []string{"User", "Service", "From", "Destination", "Start time", "Bw in", "Bw out"}
 	} else {
-		headers = []string{"User", "Service", "Destination", "# of connections", "Last connection", "Bandwidth in", "Bandwidth out"}
+		headers = []string{"User", "Service", "Destination", "# of conns", "Last connection", "Bw in", "Bw out"}
 	}
 
 	displayTable(headers, rows)
@@ -268,79 +268,199 @@ func showConnections(configFile string, csvFlag bool, jsonFlag bool, allFlag boo
 	}
 }
 
+type flatUserLight struct {
+	User   string
+	Groups string
+	N      int
+	BwIn   int
+	BwOut  int
+}
+
+type flatUsers []*utils.FlatUser
+
+func (fu flatUsers) getAllUsers(allFlag bool, passthrough bool) [][]string {
+	rows := make([][]string, len(fu))
+	for i, v := range fu {
+		if allFlag {
+			rows[i] = []string{
+				v.User,
+				v.Service,
+				v.Groups,
+				fmt.Sprintf("%d", v.N),
+				byteToHuman(v.BwIn, passthrough),
+				byteToHuman(v.BwOut, passthrough),
+			}
+		} else {
+			rows[i] = []string{
+				v.User,
+				v.Groups,
+				fmt.Sprintf("%d", v.N),
+				byteToHuman(v.BwIn, passthrough),
+				byteToHuman(v.BwOut, passthrough),
+			}
+		}
+	}
+
+	sort.Slice(rows, func(i, j int) bool {
+		if allFlag && rows[i][0] == rows[j][0] {
+			return rows[i][1] < rows[j][1]
+		} else {
+			return rows[i][0] < rows[j][0]
+		}
+	})
+
+	return rows
+}
+
+func (fu flatUsers) displayJSON(allFlag bool) {
+	if allFlag {
+		displayJSON(fu)
+	} else {
+		users := make([]*flatUserLight, len(fu))
+		for i, v := range fu {
+			users[i] = &flatUserLight{
+				v.User,
+				v.Groups,
+				v.N,
+				v.BwIn,
+				v.BwOut,
+			}
+		}
+		displayJSON(users)
+	}
+}
+
+func (fu flatUsers) displayCSV(allFlag bool) {
+	rows := fu.getAllUsers(allFlag, true)
+
+	displayCSV(rows)
+}
+
+func (fu flatUsers) displayTable(allFlag bool) {
+	rows := fu.getAllUsers(allFlag, false)
+
+	var headers []string
+	if allFlag {
+		headers = []string{"User", "Service", "Groups", "# of conns", "Bw in", "Bw out"}
+	} else {
+		headers = []string{"User", "Groups", "# of conns", "Bw in", "Bw out"}
+	}
+
+	displayTable(headers, rows)
+}
+
 func showUsers(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 	cli := mustInitEtcdClient(configFile)
 	defer cli.Close()
 
+	var users flatUsers
 	users, err := cli.GetAllUsers(allFlag)
 	if err != nil {
 		log.Fatalf("ERROR: getting users from etcd: %v", err)
 	}
 
 	if jsonFlag {
-		displayJSON(users)
-		return
+		users.displayJSON(allFlag)
+	} else if csvFlag {
+		users.displayCSV(allFlag)
+	} else {
+		users.displayTable(allFlag)
 	}
+}
 
-	rows := make([][]string, len(users))
-	i := 0
-	for k, v := range users {
-		rows[i] = []string{
-			k,
-			v.Groups,
-			fmt.Sprintf("%d", v.N),
-			byteToHuman(v.BwIn, csvFlag),
-			byteToHuman(v.BwOut, csvFlag),
+type flatGroupLight struct {
+	Group string
+	Users string
+	N     int
+	BwIn  int
+	BwOut int
+}
+
+type flatGroups []*utils.FlatGroup
+
+func (fg flatGroups) getAllGroups(allFlag bool, passthrough bool) [][]string {
+	rows := make([][]string, len(fg))
+	for i, v := range fg {
+		if allFlag {
+			rows[i] = []string{
+				v.Group,
+				v.Service,
+				v.Users,
+				fmt.Sprintf("%d", v.N),
+				byteToHuman(v.BwIn, passthrough),
+				byteToHuman(v.BwOut, passthrough),
+			}
+		} else {
+			rows[i] = []string{
+				v.Group,
+				v.Users,
+				fmt.Sprintf("%d", v.N),
+				byteToHuman(v.BwIn, passthrough),
+				byteToHuman(v.BwOut, passthrough),
+			}
 		}
-		i++
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
 		return rows[i][0] < rows[j][0]
 	})
 
-	if csvFlag {
-		displayCSV(rows)
+	return rows
+}
+
+func (fg flatGroups) displayJSON(allFlag bool) {
+	if allFlag {
+		displayJSON(fg)
 	} else {
-		displayTable([]string{"User", "Groups", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
+		groups := make([]*flatGroupLight, len(fg))
+		for i, v := range fg {
+			groups[i] = &flatGroupLight{
+				v.Group,
+				v.Users,
+				v.N,
+				v.BwIn,
+				v.BwOut,
+			}
+		}
+		displayJSON(groups)
 	}
+}
+
+func (fg flatGroups) displayCSV(allFlag bool) {
+	rows := fg.getAllGroups(allFlag, true)
+
+	displayCSV(rows)
+}
+
+func (fg flatGroups) displayTable(allFlag bool) {
+	rows := fg.getAllGroups(allFlag, false)
+
+	var headers []string
+	if allFlag {
+		headers = []string{"Group", "Service", "Users", "# of conns", "Bw in", "Bw out"}
+	} else {
+		headers = []string{"Group", "Users", "# of conns", "Bw in", "Bw out"}
+	}
+
+	displayTable(headers, rows)
 }
 
 func showGroups(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
 	cli := mustInitEtcdClient(configFile)
 	defer cli.Close()
 
+	var groups flatGroups
 	groups, err := cli.GetAllGroups(allFlag)
 	if err != nil {
 		log.Fatalf("ERROR: getting groups from etcd: %v", err)
 	}
 
 	if jsonFlag {
-		displayJSON(groups)
-		return
-	}
-
-	rows := make([][]string, len(groups))
-	i := 0
-	for k, v := range groups {
-		rows[i] = []string{
-			k,
-			v.Users,
-			fmt.Sprintf("%d", v.N),
-			byteToHuman(v.BwIn, csvFlag),
-			byteToHuman(v.BwOut, csvFlag),
-		}
-		i++
-	}
-
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i][0] < rows[j][0]
-	})
-
-	if csvFlag {
-		displayCSV(rows)
+		groups.displayJSON(allFlag)
+	} else if csvFlag {
+		groups.displayCSV(allFlag)
 	} else {
-		displayTable([]string{"Group", "Users", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
+		groups.displayTable(allFlag)
 	}
 }
 
@@ -374,7 +494,7 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 	if csvFlag {
 		displayCSV(rows)
 	} else {
-		displayTable([]string{"Host", "State", "Last check", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
+		displayTable([]string{"Host", "State", "Last check", "# of conns", "Bw in", "Bw out"}, rows)
 	}
 }
 
