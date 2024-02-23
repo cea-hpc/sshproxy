@@ -21,7 +21,7 @@ RECORD_SRC		= $(wildcard pkg/record/*.go)
 UTILS_SRC		= $(wildcard pkg/utils/*.go)
 
 PKGS	= $(shell $(GO) list ./... | grep -v /vendor/)
-TEST	= test/centos-image/sshproxy_test.go
+TEST	= test/fedora-image/sshproxy_test.go
 EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-replay sshproxyctl)
 MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8 doc/sshproxyctl.8
 PACKAGE = sshproxy_$(SSHPROXY_VERSION)_$(shell uname -s)_$(shell uname -p)

@@ -5,16 +5,16 @@ RUN set -ex \
 	&& yum -y update \
 	&& yum -y install asciidoc etcd git golang hostname iproute make openssh-server rpm-build procps
 
-# Create centos, user1 and user2 users ; centos and user1 groups
+# Create fedora, user1 and user2 users ; fedora and user1 groups
 RUN set -ex \
-	&& useradd centos \
-	&& install -d -m0755 -o centos -g centos /home/centos/.ssh \
+	&& useradd fedora \
+	&& install -d -m0755 -o fedora -g fedora /home/fedora/.ssh \
 	&& useradd user1 \
 	&& install -d -m0755 -o user1 -g user1 /home/user1/.ssh \
 	&& useradd -g user1 user2 \
 	&& install -d -m0755 -o user2 -g user1 /home/user2/.ssh
 
-# Copy centos public key to root authorized_keys
+# Copy fedora public key to root authorized_keys
 RUN set -ex && install -d -m0700 /root/.ssh
 COPY ./ssh/id_ed25519.pub /root/.ssh/authorized_keys
 RUN chmod 0600 /root/.ssh/authorized_keys
@@ -25,10 +25,10 @@ RUN chmod 0644 /etc/ssh/ssh_config
 COPY ./ssh/ssh_host_ed25519_key* /etc/ssh/
 RUN chmod 0600 /etc/ssh/ssh_host_ed25519_key
 
-# Copy centos ssh keys
-COPY --chown=centos:centos ./ssh/id_ed25519.pub /home/centos/.ssh/authorized_keys
-COPY --chown=centos:centos ./ssh/id_ed25519* ./ssh/known_hosts /home/centos/.ssh/
-RUN chmod 0600 /home/centos/.ssh/id_ed25519 /home/centos/.ssh/authorized_keys
+# Copy fedora ssh keys
+COPY --chown=fedora:fedora ./ssh/id_ed25519.pub /home/fedora/.ssh/authorized_keys
+COPY --chown=fedora:fedora ./ssh/id_ed25519* ./ssh/known_hosts /home/fedora/.ssh/
+RUN chmod 0600 /home/fedora/.ssh/id_ed25519 /home/fedora/.ssh/authorized_keys
 
 # Copy user1 ssh keys
 COPY --chown=user1:user1 ./ssh/id_ed25519.pub /home/user1/.ssh/authorized_keys
@@ -56,4 +56,4 @@ COPY ./gateway.sh /root
 COPY ./etcd.sh /root
 
 # Copy test file for tester
-COPY --chown=centos:centos ./sshproxy_test.go /home/centos/
+COPY --chown=fedora:fedora ./sshproxy_test.go /home/fedora/

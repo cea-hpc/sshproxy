@@ -242,8 +242,8 @@ var environmentTests = []struct {
 	port int
 	want string
 }{
-	{"", 2023, "globalEnv_centos"},
-	{"", 2024, "serviceEnv_centos"},
+	{"", 2023, "globalEnv_fedora"},
+	{"", 2024, "serviceEnv_fedora"},
 	{"user2@", 2023, "globalUserEnv_user2"},
 	{"user2@", 2024, "serviceUserEnv_user2"},
 }
@@ -312,8 +312,8 @@ func TestEtcdConnections(t *testing.T) {
 	}
 
 	c := connections[0]
-	if c.User != "centos" || c.Service != "service2" || c.Dest != "server1:22" || c.N != 1 {
-		t.Errorf("%s, want User=centos, Service=service2, Dest=server1:22, N=1", jsonStr)
+	if c.User != "fedora" || c.Service != "service2" || c.Dest != "server1:22" || c.N != 1 {
+		t.Errorf("%s, want User=fedora, Service=service2, Dest=server1:22, N=1", jsonStr)
 	}
 
 	go func() {
@@ -700,19 +700,19 @@ func TestEtcdUsers(t *testing.T) {
 	if len(users) != 1 {
 		t.Errorf("%s found %d aggregated users, want 1", jsonStr, len(users))
 		return
-	} else if users["centos"].N != 2 {
-		t.Errorf("%s found %d aggregated user connections, want 2", jsonStr, users["centos"].N)
+	} else if users["fedora"].N != 2 {
+		t.Errorf("%s found %d aggregated user connections, want 2", jsonStr, users["fedora"].N)
 		return
 	}
 	users, jsonStr = getEtcdUsers("users", true)
 	if len(users) != 2 {
 		t.Errorf("%s found %d users, want 2", jsonStr, len(users))
 		return
-	} else if users["centos@service2"].N != 1 {
-		t.Errorf("%s found %d user connections, want 1", jsonStr, users["centos@service2"].N)
+	} else if users["fedora@service2"].N != 1 {
+		t.Errorf("%s found %d user connections, want 1", jsonStr, users["fedora@service2"].N)
 		return
-	} else if users["centos@service3"].N != 1 {
-		t.Errorf("%s found %d user connections, want 1", jsonStr, users["centos@service3"].N)
+	} else if users["fedora@service3"].N != 1 {
+		t.Errorf("%s found %d user connections, want 1", jsonStr, users["fedora@service3"].N)
 	}
 }
 
@@ -743,19 +743,19 @@ func TestEtcdGroups(t *testing.T) {
 	if len(groups) != 1 {
 		t.Errorf("%s found %d aggregated groups, want 1", jsonStr, len(groups))
 		return
-	} else if groups["centos"].N != 2 {
-		t.Errorf("%s found %d aggregated group connections, want 2", jsonStr, groups["centos"].N)
+	} else if groups["fedora"].N != 2 {
+		t.Errorf("%s found %d aggregated group connections, want 2", jsonStr, groups["fedora"].N)
 		return
 	}
 	groups, jsonStr = getEtcdUsers("groups", true)
 	if len(groups) != 2 {
 		t.Errorf("%s found %d groups, want 2", jsonStr, len(groups))
 		return
-	} else if groups["centos@service2"].N != 1 {
-		t.Errorf("%s found %d group connections, want 1", jsonStr, groups["centos@service2"].N)
+	} else if groups["fedora@service2"].N != 1 {
+		t.Errorf("%s found %d group connections, want 1", jsonStr, groups["fedora@service2"].N)
 		return
-	} else if groups["centos@service3"].N != 1 {
-		t.Errorf("%s found %d group connections, want 1", jsonStr, groups["centos@service3"].N)
+	} else if groups["fedora@service3"].N != 1 {
+		t.Errorf("%s found %d group connections, want 1", jsonStr, groups["fedora@service3"].N)
 	}
 }
 
