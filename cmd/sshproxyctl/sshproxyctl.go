@@ -363,7 +363,6 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 	for i, h := range hosts {
 		rows[i] = []string{
 			h.Hostname,
-			h.Port,
 			h.State.String(),
 			h.Ts.Format("2006-01-02 15:04:05"),
 			fmt.Sprintf("%d", h.N),
@@ -375,7 +374,7 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 	if csvFlag {
 		displayCSV(rows)
 	} else {
-		displayTable([]string{"Host", "Port", "State", "Last check", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
+		displayTable([]string{"Host", "State", "Last check", "# of connections", "Bandwidth in", "Bandwidth out"}, rows)
 	}
 }
 

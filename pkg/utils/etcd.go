@@ -18,7 +18,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"regexp"
 	"sort"
@@ -590,7 +589,6 @@ func (c *Client) GetUserConnectionsCount(username string) (int, error) {
 // FlatHost is a structure used to flatten a host informations present in etcd.
 type FlatHost struct {
 	Hostname string
-	Port     string
 	N        int
 	BwIn     int
 	BwOut    int
@@ -622,10 +620,7 @@ func (c *Client) GetUserHosts(key string) (map[string]*FlatHost, error) {
 			}
 			if hosts[fields[1]] == nil {
 				v := &FlatHost{}
-				v.Hostname, v.Port, err = net.SplitHostPort(fields[1])
-				if err != nil {
-					return nil, fmt.Errorf("splitting Host and Port from '%s': %v", fields[1], err)
-				}
+				v.Hostname = fields[1]
 				v.N = 1
 				v.BwIn = b.In
 				v.BwOut = b.Out
@@ -675,10 +670,7 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 			return nil, fmt.Errorf("decoding JSON data at '%s': %v", ev.Key, err)
 		}
 		subkey := string(ev.Key)[len(etcdHostsPath)+1:]
-		v.Hostname, v.Port, err = net.SplitHostPort(subkey)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing key %s", subkey)
-		}
+		v.Hostname = subkey
 		if stats[subkey] == nil {
 			v.N = 0
 			v.BwIn = 0
