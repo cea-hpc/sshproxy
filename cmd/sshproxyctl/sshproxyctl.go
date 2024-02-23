@@ -429,6 +429,33 @@ func showErrorBanner(configFile string) {
 	}
 }
 
+func showConfig(configFile, userString, groupsString string) {
+	groupsMap := make(map[string]bool)
+	userComment := ""
+	// get system groups of given user, if it exists
+	userObject, err := user.Lookup(userString)
+	if err != nil {
+		userComment = " (unknown on this system)"
+	} else {
+		groupsMap, _ = utils.GetGroupUser(userObject)
+	}
+	// add given groups to system groups
+	for _, group := range strings.Split(groupsString, ",") {
+		if group != "" {
+			groupsMap[group] = true
+		}
+	}
+	// get config for given user / groups
+	config, err := utils.LoadConfig(configFile, userString, "", time.Now(), groupsMap)
+	if err != nil {
+		log.Fatalf("reading configuration file %s: %v", configFile, err)
+	}
+	fmt.Fprintf(os.Stdout, "user = %s%s\n", userString, userComment)
+	for _, configLine := range utils.PrintConfig(config, groupsMap) {
+		fmt.Fprintln(os.Stdout, configLine)
+	}
+}
+
 func showVersion() {
 	fmt.Fprintf(flag.CommandLine.Output(), "%s version %s\n", os.Args[0], SshproxyVersion)
 }
@@ -444,7 +471,6 @@ The commands are:
   forget        forget a host in etcd
   disable       disable a host in etcd
   error_banner  set the error banner in etcd
-  get_config    display the calculated configuration
 
 The common options are:
 `, os.Args[0])
@@ -476,20 +502,23 @@ Show version and exit.
 	return fs
 }
 
-func newShowParser(csvFlag *bool, jsonFlag *bool, allFlag *bool) *flag.FlagSet {
+func newShowParser(csvFlag *bool, jsonFlag *bool, allFlag *bool, userString *string, groupsString *string) *flag.FlagSet {
 	fs := flag.NewFlagSet("show", flag.ExitOnError)
 	fs.BoolVar(csvFlag, "csv", false, "show results in CSV format")
 	fs.BoolVar(jsonFlag, "json", false, "show results in JSON format")
 	fs.BoolVar(allFlag, "all", false, "show all connections / users / groups")
+	fs.StringVar(userString, "user", "", "show the config for this specific user and this user's groups (if any)")
+	fs.StringVar(groupsString, "groups", "", "show the config for these specific groups (comma separated)")
 	fs.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s show [OPTIONS] COMMAND
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s show COMMAND [OPTIONS]
 
 The commands are:
-  connections   show connections stored in etcd
-  hosts         show hosts stored in etcd
-  users         show users stored in etcd
-  groups        show groups stored in etcd
-  error_banner  show error banners stored in etcd and in configuration
+  connections [-all] [-csv|-json]       show connections stored in etcd
+  hosts [-csv|-json]                    show hosts stored in etcd
+  users [-all] [-csv|-json]             show users stored in etcd
+  groups [-all] [-csv|-json]            show groups stored in etcd
+  error_banner                          show error banners stored in etcd and in configuration
+  config [-user USER] [-groups GROUPS]  show the calculated configuration
 
 The options are:
 `, os.Args[0])
@@ -542,27 +571,9 @@ func newErrorBannerParser(expireFlag *string) *flag.FlagSet {
 	fs := flag.NewFlagSet("error_banner", flag.ExitOnError)
 	fs.StringVar(expireFlag, "expire", "", "set the expiration date of this error banner. Format: YYYY-MM-DD[ HH:MM[:SS]]")
 	fs.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s error_banner MESSAGE
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s error_banner [-expire DATE] MESSAGE
 
 Set the error banner in etcd.
-
-The options are:
-`, os.Args[0])
-		fs.PrintDefaults()
-		os.Exit(2)
-	}
-	return fs
-}
-
-func newGetConfigParser(userFlag *string, groupsFlag *string) *flag.FlagSet {
-	fs := flag.NewFlagSet("get_config", flag.ExitOnError)
-	fs.StringVar(userFlag, "user", "", "get the config for this specific user")
-	fs.StringVar(groupsFlag, "groups", "", "get the config for these specific groups (comma separated)")
-	fs.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s get_config [-user USER] [-groups GROUPS]
-
-Display the calculated configuration. If a user is given, its system groups (if
-any) are added to the given groups.
 
 The options are:
 `, os.Args[0])
@@ -671,12 +682,11 @@ func main() {
 	parsers := map[string]*flag.FlagSet{
 		"help":         newHelpParser(),
 		"version":      newVersionParser(),
-		"show":         newShowParser(&csvFlag, &jsonFlag, &allFlag),
+		"show":         newShowParser(&csvFlag, &jsonFlag, &allFlag, &userString, &groupsString),
 		"enable":       newEnableParser(),
 		"forget":       newForgetParser(),
 		"disable":      newDisableParser(),
 		"error_banner": newErrorBannerParser(&expire),
-		"get_config":   newGetConfigParser(&userString, &groupsString),
 	}
 
 	cmd := flag.Arg(0)
@@ -721,6 +731,8 @@ func main() {
 			showGroups(*configFile, csvFlag, jsonFlag, allFlag)
 		case "error_banner":
 			showErrorBanner(*configFile)
+		case "config":
+			showConfig(*configFile, userString, groupsString)
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand: %s\n\n", subcmd)
 			p.Usage()
@@ -782,33 +794,6 @@ func main() {
 			p.Usage()
 		}
 		setErrorBanner(errorBanner, t, *configFile)
-	case "get_config":
-		p := parsers[cmd]
-		p.Parse(args)
-		groupsMap := make(map[string]bool)
-		userComment := ""
-		// get system groups of given user, if it exists
-		userObject, err := user.Lookup(userString)
-		if err != nil {
-			userComment = " (unknown on this system)"
-		} else {
-			groupsMap, _ = utils.GetGroupUser(userObject)
-		}
-		// add given groups to system groups
-		for _, group := range strings.Split(groupsString, ",") {
-			if group != "" {
-				groupsMap[group] = true
-			}
-		}
-		// get config for given user / groups
-		config, err := utils.LoadConfig(*configFile, userString, "", time.Now(), groupsMap)
-		if err != nil {
-			log.Fatalf("reading configuration file %s: %v", *configFile, err)
-		}
-		fmt.Fprintf(os.Stdout, "user = %s%s\n", userString, userComment)
-		for _, configLine := range utils.PrintConfig(config, groupsMap) {
-			fmt.Fprintln(os.Stdout, configLine)
-		}
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR: unknown command: %s\n\n", cmd)
 		usage()
