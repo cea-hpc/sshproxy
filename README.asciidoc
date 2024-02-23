@@ -80,10 +80,18 @@ http://www.cecill.info for details.
 Authors
 -------
 
-- Arnaud Guignard https://github.com/arno
-- Dominique Martinet https://github.com/martinetd
-- Romain Fihue https://github.com/fihuer
+Current maintainer:
+
 - Cyril Servant https://github.com/cyrilst <cyril.servant@cea.fr>
+
+Original author:
+
+- Arnaud Guignard https://github.com/arno
+
+Contributors:
+
+- Romain Fihue https://github.com/fihuer
+- Dominique Martinet https://github.com/martinetd
 
 Documentation
 -------------
