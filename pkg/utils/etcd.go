@@ -592,6 +592,7 @@ type FlatHost struct {
 	N        int
 	BwIn     int
 	BwOut    int
+	HistoryN int
 	*Host
 }
 
@@ -662,6 +663,15 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 		}
 	}
 
+	history, err := c.GetAllHistory()
+	if err != nil {
+		return nil, fmt.Errorf("ERROR: getting history from etcd: %v", err)
+	}
+	statsHistory := map[string]int{}
+	for _, hist := range history {
+		statsHistory[hist.Dest]++
+	}
+
 	hosts := make([]*FlatHost, len(resp.Kvs))
 	for i, ev := range resp.Kvs {
 		v := &FlatHost{}
@@ -679,6 +689,7 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 			v.BwIn = stats[subkey]["BwIn"]
 			v.BwOut = stats[subkey]["BwOut"]
 		}
+		v.HistoryN = statsHistory[subkey]
 		hosts[i] = v
 	}
 
@@ -693,6 +704,8 @@ type FlatUser struct {
 	N       int
 	BwIn    int
 	BwOut   int
+	Dest    string
+	TTL     int64
 }
 
 // GetAllUsers returns a list of connections present in etcd, aggregated by
@@ -728,6 +741,35 @@ func (c *Client) GetAllUsers(allFlag bool) ([]*FlatUser, error) {
 			users[key].N++
 			users[key].BwIn += connection.BwIn
 			users[key].BwOut += connection.BwOut
+		}
+	}
+
+	if allFlag {
+		history, err := c.GetAllHistory()
+		if err != nil {
+			return nil, fmt.Errorf("ERROR: getting history from etcd: %v", err)
+		}
+		for _, hist := range history {
+			key := hist.User
+			if users[key] == nil {
+				v := &FlatUser{}
+				groups, err := GetGroupList(strings.Split(hist.User, "@")[0])
+				if err != nil {
+					return nil, err
+				}
+				g := make([]string, 0, len(groups))
+				for group := range groups {
+					g = append(g, group)
+				}
+				sort.Strings(g)
+				v.Groups = strings.Join(g, " ")
+				v.Dest = hist.Dest
+				v.TTL = hist.TTL
+				users[key] = v
+			} else {
+				users[key].Dest = hist.Dest
+				users[key].TTL = hist.TTL
+			}
 		}
 	}
 
@@ -809,6 +851,48 @@ func (c *Client) GetAllGroups(allFlag bool) ([]*FlatGroup, error) {
 	}
 
 	return groupsSlice, nil
+}
+
+// FlatHistory is a structure used to flatten a history informations present in etcd.
+type FlatHistory struct {
+	User string
+	Dest string
+	TTL  int64
+}
+
+// GetAllHistory returns a list of all history keys present in etcd.
+func (c *Client) GetAllHistory() ([]*FlatHistory, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	resp, err := c.cli.Get(ctx, etcdHistoryPath, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+	defer cancel()
+	if err != nil {
+		return nil, err
+	}
+
+	history := make([]*FlatHistory, len(resp.Kvs))
+	for i, ev := range resp.Kvs {
+		subkey := string(ev.Key)[len(etcdHistoryPath)+1:]
+		fields := strings.Split(subkey, "/")
+		if len(fields) != 2 {
+			return nil, fmt.Errorf("bad key format %s", subkey)
+		}
+
+		v := &FlatHistory{}
+		v.User = fields[0]
+		v.Dest = string(ev.Value)
+		leaseID, err := strconv.Atoi(fields[1])
+		if err != nil {
+			return nil, err
+		}
+		ttl, err := c.cli.TimeToLive(ctx, clientv3.LeaseID(leaseID))
+		if err != nil {
+			return nil, err
+		}
+		v.TTL = ttl.TTL
+		history[i] = v
+	}
+
+	return history, nil
 }
 
 // IsAlive checks if etcd client is still usable.

@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math"
 	"net"
 	"os"
 	"os/user"
@@ -289,6 +290,8 @@ func (fu flatUsers) getAllUsers(allFlag bool, passthrough bool) [][]string {
 				fmt.Sprintf("%d", v.N),
 				byteToHuman(v.BwIn, passthrough),
 				byteToHuman(v.BwOut, passthrough),
+				v.Dest,
+				secondsToHuman(v.TTL, passthrough),
 			}
 		} else {
 			rows[i] = []string{
@@ -341,7 +344,7 @@ func (fu flatUsers) displayTable(allFlag bool) {
 
 	var headers []string
 	if allFlag {
-		headers = []string{"User", "Service", "Groups", "# of conns", "Bw in", "Bw out"}
+		headers = []string{"User", "Service", "Groups", "# of conns", "Bw in", "Bw out", "Persist to", "Persist TTL"}
 	} else {
 		headers = []string{"User", "Groups", "# of conns", "Bw in", "Bw out"}
 	}
@@ -488,13 +491,14 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 			fmt.Sprintf("%d", h.N),
 			byteToHuman(h.BwIn, csvFlag),
 			byteToHuman(h.BwOut, csvFlag),
+			fmt.Sprintf("%d", h.HistoryN),
 		}
 	}
 
 	if csvFlag {
 		displayCSV(rows)
 	} else {
-		displayTable([]string{"Host", "State", "Last check", "# of conns", "Bw in", "Bw out"}, rows)
+		displayTable([]string{"Host", "State", "Last check", "# of conns", "Bw in", "Bw out", "# persist"}, rows)
 	}
 }
 
@@ -763,6 +767,30 @@ func byteToHuman(b int, passthrough bool) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB/s", float32(b)/float32(div), "MGT"[exp])
+}
+
+func secondsToHuman(s int64, passthrough bool) string {
+	seconds := float64(s)
+	if seconds == 0 {
+		return ""
+	} else if passthrough {
+		return fmt.Sprintf("%.f", seconds)
+	} else if seconds < 60 {
+		return fmt.Sprintf("%.fs", seconds)
+	}
+	m := math.Floor(seconds / 60)
+	seconds -= m * 60
+	if m < 60 {
+		return fmt.Sprintf("%.fm %.fs", m, seconds)
+	}
+	h := math.Floor(m / 60)
+	m -= h * 60
+	if h < 24 {
+		return fmt.Sprintf("%.fh %.fm %.fs", h, m, seconds)
+	}
+	d := math.Floor(h / 24)
+	h -= d * 24
+	return fmt.Sprintf("%.fd %.fh %.fm %.fs", d, h, m, seconds)
 }
 
 func matchExpire(expire string) (time.Time, error) {
