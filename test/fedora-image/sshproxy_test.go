@@ -634,7 +634,10 @@ func TestEnableDisableHost(t *testing.T) {
 }
 
 type user struct {
-	N int
+	User    string
+	Group   string
+	Service string
+	N       int
 }
 
 func getEtcdUsers(mode string, allFlag bool) (map[string]user, string) {
@@ -649,12 +652,25 @@ func getEtcdUsers(mode string, allFlag bool) (map[string]user, string) {
 	}
 
 	jsonStr := strings.TrimSpace(string(stdout))
-	var users map[string]user
+	var users []user
 	if err := json.Unmarshal(stdout, &users); err != nil {
 		log.Fatal(err)
 	}
+	usersMap := map[string]user{}
+	for _, user := range users {
+		key := ""
+		if user.User != "" {
+			key = user.User
+		} else {
+			key = user.Group
+		}
+		if allFlag {
+			key += "@" + user.Service
+		}
+		usersMap[key] = user
+	}
 
-	return users, jsonStr
+	return usersMap, jsonStr
 }
 
 func TestEtcdUsers(t *testing.T) {

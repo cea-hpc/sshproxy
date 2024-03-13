@@ -605,7 +605,6 @@ func (c *Client) GetUserHosts(key string) (map[string]*FlatHost, error) {
 	}
 
 	hosts := map[string]*FlatHost{}
-	//hosts := make([]*FlatHost, len(resp.Kvs))
 	for _, ev := range resp.Kvs {
 		subkey := string(ev.Key)[len(etcdConnectionsPath)+1:]
 		fields := strings.Split(subkey, "/")
@@ -688,15 +687,17 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 
 // FlatUser is a structure used to flatten a user informations present in etcd.
 type FlatUser struct {
-	Groups string
-	N      int
-	BwIn   int
-	BwOut  int
+	User    string
+	Service string
+	Groups  string
+	N       int
+	BwIn    int
+	BwOut   int
 }
 
 // GetAllUsers returns a list of connections present in etcd, aggregated by
 // user@service.
-func (c *Client) GetAllUsers(allFlag bool) (map[string]*FlatUser, error) {
+func (c *Client) GetAllUsers(allFlag bool) ([]*FlatUser, error) {
 	connections, err := c.GetAllConnections()
 	if err != nil {
 		return nil, fmt.Errorf("ERROR: getting connections from etcd: %v", err)
@@ -730,50 +731,59 @@ func (c *Client) GetAllUsers(allFlag bool) (map[string]*FlatUser, error) {
 		}
 	}
 
-	return users, nil
+	usersSlice := make([]*FlatUser, len(users))
+	i := 0
+	for k, v := range users {
+		userService := strings.Split(k, "@")
+		usersSlice[i] = v
+		usersSlice[i].User = userService[0]
+		if allFlag {
+			usersSlice[i].Service = userService[1]
+		}
+		i++
+	}
+
+	return usersSlice, nil
 }
 
 // FlatGroup is a structure used to flatten a group informations present in etcd.
 type FlatGroup struct {
-	Users string
-	N     int
-	BwIn  int
-	BwOut int
+	Group   string
+	Service string
+	Users   string
+	N       int
+	BwIn    int
+	BwOut   int
 }
 
 // GetAllGroups returns a list of connections present in etcd, aggregated by
 // groups.
-func (c *Client) GetAllGroups(allFlag bool) (map[string]*FlatGroup, error) {
+func (c *Client) GetAllGroups(allFlag bool) ([]*FlatGroup, error) {
 	users, err := c.GetAllUsers(allFlag)
 	if err != nil {
 		return nil, fmt.Errorf("ERROR: getting connections from etcd: %v", err)
 	}
 	groupUsers := map[string]map[string]bool{}
 	groups := map[string]*FlatGroup{}
-	for user, userV := range users {
-		userService := []string{}
-		if allFlag {
-			userService = strings.Split(user, "@")
-			user = userService[0]
-		}
-		for _, group := range strings.Split(userV.Groups, " ") {
+	for _, user := range users {
+		for _, group := range strings.Split(user.Groups, " ") {
 			if allFlag {
-				group += "@" + userService[1]
+				group += "@" + user.Service
 			}
 			if groupUsers[group] == nil {
 				groupUsers[group] = map[string]bool{}
 			}
-			groupUsers[group][user] = true
+			groupUsers[group][user.User] = true
 			if groups[group] == nil {
 				v := &FlatGroup{}
-				v.N = userV.N
-				v.BwIn = userV.BwIn
-				v.BwOut = userV.BwOut
+				v.N = user.N
+				v.BwIn = user.BwIn
+				v.BwOut = user.BwOut
 				groups[group] = v
 			} else {
-				groups[group].N += userV.N
-				groups[group].BwIn += userV.BwIn
-				groups[group].BwOut += userV.BwOut
+				groups[group].N += user.N
+				groups[group].BwIn += user.BwIn
+				groups[group].BwOut += user.BwOut
 			}
 		}
 	}
@@ -786,7 +796,19 @@ func (c *Client) GetAllGroups(allFlag bool) (map[string]*FlatGroup, error) {
 		groups[g].Users = strings.Join(u, " ")
 	}
 
-	return groups, nil
+	groupsSlice := make([]*FlatGroup, len(groups))
+	i := 0
+	for k, v := range groups {
+		groupService := strings.Split(k, "@")
+		groupsSlice[i] = v
+		groupsSlice[i].Group = groupService[0]
+		if allFlag {
+			groupsSlice[i].Service = groupService[1]
+		}
+		i++
+	}
+
+	return groupsSlice, nil
 }
 
 // IsAlive checks if etcd client is still usable.
