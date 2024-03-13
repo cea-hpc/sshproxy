@@ -9,15 +9,15 @@ NC='\033[0m'
 
 # kill and remove any running containers
 cleanup () {
-    docker-compose -p ci kill
-    docker-compose -p ci rm -f
+    docker compose -p ci kill
+    docker compose -p ci rm -f
 }
 
 # catch unexpected failures, do cleanup and output an error message
 trap 'cleanup ; printf "${RED}Tests Failed For Unexpected Reasons${NC}\n"' HUP INT QUIT PIPE TERM
 
 # build and run the composed services
-docker-compose -p ci build && docker-compose -p ci up -d
+docker compose -p ci build && docker compose -p ci up -d
 if (( $? != 0 )); then
     printf "${RED}Docker Compose Failed${NC}\n"
     exit -1
