@@ -4,7 +4,7 @@ Functional Tests
 How is it working?
 ------------------
 
-The functional tests are run with +docker-compose+. The +run.sh+ script is a
+The functional tests are run with +docker compose+. The +run.sh+ script is a
 wrapper to automatically start the tests (e.g. when using +make test+).
 
 Every container is created with the same +Dockerfile+ found in the
@@ -59,11 +59,11 @@ index 65ae927..0621932 100644
 
 Then we start (and build if necessary) all containers:
 
-	$ docker-compose up --build
+	$ docker compose up --build
 
 Once every container is started, we can connect to the tester container:
 
-	$ docker-compose exec tester /bin/bash
+	$ docker compose exec tester /bin/bash
 	[fedora@tester ~]$
 
 We then use the +go test+ command to run the tests:
