@@ -91,35 +91,28 @@ func (c *etcdChecker) doCheck(hostport string) utils.State {
 }
 
 // findDestination finds a reachable destination for the sshd server according
-// to the etcd database if available or the routes and route_select algorithm.
-// It returns a string with the service name, a string with host:port, a string
-// containing ForceCommand value, a bool containing CommandMustMatch, an int64
-// with etcd_keyttl and a map of strings with the environment variables; a
-// string with the service name and an empty string if no destination is found
-// or an error if any.
-func findDestination(cli *utils.Client, username string, routes map[string]*utils.RouteConfig, sshdHostport string, checkInterval utils.Duration) (string, string, string, bool, int64, map[string]string, error) {
+// to the etcd database if available or the config.Dest and config.RouteSelect
+// algorithm.  It returns a string with host:port; an empty string if no
+// destination is found or an error if any.
+func findDestination(cli *utils.Client, username string, config *utils.Config, sshdHostport string) (string, error) {
 	checker := &etcdChecker{
-		checkInterval: checkInterval,
+		checkInterval: config.CheckInterval,
 		cli:           cli,
 	}
 
-	service, err := findService(routes, sshdHostport)
-	if err != nil {
-		return "", "", "", false, 0, nil, err
-	}
-	key := fmt.Sprintf("%s@%s", username, service)
+	key := fmt.Sprintf("%s@%s", username, config.Service)
 
-	if routes[service].Mode == "sticky" && cli != nil && cli.IsAlive() {
-		dest, err := cli.GetDestination(key, routes[service].EtcdKeyTTL)
+	if config.Mode == "sticky" && cli != nil && cli.IsAlive() {
+		dest, err := cli.GetDestination(key, config.EtcdKeyTTL)
 		if err != nil {
 			if err != utils.ErrKeyNotFound {
 				log.Errorf("problem with etcd: %v", err)
 			}
 		} else {
-			if utils.IsDestinationInRoutes(dest, routes[service].Dest) {
+			if utils.IsDestinationInRoutes(dest, config.Dest) {
 				if checker.Check(dest) {
 					log.Debugf("found destination in etcd: %s", dest)
-					return service, dest, routes[service].ForceCommand, routes[service].CommandMustMatch, routes[service].EtcdKeyTTL, routes[service].Environment, nil
+					return dest, nil
 				}
 				log.Infof("cannot connect %s to already existing connection(s) to %s: host %s", key, dest, checker.LastState)
 			} else {
@@ -128,32 +121,12 @@ func findDestination(cli *utils.Client, username string, routes map[string]*util
 		}
 	}
 
-	if len(routes[service].Dest) > 0 {
-		selected, err := utils.SelectRoute(routes[service].RouteSelect, routes[service].Dest, checker, cli, key)
-		return service, selected, routes[service].ForceCommand, routes[service].CommandMustMatch, routes[service].EtcdKeyTTL, routes[service].Environment, err
+	if len(config.Dest) > 0 {
+		selected, err := utils.SelectRoute(config.RouteSelect, config.Dest, checker, cli, key)
+		return selected, err
 	}
 
-	return service, "", "", false, 0, nil, fmt.Errorf("no destination set for service %s", service)
-}
-
-// findService finds the first service containing a suitable source in the conf,
-// and returns its name as a string. If it doesn't find any and there is a
-// default service, returns the string "default". If no service is found,
-// returns an error.
-func findService(routes map[string]*utils.RouteConfig, sshdHostport string) (string, error) {
-	for service, opts := range routes {
-		if len(opts.Source) > 0 {
-			for _, source := range opts.Source {
-				if source == sshdHostport {
-					return service, nil
-				}
-			}
-		}
-	}
-	if _, ok := routes[utils.DefaultService]; ok {
-		return utils.DefaultService, nil
-	}
-	return "", fmt.Errorf("cannot find a service for %s and no default service configured", sshdHostport)
+	return "", fmt.Errorf("no destination set for service %s", config.Service)
 }
 
 // setEnvironment sets environment variables from a map whose keys are the
@@ -289,7 +262,7 @@ func mainExitCode() int {
 		log.Fatalf("Cannot find current user groups: %s", err)
 	}
 
-	config, err := utils.LoadConfig(configFile, username, sid, start, groups)
+	config, err := utils.LoadConfig(configFile, username, sid, start, groups, sshInfos.Dst())
 	if err != nil {
 		log.Fatalf("Reading configuration '%s': %s", configFile, err)
 	}
@@ -328,7 +301,7 @@ func mainExitCode() int {
 		}
 	}
 
-	service, hostport, forceCommand, commandMustMatch, etcdKeyTTL, environment, err := findDestination(cli, username, config.Routes, sshInfos.Dst(), config.CheckInterval)
+	hostport, err := findDestination(cli, username, config, sshInfos.Dst())
 	switch {
 	case err != nil:
 		log.Fatalf("Finding destination: %s", err)
@@ -350,12 +323,6 @@ func mainExitCode() int {
 		log.Fatalf("Invalid destination '%s': %s", hostport, err)
 	}
 
-	log.Debugf("service = %s", service)
-
-	// merge service environment with global environment
-	for k, v := range environment {
-		config.Environment[k] = v
-	}
 	setEnvironment(config.Environment)
 
 	// waitgroup and channel to stop our background command when exiting.
@@ -378,8 +345,8 @@ func mainExitCode() int {
 	var tmpKeepAliveChan <-chan *clientv3.LeaseKeepAliveResponse
 	// Register destination in etcd and keep it alive while running.
 	if cli != nil && cli.IsAlive() {
-		key := fmt.Sprintf("%s@%s", username, service)
-		keepAliveChan, eP, err := cli.SetDestination(ctx, key, sshInfos.Dst(), hostport, etcdKeyTTL)
+		key := fmt.Sprintf("%s@%s", username, config.Service)
+		keepAliveChan, eP, err := cli.SetDestination(ctx, key, sshInfos.Dst(), hostport, config.EtcdKeyTTL)
 		etcdPath = eP
 		if err != nil {
 			log.Warningf("setting destination in etcd: %v", err)
@@ -458,16 +425,15 @@ func mainExitCode() int {
 		sshArgs = append(sshArgs, "-p", port)
 	}
 	doCmd := ""
-	if forceCommand != "" {
-		log.Debugf("forceCommand = %s", forceCommand)
-		doCmd = forceCommand
+	if config.ForceCommand != "" {
+		doCmd = config.ForceCommand
 	} else if originalCmd != "" {
 		doCmd = originalCmd
 	}
 	commandTranslated := false
 	if doCmd != "" {
-		if commandMustMatch && originalCmd != doCmd {
-			log.Errorf("error executing proxied ssh command: originalCmd \"%s\" does not match forceCommand \"%s\"", originalCmd, forceCommand)
+		if config.CommandMustMatch && originalCmd != doCmd {
+			log.Errorf("error executing proxied ssh command: originalCmd \"%s\" does not match forceCommand \"%s\"", originalCmd, config.ForceCommand)
 			return 1
 		}
 		for fromCmd, translateCmdConf := range config.TranslateCommands {
@@ -506,7 +472,7 @@ func mainExitCode() int {
 		}()
 	}
 
-	log.Infof("proxied to %s (service: %s)", hostport, service)
+	log.Infof("proxied to %s (service: %s)", hostport, config.Service)
 
 	var rc int
 	if interactiveCommand {

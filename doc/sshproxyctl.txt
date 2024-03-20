@@ -83,11 +83,13 @@ COMMANDS
 *show error_banner*::
 	Show error banners stored in etcd and in configuration.
 
-*get_config [-user USER] [-groups GROUPS]*::
+*show [-user USER] [-groups GROUPS] [-source SOURCE] config*::
 	Display the calculated configuration. If a user is given, its system
 	groups (if any) are added to the given groups. If a user and/or groups
 	are given with '-user' and '-groups' options, the configuration will
-	be calculated for these specific user/groups.
+	be calculated for these specific user/groups. If a source
+	(host[:port]) is given with the '-source' option, the configuration
+	will be calculated for this specific source.
 
 
 FILES

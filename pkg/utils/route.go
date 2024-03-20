@@ -23,18 +23,6 @@ var mylog = logging.MustGetLogger("sshproxy")
 
 type selectDestinationFunc func([]string, HostChecker, *Client, string) (string, error)
 
-var (
-	// DefaultAlgorithm is the default algorithm used to find a route if no
-	// other algorithm is specified in configuration.
-	DefaultAlgorithm = "ordered"
-	// DefaultMode is the default mode used to find a route if no other mode is
-	// specified in the configuration.
-	DefaultMode = "sticky"
-	// DefaultRouteKeyword is the keyword used to specify the default
-	// route.
-	DefaultRouteKeyword = "default:22"
-)
-
 // HostChecker is the interface that wraps the Check method.
 //
 // Check tests if a connection to host:port can be made.

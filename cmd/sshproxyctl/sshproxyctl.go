@@ -39,7 +39,7 @@ var (
 )
 
 func mustInitEtcdClient(configFile string) *utils.Client {
-	config, err := utils.LoadConfig(configFile, "", "", time.Now(), nil)
+	config, err := utils.LoadConfig(configFile, "", "", time.Now(), nil, "")
 	if err != nil {
 		log.Fatalf("reading configuration file %s: %v", configFile, err)
 	}
@@ -53,7 +53,7 @@ func mustInitEtcdClient(configFile string) *utils.Client {
 }
 
 func getErrorBanner(configFile string) string {
-	config, err := utils.LoadConfig(configFile, "", "", time.Now(), nil)
+	config, err := utils.LoadConfig(configFile, "", "", time.Now(), nil, "")
 	if err != nil {
 		log.Fatalf("reading configuration file %s: %v", configFile, err)
 	}
@@ -553,7 +553,7 @@ func showErrorBanner(configFile string) {
 	}
 }
 
-func showConfig(configFile, userString, groupsString string) {
+func showConfig(configFile, userString, groupsString, sourceString string) {
 	groupsMap := make(map[string]bool)
 	userComment := ""
 	// get system groups of given user, if it exists
@@ -570,7 +570,7 @@ func showConfig(configFile, userString, groupsString string) {
 		}
 	}
 	// get config for given user / groups
-	config, err := utils.LoadConfig(configFile, userString, "", time.Now(), groupsMap)
+	config, err := utils.LoadConfig(configFile, userString, "", time.Now(), groupsMap, sourceString)
 	if err != nil {
 		log.Fatalf("reading configuration file %s: %v", configFile, err)
 	}
@@ -626,23 +626,24 @@ Show version and exit.
 	return fs
 }
 
-func newShowParser(csvFlag *bool, jsonFlag *bool, allFlag *bool, userString *string, groupsString *string) *flag.FlagSet {
+func newShowParser(csvFlag *bool, jsonFlag *bool, allFlag *bool, userString *string, groupsString *string, sourceString *string) *flag.FlagSet {
 	fs := flag.NewFlagSet("show", flag.ExitOnError)
 	fs.BoolVar(csvFlag, "csv", false, "show results in CSV format")
 	fs.BoolVar(jsonFlag, "json", false, "show results in JSON format")
 	fs.BoolVar(allFlag, "all", false, "show all connections / users / groups")
 	fs.StringVar(userString, "user", "", "show the config for this specific user and this user's groups (if any)")
 	fs.StringVar(groupsString, "groups", "", "show the config for these specific groups (comma separated)")
+	fs.StringVar(sourceString, "source", "", "show the config for this specific source (host[:port])")
 	fs.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s show COMMAND [OPTIONS]
 
 The commands are:
-  connections [-all] [-csv|-json]       show connections stored in etcd
-  hosts [-csv|-json]                    show hosts stored in etcd
-  users [-all] [-csv|-json]             show users stored in etcd
-  groups [-all] [-csv|-json]            show groups stored in etcd
-  error_banner                          show error banners stored in etcd and in configuration
-  config [-user USER] [-groups GROUPS]  show the calculated configuration
+  connections [-all] [-csv|-json]                        show connections stored in etcd
+  hosts [-csv|-json]                                     show hosts stored in etcd
+  users [-all] [-csv|-json]                              show users stored in etcd
+  groups [-all] [-csv|-json]                             show groups stored in etcd
+  error_banner                                           show error banners stored in etcd and in configuration
+  config [-user USER] [-groups GROUPS] [-source SOURCE]  show the calculated configuration
 
 The options are:
 `, os.Args[0])
@@ -826,11 +827,12 @@ func main() {
 	var expire string
 	var userString string
 	var groupsString string
+	var sourceString string
 
 	parsers := map[string]*flag.FlagSet{
 		"help":         newHelpParser(),
 		"version":      newVersionParser(),
-		"show":         newShowParser(&csvFlag, &jsonFlag, &allFlag, &userString, &groupsString),
+		"show":         newShowParser(&csvFlag, &jsonFlag, &allFlag, &userString, &groupsString, &sourceString),
 		"enable":       newEnableParser(),
 		"forget":       newForgetParser(),
 		"disable":      newDisableParser(),
@@ -880,7 +882,7 @@ func main() {
 		case "error_banner":
 			showErrorBanner(*configFile)
 		case "config":
-			showConfig(*configFile, userString, groupsString)
+			showConfig(*configFile, userString, groupsString, sourceString)
 		default:
 			fmt.Fprintf(os.Stderr, "ERROR: unknown subcommand: %s\n\n", subcmd)
 			p.Usage()

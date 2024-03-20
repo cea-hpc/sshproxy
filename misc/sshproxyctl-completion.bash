@@ -5,7 +5,7 @@ _sshproxyctl() {
         COMPREPLY=()
         cur="${COMP_WORDS[COMP_CWORD]}"
         prev="${COMP_WORDS[COMP_CWORD-1]}"
-        commands="disable enable error_banner forget get_config help show version"
+        commands="disable enable error_banner forget help show version"
         opts="-h -c ${commands}"
 
         case "${prev}" in
@@ -13,7 +13,7 @@ _sshproxyctl() {
                 COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
                 ;;
             show)
-                COMPREPLY=( $(compgen -W '-all -csv -json connections hosts users groups error_banner' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all -csv -json -user -groups -source connections hosts users groups error_banner config' -- "${cur}") )
                 ;;
             connections)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
@@ -27,11 +27,11 @@ _sshproxyctl() {
             groups)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
                 ;;
+            config)
+                COMPREPLY=( $(compgen -W '-user -groups -source' -- "${cur}") )
+                ;;
             error_banner)
                 COMPREPLY=( $(compgen -W '-expire' -- "${cur}") )
-                ;;
-            get_config)
-                COMPREPLY=( $(compgen -W '-user -groups' -- "${cur}") )
                 ;;
             -all)
                 COMPREPLY=( $(compgen -W '-csv -json connections users groups' -- "${cur}") )
@@ -41,6 +41,15 @@ _sshproxyctl() {
                 ;;
             -json)
                 COMPREPLY=( $(compgen -W '-all connections hosts users groups' -- "${cur}") )
+                ;;
+            -user)
+                COMPREPLY=( $(compgen -W '-groups -source config' -- "${cur}") )
+                ;;
+            -groups)
+                COMPREPLY=( $(compgen -W '-user -source config' -- "${cur}") )
+                ;;
+            -source)
+                COMPREPLY=( $(compgen -W '-user -groups config' -- "${cur}") )
                 ;;
             -c)
                 _filedir

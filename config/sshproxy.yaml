@@ -106,7 +106,6 @@
 #    keyttl: 5
 #    mandatory: false
 
-# Environment.
 # Environment variables can be set if needed. The '{user}' pattern will be
 # replaced with the user login.
 #environment:
@@ -122,79 +121,88 @@
 # user. Default is 0.
 #max_connections_per_user: 0
 
-# Routes definition.
-# The key is the service name (only used for display). The special service name
-# "default" can be used to define a default route and does not need the source
-# key. The source value is the IP address or DNS name of the listening SSH
-# daemon (with an optional port). The dest value is an array of destination
-# hosts (with an optional port). The route_select value defines how the host
-# destination will be chosen. It can be "ordered" (the default), "random",
-# "connections" or "bandwidth". If "ordered", the hosts are tried in the order
-# listed until a successful connection is made. The list is first randomly
-# sorted if "random" is specified (i.e. a poor-man load-balancing algorithm).
-# If "connections", the hosts with less connections from the user have
-# priority, then the hosts with less global connections, and in case of a draw,
-# the selection is random. For "bandwidth", it's the same as "connections", but
-# based on the bandwidth used, with a rollback on connections (which is
-# frequent for new simultaneous connections). The mode value defines the
-# stickiness of a connection. It can be "sticky" or "balanced" (defaults to
-# sticky). If "sticky", then all connections of a user will be made on the same
-# destination host. If "balanced", the route_select algorithm will be used for
-# every connection.  Finally, the force_command can be set to override the
-# command asked by the user. If command_must_match is set to true, then the
-# connection is closed if the original command is not the same as the
-# force_command. command_must_match defaults to false. etcd_keyttl defauts to
+# The service name is used for display. It's also used as a key in order to
+# check in etcd if a user already has active connections. The default service
+# name is "default".
+#service: default
+
+# The dest value is an array of destination hosts (with an optional port).
+#dest: [host5:4222]
+
+# The route_select value defines how the host destination will be chosen. It
+# can be "ordered" (the default), "random", "connections" or "bandwidth". If
+# "ordered", the hosts are tried in the order listed until a successful
+# connection is made. The list is first randomly sorted if "random" is
+# specified (i.e. a poor-man load-balancing algorithm).  If "connections", the
+# hosts with less connections from the user have priority, then the hosts with
+# less global connections, and in case of a draw, the selection is random. For
+# "bandwidth", it's the same as "connections", but based on the bandwidth used,
+# with a rollback on connections (which is frequent for new simultaneous
+# connections).
+#route_select: ordered
+
+# The mode value defines the stickiness of a connection. It can be "sticky" or
+# "balanced" (defaults to sticky). If "sticky", then all connections of a user
+# will be made on the same destination host. If "balanced", the route_select
+# algorithm will be used for every connection.
+#mode: sticky
+
+# The force_command can be set to override the command asked by the user.
+#force_command: "internal-sftp"
+
+# If command_must_match is set to true, then the connection is closed if the
+# original command is not the same as the force_command. command_must_match
+# defaults to false.
+#command_must_match: false
+
+# etcd_keyttl defauts to
 # 0. If a value is set (in seconds), the chosen backend will be remembered for
-# this amount of time. Environment variables can be set if needed. The '{user}'
-# pattern will be replaced with the user login.
-#routes:
-#    service1:
-#        source: ["192.168.0.1"]
-#        dest: [host1, host2]
-#    service2:
-#        source: ["192.168.0.2"]
-#        dest: [host3, host4]
-#        route_select: bandwidth
-#        mode: balanced
-#        force_command: "internal-sftp"
-#        command_must_match: true
-#        etcd_keyttl: 3600
-#        environment:
-#            XAUTHORITY: /dev/shm/.Xauthority_{user}
-#    default:
-#        dest: ["host5:4222"]
+# this amount of time.
+#etcd_keyttl: 3600
 
-# Each option can be overridden for a Unix group of users. Multiple groups can
-# be defined on the same line, separated by commas.
-# If a user is in multiple groups and these groups are defined in the
-# configuration, the configuration of a previous group will be overridden by the
-# next ones.
-# The parameters defined in a "users" option (see below) will be applied last
-# and override groups parameters.
-#groups:
-#    - foo,bar:
-#        debug: true
-#        log: /tmp/sshproxy-foo/{user}.log
-#        # An associative array is used to specify environment, SSH options or
-#        # routes.
-#        environment:
-#            ENV1: /tmp/env
-#        ssh:
-#            args: ["-vvv", "-Y"]
-#        # If routes are specified, they are fully overridden, not merged.
-#        routes:
-#            default:
-#                dest: [hostx]
-
-# Each option can also be overridden for a specific user (eg. for debugging
-# purpose). Multiple users can be defined on the same line, separated by
-# commas.
-#users:
-#    - foo,bar:
-#        debug: true
-#        log: /tmp/sshproxy-{user}.log
-#        dump: /tmp/sshproxy-{user}-{time}.dump
-#        # An associative array is used to specify environment, SSH options or
-#        # routes.
-#        ssh:
-#            args: ["-vvv", "-Y"]
+# Each option can be overridden for a specific source (IP address or DNS name
+# of the listening SSH daemon, with an optional port), for a specific user
+# and/or a Unix group of users (eg. for debugging purpose). Multiple source,
+# user and/or group can be defined. Each element of the "match" array is
+# treated as an "or" statement.  If an element of the "match" array contains
+# multiple keys, they are treated as an "and" statement. If multiple overrides
+# match the same user or group, they will be applied in the order they are
+# defined.  In the following example: alice, bob and any user in the group foo
+# will have the debug set to true. But if any of those are also in the groups
+# bar AND baz, debug will be set to false, as the last override takes
+# precedence.
+#overrides:
+#    - match:
+#        - source: 192.168.0.1
+#      service: service1
+#      dest: [host1, host2]
+#    - match:
+#        - source: 192.168.0.2
+#      service: service2
+#      dest: [host3, host4]
+#      route_select: bandwidth
+#      mode: balanced
+#      force_command: "internal-sftp"
+#      command_must_match: true
+#      etcd_keyttl: 3600
+#      environment:
+#          XAUTHORITY: /dev/shm/.Xauthority_{user}
+#    - match:
+#        - user: alice
+#        - user: bob
+#        - group: foo
+#      debug: true
+#      log: /tmp/sshproxy-foo/{user}.log
+#      dump: /tmp/sshproxy-{user}-{time}.dump
+#      environment:
+#          ENV1: /tmp/env
+#      ssh:
+#          args: ["-vvv", "-Y"]
+#      # If routes are specified, each specified route is fully overridden, not merged.
+#      routes:
+#          default:
+#              dest: [hostx]
+#    - match:
+#        - group: bar
+#          group: baz
+#      debug: false

@@ -59,46 +59,60 @@ etcd:
     keyttl: 1
     mandatory: false
 
-routes:
-    service1:
-        source: ["gateway1:2022", "gateway2:2022"]
-        dest: ["server1", "server2"]
-        route_select: ordered
-        mode: sticky
-        etcd_keyttl: 0
-    service2:
-        source: ["gateway1:2023"]
-        dest: ["server1"]
-    service3:
-        source: ["gateway1:2024"]
-        dest: ["server2"]
-        environment:
-            XMODIFIERS: serviceEnv_{user}
-    sftp:
-        source: ["gateway2:2023"]
-        dest: ["server1"]
-        force_command: "/usr/libexec/openssh/sftp-server"
-        command_must_match: true
-    default:
-        dest: ["server3"]
+service: default
+dest: ["server3"]
 
-groups:
-    - user1,unknowngroup:
-        routes:
-            service2:
-                source: ["gateway1:2023"]
-                dest: ["server2"]
-
-users:
-    - unknownuser,user2:
-        environment:
-            XMODIFIERS: globalUserEnv_{user}
-        routes:
-            service3:
-                source: ["gateway1:2024"]
-                dest: ["server1"]
-                environment:
-                    XMODIFIERS: serviceUserEnv_{user}
+overrides:
+    - match:
+          - source: "gateway1:2022"
+          - source: "gateway2:2022"
+      service: service1
+      dest: ["server1", "server2"]
+      route_select: ordered
+      mode: sticky
+      etcd_keyttl: 0
+    - match:
+          - source: "gateway1:2023"
+      service: service2
+      dest: ["server1"]
+    - match:
+          - source: "gateway1:2024"
+      service: service3
+      dest: ["server2"]
+      environment:
+          XMODIFIERS: serviceEnv_{user}
+    - match:
+          - source: "gateway2:2023"
+      service: sftp
+      dest: ["server1"]
+      force_command: "/usr/libexec/openssh/sftp-server"
+      command_must_match: true
+    - match:
+          - source: "gateway1:2023"
+            group: user1
+          - source: "gateway1:2023"
+            group: unknowngroup
+          - source: "gateway1:2023"
+            user: unknownuser
+      service: service2
+      dest: ["server2"]
+    - match:
+          - group: unknowngroup
+          - user: unknownuser
+          - user: user2
+      environment:
+          XMODIFIERS: globalUserEnv_{user}
+    - match:
+          - source: "gateway1:2024"
+            group: unknowngroup
+          - source: "gateway1:2024"
+            user: unknownuser
+          - source: "gateway1:2024"
+            user: user2
+      service: service3
+      dest: ["server1"]
+      environment:
+          XMODIFIERS: serviceUserEnv_{user}
 EOF
 
 exec "$@"

@@ -109,63 +109,47 @@ func GetGroupList(username string) (map[string]bool, error) {
 // Mocking net.LookupHost for testing.
 var netLookupHost = net.LookupHost
 
-// CheckRoutes checks and replaces all hosts defined in a map of routes with
-// their "host:port" value (in case the host is defined without a port).
-func CheckRoutes(routes map[string]*RouteConfig) error {
-	for service, opts := range routes {
-		if service != DefaultService && len(opts.Source) == 0 {
-			return fmt.Errorf("no source defined for service '%s'", service)
-		} else if service == DefaultService && len(opts.Source) != 0 {
-			return fmt.Errorf("no source should be defined for the default service")
+// normalizeHostPort returns a slice of strings of IPs (hostnames are resolved)
+// and a string containing the port (defaults to 22)
+func normalizeHostPort(hostPort string) ([]string, string, error) {
+	host, port, err := SplitHostPort(hostPort)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid address: %s", err)
+	}
+	var addrs []string
+	if net.ParseIP(host) == nil {
+		// host is a name and not an IP address
+		// this name can resolve to multiple IPs
+		addrs, err = netLookupHost(host)
+		if err != nil {
+			return nil, "", fmt.Errorf("cannot resolve host '%s': %v", host, err)
 		}
-		var sources []string
-		for _, source := range opts.Source {
-			host, port, err := SplitHostPort(source)
-			if err != nil {
-				return fmt.Errorf("invalid source address: %s", err)
-			}
-			var addrs []string
-			if net.ParseIP(host) == nil {
-				// host is a name and not an IP address
-				// this name can resolve to multiple IPs
-				addrs, err = netLookupHost(host)
-				if err != nil {
-					return fmt.Errorf("cannot resolve host '%s': %v", host, err)
-				}
-			} else {
-				addrs = []string{host}
-			}
-			for _, addr := range addrs {
-				hostport := net.JoinHostPort(addr, port)
-				sources = append(sources, hostport)
-			}
-		}
-		routes[service].Source = sources
+	} else {
+		addrs = []string{host}
+	}
+	return addrs, port, nil
+}
 
-		if len(opts.Dest) == 0 {
-			return fmt.Errorf("no destination defined for service '%s'", service)
-		}
-		for i, dst := range opts.Dest {
-			host, port, err := SplitHostPort(dst)
-			if err != nil {
-				return fmt.Errorf("invalid destination '%s' for service '%s': %s", dst, service, err)
+// MatchSource checks if a source matches the SSH host and port (defaults to
+// 22) of the incoming ssh connection
+func MatchSource(source string, sshdHostPort string) (bool, error) {
+	sourceAddrs, sourcePort, err := normalizeHostPort(source)
+	if err != nil {
+		return false, fmt.Errorf("source: %s", err)
+	}
+	sshdAddrs, sshdPort, err := normalizeHostPort(sshdHostPort)
+	if err != nil {
+		return false, fmt.Errorf("sshdHostPort: %s", err)
+	}
+	if sourcePort != sshdPort {
+		return false, nil
+	}
+	for _, sourceAddr := range sourceAddrs {
+		for _, sshdAddr := range sshdAddrs {
+			if sourceAddr == sshdAddr {
+				return true, nil
 			}
-			routes[service].Dest[i] = net.JoinHostPort(host, port)
-		}
-
-		if opts.RouteSelect == "" {
-			routes[service].RouteSelect = DefaultAlgorithm
-		}
-		if !IsRouteAlgorithm(routes[service].RouteSelect) {
-			return fmt.Errorf("invalid value for `route_select` option of service '%s': %s", service, routes[service].RouteSelect)
-		}
-
-		if opts.Mode == "" {
-			routes[service].Mode = DefaultMode
-		}
-		if !IsRouteMode(routes[service].Mode) {
-			return fmt.Errorf("invalid value for `mode` option of service '%s': %s", service, routes[service].Mode)
 		}
 	}
-	return nil
+	return false, nil
 }
