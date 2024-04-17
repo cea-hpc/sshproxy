@@ -219,11 +219,6 @@ The pattern '\{user}' will be replaced with the user login:
 	an integer. Defauts to 0. If a value is set (in seconds), the chosen
 	backend will be remembered for this amount of time.
 
-In the previous example, a client connected to '192.168.0.1' will be proxied
-to 'host1' and, if the host is not reachable, to 'host2'. If a client does not
-connect to '192.168.0.1' or '192.168.0.2' it will be proxied to the sshd
-daemon listening on port 4222 on 'host5'.
-
 Each of the previous parameters can be overridden for specific source (IP
 address or DNS name of the listening SSH daemon, with an optional port), for a
 specific user or a group thanks to the *overrides* associative array.
