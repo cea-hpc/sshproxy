@@ -15,6 +15,7 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"slices"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -91,7 +92,7 @@ type etcdTLSConfig struct {
 // We use interface{} instead of real type to check if the option was specified
 // or not.
 type subConfig struct {
-	Match                 []map[string]string
+	Match                 []map[string][]string
 	Debug                 interface{}
 	Log                   interface{}
 	CheckInterval         interface{} `yaml:"check_interval"`
@@ -292,17 +293,32 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 			for cType, cValue := range conditions {
 				// other cType can be defined as needed. For example
 				// environment variables could be useful matches
-				if cType == "user" && cValue != currentUsername {
+				if cType == "users" {
+					match = slices.Contains(cValue, currentUsername)
+				} else if cType == "groups" {
 					match = false
-				} else if cType == "group" && !groups[cValue] {
+					for group := range groups {
+						match = slices.Contains(cValue, group)
+						if match {
+							// no need to go further as match is true and
+							// we're in an "or" statement
+							break
+						}
+					}
+				} else if cType == "sources" {
 					match = false
-				} else if cType == "source" {
-					if sshdHostPort == "" {
-						match = false
-					} else {
-						match, err = MatchSource(cValue, sshdHostPort)
-						if err != nil {
-							return nil, err
+					if sshdHostPort != "" {
+						// sshdHostPort is empty when sshproxyctl is called
+						// without the --source option
+						for _, source := range cValue {
+							match, err = MatchSource(source, sshdHostPort)
+							if err != nil {
+								return nil, err
+							} else if match {
+								// no need to go further as match is true and
+								// we're in an "or" statement
+								break
+							}
 						}
 					}
 				}

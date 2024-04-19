@@ -160,24 +160,23 @@
 # this amount of time.
 #etcd_keyttl: 3600
 
-# Each option can be overridden for a specific source (IP address or DNS name
-# of the listening SSH daemon, with an optional port), for a specific user
-# and/or a Unix group of users (eg. for debugging purpose). Multiple source,
-# user and/or group can be defined. Each element of the "match" array is
-# treated as an "or" statement.  If an element of the "match" array contains
-# multiple keys, they are treated as an "and" statement. If multiple overrides
-# match the same user or group, they will be applied in the order they are
-# defined.  In the following example: alice, bob and any user in the group foo
-# will have the debug set to true. But if any of those are also in the groups
-# bar AND baz, debug will be set to false, as the last override takes
-# precedence.
+# Each option can be overridden for specific sources (IP address or DNS name of
+# the listening SSH daemon, with an optional port), for specific users and/or
+# Unix groups of users (eg. for debugging purpose). Multiple sources, users
+# and/or groups can be defined. Each element of the "match" array is treated as
+# an "or" statement.  If an element of the "match" array contains multiple
+# keys, they are treated as an "and" statement. If multiple overrides match,
+# they will be applied in the order they are defined. In the following example:
+# alice, bob and any user in the group foo will have the debug set to true. But
+# if any of those are also in the groups bar AND baz, debug will be set to
+# false, as the last override takes precedence.
 #overrides:
 #    - match:
-#        - source: 192.168.0.1
+#        - sources: [192.168.0.1]
 #      service: service1
 #      dest: [host1, host2]
 #    - match:
-#        - source: 192.168.0.2
+#        - sources: [192.168.0.2]
 #      service: service2
 #      dest: [host3, host4]
 #      route_select: bandwidth
@@ -188,9 +187,8 @@
 #      environment:
 #          XAUTHORITY: /dev/shm/.Xauthority_{user}
 #    - match:
-#        - user: alice
-#        - user: bob
-#        - group: foo
+#        - users: [alice, bob]
+#        - groups: [foo]
 #      debug: true
 #      log: /tmp/sshproxy-foo/{user}.log
 #      dump: /tmp/sshproxy-{user}-{time}.dump
@@ -203,6 +201,6 @@
 #          default:
 #              dest: [hostx]
 #    - match:
-#        - group: bar
-#          group: baz
+#        - groups: [bar]
+#          groups: [baz]
 #      debug: false

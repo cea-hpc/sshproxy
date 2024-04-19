@@ -219,26 +219,26 @@ The pattern '\{user}' will be replaced with the user login:
 	an integer. Defauts to 0. If a value is set (in seconds), the chosen
 	backend will be remembered for this amount of time.
 
-Each of the previous parameters can be overridden for specific source (IP
-address or DNS name of the listening SSH daemon, with an optional port), for a
-specific user or a group thanks to the *overrides* associative array.
+Each of the previous parameters can be overridden for specific sources (IP
+address or DNS name of the listening SSH daemon, with an optional port), for
+specific users or groups thanks to the *overrides* associative array.
 
 For example if we want to save debug messages for the 'foo' group we define:
 
 	overrides:
 	    - match:
-	        - group: foo
+	        - groups: [foo]
 	      debug: true
 
-It is possible to override the same options for multiple groups.
+It is possible to override the same options for multiple groups and users.
 
-For example, if we want to save debug messages for both the 'foo' and 'bar'
-groups we define:
+For example, if we want to save debug messages if the user is 'alice' or if
+its groups contain 'foo' or 'bar' groups we define:
 
 	overrides:
 	    - match:
-	        - group: foo
-	        - group: bar
+	        - users: [alice]
+	        - groups: [foo, bar]
 	      debug: true
 
 Any key can be defined (in this example, the keys are overriden if the user is
@@ -246,8 +246,8 @@ Any key can be defined (in this example, the keys are overriden if the user is
 
 	overrides:
 	    - match:
-	        - user: alice
-	          source: 192.168.0.1:22
+	        - users: [alice]
+	          sources: [192.168.0.1:22]
 	      service: default
 	      dest: [hostx]
 	      ssh:
@@ -263,10 +263,10 @@ in '/var/log/sshproxy/admin/\{user}.log' with the following configuration:
 
 	overrides:
 	    - match:
-	        - group: users
+	        - groups: [users]
 	      log: /var/log/sshproxy/users/{user}.log
 	    - match:
-	        - group: admin
+	        - groups: [admin]
 	      log: /var/log/sshproxy/admin/{user}.log
 
 Each element of the *match* array is treated as an "or" statement. If an
@@ -303,16 +303,15 @@ route_select: random
 
 overrides:
     - match:
-        - user: alice
-        - user: bob
-        - group: foo
+        - users: [alice, bob]
+        - groups: [foo]
       service: default
       dest: [login0]
       debug: true
       dump: /var/spool/sshproxy/{user}-{time}-{sid}.dump
     - match:
-        - group: bar
-          group: baz
+        - groups: [bar]
+          groups: [baz]
       debug: false
 ------------------------------------------------------------------------------
 
