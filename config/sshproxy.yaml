@@ -155,7 +155,7 @@
 # defaults to false.
 #command_must_match: false
 
-# etcd_keyttl defauts to
+# etcd_keyttl defaults to
 # 0. If a value is set (in seconds), the chosen backend will be remembered for
 # this amount of time.
 #etcd_keyttl: 3600
