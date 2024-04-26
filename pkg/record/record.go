@@ -13,7 +13,7 @@
 //
 // The binary representation of a recording is:
 // - an unsigned 64 bits integer indicating the received time (in ns),
-// - an unsigned 8 bits integer indicating the file descritor,
+// - an unsigned 8 bits integer indicating the file descriptor,
 // - an unsigned 32 bits integer indicating the data size,
 // - data.
 //
