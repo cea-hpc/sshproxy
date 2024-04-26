@@ -140,7 +140,7 @@ etcd configuration is provided in an associative array *etcd* whose keys are:
 	a list of etcd endpoints. Default is determined by the underlying library.
 
 *tls*::
-	an associative arrary to configure TLS if enabled on etcd endpoints.
+	an associative array to configure TLS if enabled on etcd endpoints.
 	The keys are *cafile*, *keyfile* and *certfile*. Default is no TLS.
 
 *username*::
