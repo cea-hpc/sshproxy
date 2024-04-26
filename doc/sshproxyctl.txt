@@ -7,7 +7,7 @@ sshproxyctl(8)
 
 NAME
 ----
-sshproxyctl - display and modify sshproxy informations stored in etcd
+sshproxyctl - display and modify sshproxy information stored in etcd
 
 SYNOPSIS
 --------
