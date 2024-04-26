@@ -73,11 +73,11 @@ COMMANDS
 
 *show [-all] [-csv|-json] users*::
 	Show users statistics in etcd. Without '-all' only one entry per user
-	is displayed. If '-all' is specified, users are splitted by services.
+	is displayed. If '-all' is specified, users are split by services.
 
 *show [-all] [-csv|-json] groups*::
 	Show groups statistics in etcd. Without '-all' only one entry per
-	group is displayed. If '-all' is specified, groups are splitted by
+	group is displayed. If '-all' is specified, groups are split by
 	services.
 
 *show error_banner*::
