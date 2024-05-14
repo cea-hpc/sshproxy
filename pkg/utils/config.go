@@ -12,9 +12,10 @@ package utils
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"regexp"
-	"strings"
+	"slices"
 	"time"
 
 	"gopkg.in/yaml.v2"
@@ -23,8 +24,14 @@ import (
 var (
 	defaultSSHExe  = "ssh"
 	defaultSSHArgs = []string{"-q", "-Y"}
-	defaultRoutes  = map[string]*RouteConfig{"default": &RouteConfig{
-		Dest: []string{}}}
+	// defaultAlgorithm is the default algorithm used to find a route if no
+	// other algorithm is specified in configuration.
+	defaultAlgorithm = "ordered"
+	// defaultMode is the default mode used to find a route if no other mode is
+	// specified in the configuration.
+	defaultMode    = "sticky"
+	defaultService = "default"
+	defaultDest    = []string{}
 )
 
 // Config represents the configuration for sshproxy.
@@ -43,10 +50,15 @@ type Config struct {
 	SSH                   sshConfig
 	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands"`
 	Environment           map[string]string
-	Routes                map[string]*RouteConfig
-	MaxConnectionsPerUser int `yaml:"max_connections_per_user"`
-	Users                 []map[string]subConfig
-	Groups                []map[string]subConfig
+	Service               string
+	Dest                  []string
+	RouteSelect           string `yaml:"route_select"`
+	Mode                  string
+	ForceCommand          string `yaml:"force_command"`
+	CommandMustMatch      bool   `yaml:"command_must_match"`
+	EtcdKeyTTL            int64  `yaml:"etcd_keyttl"`
+	MaxConnectionsPerUser int    `yaml:"max_connections_per_user"`
+	Overrides             []subConfig
 }
 
 // TranslateCommandConfig represents the configuration of a translate_command.
@@ -55,21 +67,6 @@ type TranslateCommandConfig struct {
 	SSHArgs     []string `yaml:"ssh_args"`
 	Command     string
 	DisableDump bool `yaml:"disable_dump"`
-}
-
-// RouteConfig represents the configuration of a route. Dest is mandatory,
-// Source is mandatory if the associated service name is not the default one.
-// RouteSelect defaults to "ordered", Mode defaults to "stiky", ForceCommand is
-// optional, CommandMustMatch defaults to false
-type RouteConfig struct {
-	Source           []string
-	Dest             []string
-	RouteSelect      string `yaml:"route_select"`
-	Mode             string
-	ForceCommand     string `yaml:"force_command"`
-	CommandMustMatch bool   `yaml:"command_must_match"`
-	EtcdKeyTTL       int64  `yaml:"etcd_keyttl"`
-	Environment      map[string]string
 }
 
 type sshConfig struct {
@@ -95,20 +92,29 @@ type etcdTLSConfig struct {
 // We use interface{} instead of real type to check if the option was specified
 // or not.
 type subConfig struct {
+	Match                 []map[string][]string
 	Debug                 interface{}
 	Log                   interface{}
+	CheckInterval         interface{} `yaml:"check_interval"`
 	ErrorBanner           interface{} `yaml:"error_banner"`
 	Dump                  interface{}
-	DumpLimitSize         interface{}                        `yaml:"dump_limit_size"`
-	DumpLimitWindow       interface{}                        `yaml:"dump_limit_window"`
-	EtcdStatsInterval     interface{}                        `yaml:"etcd_stats_interval"`
-	LogStatsInterval      interface{}                        `yaml:"log_stats_interval"`
-	BgCommand             interface{}                        `yaml:"bg_command"`
+	DumpLimitSize         interface{} `yaml:"dump_limit_size"`
+	DumpLimitWindow       interface{} `yaml:"dump_limit_window"`
+	Etcd                  interface{}
+	EtcdStatsInterval     interface{} `yaml:"etcd_stats_interval"`
+	LogStatsInterval      interface{} `yaml:"log_stats_interval"`
+	BgCommand             interface{} `yaml:"bg_command"`
+	SSH                   interface{}
 	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands"`
 	Environment           map[string]string
-	Routes                map[string]*RouteConfig
+	Service               interface{}
+	Dest                  []string
+	RouteSelect           interface{} `yaml:"route_select"`
+	Mode                  interface{}
+	ForceCommand          interface{} `yaml:"force_command"`
+	CommandMustMatch      interface{} `yaml:"command_must_match"`
+	EtcdKeyTTL            interface{} `yaml:"etcd_keyttl"`
 	MaxConnectionsPerUser interface{} `yaml:"max_connections_per_user"`
-	SSH                   sshConfig
 }
 
 // Return slice of strings containing formatted configuration values
@@ -121,20 +127,23 @@ func PrintConfig(config *Config, groups map[string]bool) []string {
 	output = append(output, fmt.Sprintf("config.dump = %s", config.Dump))
 	output = append(output, fmt.Sprintf("config.dump_limit_size = %d", config.DumpLimitSize))
 	output = append(output, fmt.Sprintf("config.dump_limit_window = %s", config.DumpLimitWindow.Duration()))
+	output = append(output, fmt.Sprintf("config.etcd = %+v", config.Etcd))
 	output = append(output, fmt.Sprintf("config.etcd_stats_interval = %s", config.EtcdStatsInterval.Duration()))
 	output = append(output, fmt.Sprintf("config.log_stats_interval = %s", config.LogStatsInterval.Duration()))
-	output = append(output, fmt.Sprintf("config.etcd = %+v", config.Etcd))
 	output = append(output, fmt.Sprintf("config.bg_command = %s", config.BgCommand))
+	output = append(output, fmt.Sprintf("config.ssh = %+v", config.SSH))
 	for k, v := range config.TranslateCommands {
 		output = append(output, fmt.Sprintf("config.TranslateCommands.%s = %+v", k, v))
 	}
 	output = append(output, fmt.Sprintf("config.environment = %v", config.Environment))
-	for k, v := range config.Routes {
-		output = append(output, fmt.Sprintf("config.routes.%s = %+v", k, v))
-	}
+	output = append(output, fmt.Sprintf("config.service = %s", config.Service))
+	output = append(output, fmt.Sprintf("config.dest = %v", config.Dest))
+	output = append(output, fmt.Sprintf("config.route_select = %s", config.RouteSelect))
+	output = append(output, fmt.Sprintf("config.mode = %s", config.Mode))
+	output = append(output, fmt.Sprintf("config.force_command = %s", config.ForceCommand))
+	output = append(output, fmt.Sprintf("config.command_must_match = %v", config.CommandMustMatch))
+	output = append(output, fmt.Sprintf("config.etcd_keyttl = %d", config.EtcdKeyTTL))
 	output = append(output, fmt.Sprintf("config.max_connections_per_user = %d", config.MaxConnectionsPerUser))
-	output = append(output, fmt.Sprintf("config.ssh.exe = %s", config.SSH.Exe))
-	output = append(output, fmt.Sprintf("config.ssh.args = %v", config.SSH.Args))
 	return output
 }
 
@@ -147,6 +156,14 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 		config.Log = subconfig.Log.(string)
 	}
 
+	if subconfig.CheckInterval != nil {
+		var err error
+		config.CheckInterval, err = ParseDuration(subconfig.CheckInterval.(string))
+		if err != nil {
+			return err
+		}
+	}
+
 	if subconfig.ErrorBanner != nil {
 		config.ErrorBanner = subconfig.ErrorBanner.(string)
 	}
@@ -156,7 +173,7 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 	}
 
 	if subconfig.DumpLimitSize != nil {
-		config.DumpLimitSize = subconfig.DumpLimitSize.(uint64)
+		config.DumpLimitSize = uint64(subconfig.DumpLimitSize.(int))
 	}
 
 	if subconfig.DumpLimitWindow != nil {
@@ -165,6 +182,10 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if subconfig.Etcd != nil {
+		config.Etcd = subconfig.Etcd.(etcdConfig)
 	}
 
 	if subconfig.EtcdStatsInterval != nil {
@@ -187,24 +208,8 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 		config.BgCommand = subconfig.BgCommand.(string)
 	}
 
-	if subconfig.SSH.Exe != "" {
-		config.SSH.Exe = subconfig.SSH.Exe
-	}
-
-	if subconfig.SSH.Args != nil {
-		config.SSH.Args = subconfig.SSH.Args
-	}
-
-	// merge routes
-	if config.Routes == nil {
-		config.Routes = defaultRoutes
-	}
-	for service, opts := range subconfig.Routes {
-		config.Routes[service] = opts
-	}
-
-	if subconfig.MaxConnectionsPerUser != nil {
-		config.MaxConnectionsPerUser = subconfig.MaxConnectionsPerUser.(int)
+	if subconfig.SSH != nil {
+		config.SSH = subconfig.SSH.(sshConfig)
 	}
 
 	// merge translate_commands
@@ -215,6 +220,38 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 	// merge environment
 	for k, v := range subconfig.Environment {
 		config.Environment[k] = v
+	}
+
+	if subconfig.Service != nil {
+		config.Service = subconfig.Service.(string)
+	}
+
+	if len(subconfig.Dest) > 0 {
+		config.Dest = subconfig.Dest
+	}
+
+	if subconfig.RouteSelect != nil {
+		config.RouteSelect = subconfig.RouteSelect.(string)
+	}
+
+	if subconfig.Mode != nil {
+		config.Mode = subconfig.Mode.(string)
+	}
+
+	if subconfig.ForceCommand != nil {
+		config.ForceCommand = subconfig.ForceCommand.(string)
+	}
+
+	if subconfig.CommandMustMatch != nil {
+		config.CommandMustMatch = subconfig.CommandMustMatch.(bool)
+	}
+
+	if subconfig.EtcdKeyTTL != nil {
+		config.EtcdKeyTTL = int64(subconfig.EtcdKeyTTL.(int))
+	}
+
+	if subconfig.MaxConnectionsPerUser != nil {
+		config.MaxConnectionsPerUser = subconfig.MaxConnectionsPerUser.(int)
 	}
 
 	return nil
@@ -229,8 +266,8 @@ func replace(src string, replacer *patternReplacer) string {
 	return replacer.Regexp.ReplaceAllString(src, replacer.Text)
 }
 
-// LoadConfig load configuration file and adapt it according to specified user.
-func LoadConfig(filename, currentUsername, sid string, start time.Time, groups map[string]bool) (*Config, error) {
+// LoadConfig load configuration file and adapt it according to specified user/group/sshdHostPort.
+func LoadConfig(filename, currentUsername, sid string, start time.Time, groups map[string]bool, sshdHostPort string) (*Config, error) {
 	patterns := map[string]*patternReplacer{
 		"{user}": {regexp.MustCompile(`{user}`), currentUsername},
 		"{sid}":  {regexp.MustCompile(`{sid}`), sid},
@@ -250,6 +287,66 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		return nil, err
 	}
 
+	for _, override := range config.Overrides {
+		for _, conditions := range override.Match {
+			match := true
+			for cType, cValue := range conditions {
+				// other cType can be defined as needed. For example
+				// environment variables could be useful matches
+				if cType == "users" {
+					match = slices.Contains(cValue, currentUsername)
+				} else if cType == "groups" {
+					match = false
+					for group := range groups {
+						match = slices.Contains(cValue, group)
+						if match {
+							// no need to go further as match is true and
+							// we're in an "or" statement
+							break
+						}
+					}
+				} else if cType == "sources" {
+					match = false
+					if sshdHostPort != "" {
+						// sshdHostPort is empty when sshproxyctl is called
+						// without the --source option
+						for _, source := range cValue {
+							match, err = MatchSource(source, sshdHostPort)
+							if err != nil {
+								return nil, err
+							} else if match {
+								// no need to go further as match is true and
+								// we're in an "or" statement
+								break
+							}
+						}
+					}
+				}
+				if !match {
+					// no need to go further as match is false and we're in an
+					// "and" statement
+					break
+				}
+			}
+			if match {
+				// apply the override because we're in an "or" statement
+				if err := parseSubConfig(&config, &override); err != nil {
+					return nil, err
+				}
+				// no need to to parse the same subconfig twice
+				break
+			}
+		}
+	}
+
+	if config.Service == "" {
+		config.Service = defaultService
+	}
+
+	if config.Dest == nil {
+		config.Dest = defaultDest
+	}
+
 	if config.SSH.Exe == "" {
 		config.SSH.Exe = defaultSSHExe
 	}
@@ -258,34 +355,20 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		config.SSH.Args = defaultSSHArgs
 	}
 
-	// we have to use a slice of maps in order to have ordered maps
-	for _, groupconfigs := range config.Groups {
-		for groupnames, groupconfig := range groupconfigs {
-			for _, groupname := range strings.Split(groupnames, ",") {
-				if groups[groupname] {
-					if err := parseSubConfig(&config, &groupconfig); err != nil {
-						return nil, err
-					}
-					// no need to to parse the same subconfig twice
-					break
-				}
-			}
-		}
+	if config.RouteSelect == "" {
+		config.RouteSelect = defaultAlgorithm
 	}
 
-	// we have to use a slice of maps in order to have ordered maps
-	for _, userconfigs := range config.Users {
-		for usernames, userconfig := range userconfigs {
-			for _, username := range strings.Split(usernames, ",") {
-				if username == currentUsername {
-					if err := parseSubConfig(&config, &userconfig); err != nil {
-						return nil, err
-					}
-					// no need to to parse the same subconfig twice
-					break
-				}
-			}
-		}
+	if !IsRouteAlgorithm(config.RouteSelect) {
+		return nil, fmt.Errorf("invalid value for `route_select` option of service '%s': %s", config.Service, config.RouteSelect)
+	}
+
+	if config.Mode == "" {
+		config.Mode = defaultMode
+	}
+
+	if !IsRouteMode(config.Mode) {
+		return nil, fmt.Errorf("invalid value for `mode` option of service '%s': %s", config.Service, config.Mode)
 	}
 
 	if config.Log != "" {
@@ -296,15 +379,17 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		config.Environment[k] = replace(v, patterns["{user}"])
 	}
 
-	for service, opts := range config.Routes {
-		for k, v := range opts.Environment {
-			config.Routes[service].Environment[k] = replace(v, patterns["{user}"])
-		}
+	if len(config.Dest) == 0 {
+		return nil, fmt.Errorf("no destination defined for service '%s'", config.Service)
 	}
 
-	// replace sources and destinations (with possible missing port) with host:port.
-	if err := CheckRoutes(config.Routes); err != nil {
-		return nil, fmt.Errorf("invalid value in `routes` option: %s", err)
+	// replace destinations (with possible missing port) with host:port
+	for i, dst := range config.Dest {
+		host, port, err := SplitHostPort(dst)
+		if err != nil {
+			return nil, fmt.Errorf("invalid destination '%s' for service '%s': %s", dst, config.Service, err)
+		}
+		config.Dest[i] = net.JoinHostPort(host, port)
 	}
 
 	if config.Dump != "" {

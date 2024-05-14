@@ -12,7 +12,6 @@ package utils
 
 import (
 	"errors"
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -71,171 +70,123 @@ func TestInvalidSplitHostPort(t *testing.T) {
 func mockNetLookupHost(host string) ([]string, error) {
 	if host == "err" {
 		return nil, errors.New("LookupHost error")
+	} else if host == "127.0.0.1" {
+		return []string{"127.0.0.1"}, nil
 	}
 	return []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}, nil
 }
 
-var checkroutesTests = []struct {
-	routes, want map[string]*RouteConfig
+var matchSourceTests = []struct {
+	source, sshdHostport string
+	want                 bool
 }{
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "random",
-			Mode:        "sticky",
-			Source:      []string{"127.0.0.1:22"},
-			Dest:        []string{"1.1.1.1"}}},
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "random",
-			Mode:        "sticky",
-			Source:      []string{"127.0.0.1:22"},
-			Dest:        []string{"1.1.1.1:22"}}},
+		"127.0.0.1",
+		"127.0.0.1:22",
+		true,
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "connections",
-			Mode:        "balanced",
-			Source:      []string{"127.0.0.1:22"},
-			Dest:        []string{"host"}}},
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "connections",
-			Mode:        "balanced",
-			Source:      []string{"127.0.0.1:22"},
-			Dest:        []string{"host:22"}}},
+		"127.0.0.1:22",
+		"127.0.0.1:22",
+		true,
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "bandwidth",
-			Source:      []string{"127.0.0.1:22"},
-			Dest:        []string{"1.1.1.1:123"}}},
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "bandwidth",
-			Mode:        "sticky",
-			Source:      []string{"127.0.0.1:22"},
-			Dest:        []string{"1.1.1.1:123"}}},
+		"127.0.0.1:22",
+		"127.0.0.1",
+		true,
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "ordered",
-			Source:      []string{"127.0.0.1"},
-			Dest:        []string{"1.1.1.1"}}},
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "ordered",
-			Mode:        "sticky",
-			Source:      []string{"127.0.0.1:22"},
-			Dest:        []string{"1.1.1.1:22"}}},
+		"127.0.0.1:123",
+		"127.0.0.1:123",
+		true,
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			Source: []string{"host"},
-			Dest:   []string{"1.1.1.1"}}},
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "ordered",
-			Mode:        "sticky",
-			Source:      []string{"1.1.1.1:22", "2.2.2.2:22", "3.3.3.3:22"},
-			Dest:        []string{"1.1.1.1:22"}}},
+		"server1",
+		"1.1.1.1:22",
+		true,
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			Source: []string{"host:22"},
-			Dest:   []string{"1.1.1.1"}}},
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "ordered",
-			Mode:        "sticky",
-			Source:      []string{"1.1.1.1:22", "2.2.2.2:22", "3.3.3.3:22"},
-			Dest:        []string{"1.1.1.1:22"}}},
+		"server1:22",
+		"1.1.1.1:22",
+		true,
 	},
 	{
-		map[string]*RouteConfig{"default": &RouteConfig{
-			Dest: []string{"1.1.1.1"}}},
-		map[string]*RouteConfig{"default": &RouteConfig{
-			RouteSelect: "ordered",
-			Mode:        "sticky",
-			Dest:        []string{"1.1.1.1:22"}}},
+		"server1:123",
+		"1.1.1.1:123",
+		true,
+	},
+	{
+		"server1",
+		"2.2.2.2:22",
+		true,
+	},
+	{
+		"1.1.1.1",
+		"server1",
+		true,
+	},
+	{
+		"server1",
+		"server2",
+		true,
 	},
 }
 
-func TestCheckRoutes(t *testing.T) {
+func TestMatchSource(t *testing.T) {
 	netLookupHost = mockNetLookupHost
-	for _, tt := range checkroutesTests {
-		err := CheckRoutes(tt.routes)
+	for _, tt := range matchSourceTests {
+		match, err := MatchSource(tt.source, tt.sshdHostport)
 		if err != nil {
-			t.Errorf("%v CheckRoutes error = %v, want nil", tt.routes, err)
-		} else if !reflect.DeepEqual(tt.routes, tt.want) {
-			t.Errorf("CheckRoutes %s, want %s", displayRoutes(tt.routes), displayRoutes(tt.want))
+			t.Errorf("MatchSource(%s, %s) error = %v, want nil", tt.source, tt.sshdHostport, err)
+		} else if !reflect.DeepEqual(match, tt.want) {
+			t.Errorf("MatchSource(%s, %s) %v, want %v", tt.source, tt.sshdHostport, match, tt.want)
 		}
 	}
 }
 
-var checkroutesInvalidTests = []struct {
-	routes map[string]*RouteConfig
-	want   string
+var matchSourceInvalidTests = []struct {
+	source, sshdHostport, want string
 }{
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			Source: []string{"host:port:invalid"},
-			Dest:   []string{}}},
-		"invalid source address: address host:port:invalid: too many colons in address",
+		"host:port:invalid",
+		"host",
+		"source: invalid address: address host:port:invalid: too many colons in address",
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			Source: []string{"err"},
-			Dest:   []string{}}},
-		"cannot resolve host 'err': LookupHost error",
+		"host:port",
+		"host",
+		"source: invalid address: address host:port: invalid port",
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			Source: []string{"host"},
-			Dest:   []string{"host:port"}}},
-		"invalid destination 'host:port' for service 'service1': address host:port: invalid port",
+		"err",
+		"host",
+		"source: cannot resolve host 'err': LookupHost error",
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			Dest: []string{"host"}}},
-		"no source defined for service 'service1'",
+		"host",
+		"host:port:invalid",
+		"sshdHostPort: invalid address: address host:port:invalid: too many colons in address",
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			Source: []string{"host"}}},
-		"no destination defined for service 'service1'",
+		"host",
+		"host:port",
+		"sshdHostPort: invalid address: address host:port: invalid port",
 	},
 	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			RouteSelect: "err",
-			Source:      []string{"127.0.0.1"},
-			Dest:        []string{"host"}}},
-		"invalid value for `route_select` option of service 'service1': err",
-	},
-	{
-		map[string]*RouteConfig{"service1": &RouteConfig{
-			Mode:   "err",
-			Source: []string{"127.0.0.1"},
-			Dest:   []string{"host"}}},
-		"invalid value for `mode` option of service 'service1': err",
-	},
-	{
-		map[string]*RouteConfig{"default": &RouteConfig{
-			Source: []string{"127.0.0.1"},
-			Dest:   []string{"host"}}},
-		"no source should be defined for the default service",
+		"host",
+		"err",
+		"sshdHostPort: cannot resolve host 'err': LookupHost error",
 	},
 }
 
-func TestInvalidCheckRoutes(t *testing.T) {
+func TestInvalidMatchSource(t *testing.T) {
 	netLookupHost = mockNetLookupHost
-	for _, tt := range checkroutesInvalidTests {
-		err := CheckRoutes(tt.routes)
+	for _, tt := range matchSourceInvalidTests {
+		_, err := MatchSource(tt.source, tt.sshdHostport)
 		if err == nil {
-			t.Errorf("%v CheckRoutes got no error", tt.routes)
+			t.Errorf("MatchSource(%s, %s) got no error", tt.source, tt.sshdHostport)
 		} else if err.Error() != tt.want {
-			t.Errorf("%v CheckRoutes error = %v, want %v", tt.routes, err, tt.want)
+			t.Errorf("MatchSource(%s, %s) error = %v, want %v", tt.source, tt.sshdHostport, err, tt.want)
 		}
 	}
-}
-
-func displayRoutes(routes map[string]*RouteConfig) string {
-	display := ""
-	for service, route := range routes {
-		display += fmt.Sprintf("%s: %v", service, route)
-	}
-	return display
 }

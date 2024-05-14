@@ -178,85 +178,80 @@ The pattern '\{user}' will be replaced with the user login:
 	environment:
 	    XAUTHORITY: /tmp/.Xauthority_{user}
 
-An associative array *routes* defines the destination according to the
-listening IP address of the SSH daemon:
+*service*::
+	a string. Used for display. It's also used as a key in order to check
+	in etcd if a user already has active connections. Defaults to
+	'default'.
 
-	routes:
-	    service1:
-	        source: ["192.168.0.1"]
-	        dest: [host1, host2]
-	    service2:
-	        source: ["192.168.0.2"]
-	        dest: [host3, host4]
-	        route_select: bandwidth
-	        mode: balanced
-		force_command: "internal-sftp"
-		command_must_match: true
-		etcd_keyttl: 3600
-		environment:
-		    XAUTHORITY: /dev/shm/.Xauthority_{user}
-	    default:
-	        dest: ["host5:4222"]
+*dest*::
+	an array of destination hosts (with an optional port).
 
-The key is the service name (only used for display). The special service name
-'default' can be used to define a default route and does not need the source
-key. The source value is the IP address or DNS name of the listening SSH
-daemon (with an optional port). The dest value is an array of destination
-hosts (with an optional port). The route_select value difines how the host
-destination will be chosen. It can be 'ordered' (the default), 'random',
-'connections' or 'bandwidth'. If 'ordered', the hosts are tried in the order
-listed until a successful connection is made. The list is first randomly
-sorted if 'random' is specified (i.e. a poor-man load-balancing algorithm).
-If 'connections', the hosts with less connections from the user have
-priority, then the hosts with less global connections, and in case of a draw,
-the selection is random. For 'bandwidth', it's the same as 'connections', but
-based on the bandwidth used, with a rollback on connections (which is
-frequent for new simultaneous connections). The mode value defines the
-stickiness of a connection. It can be 'sticky' or 'balanced' (defaults to
-'sticky'). If 'sticky', then all connections of a user will be made on the
-same destination host. If 'balanced', the route_select algorithm will be used
-for every connections.  Finally, the force_command can be set to override the
-command asked by the user. If command_must_match is set to true, then the
-connection is closed if the original command is not the same as the
-force_command. command_must_match defaults to false. etcd_keyttl defauts to 0.
-If a value is set (in seconds), the chosen backend will be remembered for this
-amount of time. An associative array *environment* can be used to set
-environment variables. The pattern '\{user}' will be replaced with the user
-login.
+	dest: [host5:4222]
 
-In the previous example, a client connected to '192.168.0.1' will be proxied
-to 'host1' and, if the host is not reachable, to 'host2'. If a client does not
-connect to '192.168.0.1' or '192.168.0.2' it will be proxied to the sshd
-daemon listening on port 4222 on 'host5'.
+*route_select*::
+	a string. Defines how the host destination will be chosen. It can be
+	'ordered' (the default), 'random', 'connections' or 'bandwidth'. If
+	'ordered', the hosts are tried in the order listed until a successful
+	connection is made.  The list is first randomly sorted if 'random' is
+	specified (i.e. a poor-man load-balancing algorithm).  If
+	'connections', the hosts with less connections from the user have
+	priority, then the hosts with less global connections, and in case of
+	a draw, the selection is random. For 'bandwidth', it's the same as
+	'connections', but based on the bandwidth used, with a rollback on
+	connections (which is frequent for new simultaneous connections).
 
-Each of the previous parameters can be overridden for a group thanks to the
-*groups* associative array.
+*mode*::
+	a string. Defines the stickiness of a connection. It can be 'sticky'
+	or 'balanced' (defaults to 'sticky'). If 'sticky', then all
+	connections of a user will be made on the same destination host. If
+	'balanced', the route_select algorithm will be used for every
+	connection.
+
+*The force_command*::
+	a string. Can be set to override the command asked by the user.
+
+*command_must_match*::
+	a boolean. If set to 'true', then the connection is closed if the
+	original command is not the same as the force_command. Defaults to
+	'false'.
+
+*etcd_keyttl*::
+	an integer. Defauts to 0. If a value is set (in seconds), the chosen
+	backend will be remembered for this amount of time.
+
+Each of the previous parameters can be overridden for specific sources (IP
+address or DNS name of the listening SSH daemon, with an optional port), for
+specific users or groups thanks to the *overrides* associative array.
 
 For example if we want to save debug messages for the 'foo' group we define:
 
-	groups:
-	    - foo:
-	        debug: true
+	overrides:
+	    - match:
+	        - groups: [foo]
+	      debug: true
 
-It is possible to override the same options for multiple groups in a single
-line, with comma-separated groups.
+It is possible to override the same options for multiple groups and users.
 
-For example, if we want to save debug messages for the 'foo' and 'bar' groups
-we define:
+For example, if we want to save debug messages if the user is 'alice' or if
+its groups contain 'foo' or 'bar' groups we define:
 
-	groups:
-	    - foo,bar:
-	        debug: true
+	overrides:
+	    - match:
+	        - users: [alice]
+	        - groups: [foo, bar]
+	      debug: true
 
-Routes, environment or SSH options can also be defined:
+Any key can be defined (in this example, the keys are overriden if the user is
+'alice' AND if the source is '192.168.0.1:22'):
 
-	groups:
-	    - foo:
-	        routes:
-	            default:
-	                dest: [hostx]
-	        ssh:
-	            args: ["-vvv", "-Y"]
+	overrides:
+	    - match:
+	        - users: [alice]
+	          sources: [192.168.0.1:22]
+	      service: default
+	      dest: [hostx]
+	      ssh:
+	          args: ["-vvv", "-Y"]
 
 The routes are merged with previous defined ones.
 
@@ -266,32 +261,22 @@ configuration file, each setting can be overridden by the next group.
 For example, if a user is in the 'admin' and 'users' groups the logs will be
 in '/var/log/sshproxy/admin/\{user}.log' with the following configuration:
 
-	groups:
-	    - users:
-	        log: /var/log/sshproxy/users/{user}.log
-	    - admin:
-	        log: /var/log/sshproxy/admin/{user}.log
+	overrides:
+	    - match:
+	        - groups: [users]
+	      log: /var/log/sshproxy/users/{user}.log
+	    - match:
+	        - groups: [admin]
+	      log: /var/log/sshproxy/admin/{user}.log
 
-We can also override the parameters for a specific user with the 'users'
-associative array. We can also override the parameters for multiple users in a
-single line, with comma-separated users.
+Each element of the *match* array is treated as an "or" statement. If an
+element of the *match* array contains multiple keys, they are treated as an
+"and" statement.
 
-For example if we want to save debug messages for the 'foo' and the 'bar'
-users we define:
-
-	users:
-	    - foo,bar:
-	        debug: true
-
-As for the groups, we can modify routes, environment or SSH options:
-
-	users:
-	    - foo:
-	        ssh:
-	            args: ["-vvv", "-Y"]
-
-The parameters defined for a user are the last applied and therefore always
-override the settings defined by in the 'groups' associative array.
+In the following example: 'alice', 'bob' and any user in the group 'foo' will
+have the 'debug' set to true. But if any of those are also in the groups 'bar'
+AND 'baz', 'debug' will be set to false, as the last override takes
+precedence.
 
 EXAMPLE
 -------
@@ -312,21 +297,22 @@ environment:
 ssh:
     args: ["-q", "-Y", "-enone"]
 
-routes:
-    default:
-        dest: [login1, login2]
-        route_select: random
+service: default
+dest: [login1, login2]
+route_select: random
 
-groups:
-    - admin:
-        routes:
-            default:
-                dest: [login0]
-
-users:
-    - user1234:
-        debug: true
-        dump: /var/spool/sshproxy/{user}-{time}-{sid}.dump
+overrides:
+    - match:
+        - users: [alice, bob]
+        - groups: [foo]
+      service: default
+      dest: [login0]
+      debug: true
+      dump: /var/spool/sshproxy/{user}-{time}-{sid}.dump
+    - match:
+        - groups: [bar]
+          groups: [baz]
+      debug: false
 ------------------------------------------------------------------------------
 
 FILES
