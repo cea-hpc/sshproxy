@@ -474,7 +474,7 @@ func mainExitCode() int {
 			if doCmd == fromCmd {
 				log.Debugf("translateCmdConf = %+v", translateCmdConf)
 				sshArgs = append(sshArgs, translateCmdConf.SSHArgs...)
-				sshArgs = append(sshArgs, "--", host, translateCmdConf.Command)
+				sshArgs = append(sshArgs, host, "--", translateCmdConf.Command)
 				if config.Dump != "" && translateCmdConf.DisableDump {
 					config.Dump = "etcd"
 				}
@@ -487,7 +487,7 @@ func mainExitCode() int {
 				// Force TTY allocation because the user probably asked for it.
 				sshArgs = append(sshArgs, "-t")
 			}
-			sshArgs = append(sshArgs, host, doCmd)
+			sshArgs = append(sshArgs, host, "--", doCmd)
 		}
 	} else {
 		sshArgs = append(sshArgs, host)
