@@ -90,6 +90,8 @@ Original author:
 
 Contributors:
 
+- Olivier Delhomme https://github.com/od-cea
+- François Diakhaté https://github.com/fdiakh
 - Romain Fihue https://github.com/fihuer
 - Dominique Martinet https://github.com/martinetd
 
