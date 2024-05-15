@@ -502,7 +502,7 @@ func (c *Client) SetErrorBanner(errorBanner string, expire time.Time) error {
 	return nil
 }
 
-// FlatConnection is a structure used to flatten a connection informations
+// FlatConnection is a structure used to flatten a connection information
 // present in etcd.
 type FlatConnection struct {
 	User    string
@@ -586,7 +586,7 @@ func (c *Client) GetUserConnectionsCount(username string) (int, error) {
 	return count, nil
 }
 
-// FlatHost is a structure used to flatten a host informations present in etcd.
+// FlatHost is a structure used to flatten a host information present in etcd.
 type FlatHost struct {
 	Hostname string
 	N        int
@@ -696,7 +696,7 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 	return hosts, nil
 }
 
-// FlatUser is a structure used to flatten a user informations present in etcd.
+// FlatUser is a structure used to flatten a user information present in etcd.
 type FlatUser struct {
 	User    string
 	Service string
@@ -788,7 +788,7 @@ func (c *Client) GetAllUsers(allFlag bool) ([]*FlatUser, error) {
 	return usersSlice, nil
 }
 
-// FlatGroup is a structure used to flatten a group informations present in etcd.
+// FlatGroup is a structure used to flatten a group information present in etcd.
 type FlatGroup struct {
 	Group   string
 	Service string
@@ -853,7 +853,7 @@ func (c *Client) GetAllGroups(allFlag bool) ([]*FlatGroup, error) {
 	return groupsSlice, nil
 }
 
-// FlatHistory is a structure used to flatten a history informations present in etcd.
+// FlatHistory is a structure used to flatten a history information present in etcd.
 type FlatHistory struct {
 	User string
 	Dest string

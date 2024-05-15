@@ -685,7 +685,7 @@ func newDisableParser() *flag.FlagSet {
 	fs.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s disable HOST [PORT]
 
-Disabe a host in etcd. The default port is %s. Host and port can be nodesets.
+Disable a host in etcd. The default port is %s. Host and port can be nodesets.
 `, os.Args[0], defaultHostPort)
 		os.Exit(2)
 	}

@@ -611,7 +611,7 @@ func TestEnableDisableHost(t *testing.T) {
 	enableHost("server1")
 	checkHostState(t, "server1:22", "up")
 
-	// test stickyness
+	// test stickiness
 	_, stdout, _, err = runCommand(ctx, "ssh", args, nil, nil)
 	if err != nil {
 		log.Fatal(err)
