@@ -160,6 +160,9 @@ func NewEtcdClient(config *Config, log *logging.Logger) (*Client, error) {
 		TLS:         tlsConfig,
 		Username:    config.Etcd.Username,
 		Password:    config.Etcd.Password,
+		// TODO: find an other way to disable the etcd backend if it doesn't
+		// respond immediately
+		//lint:ignore SA1019 WithBlock is deprecated
 		DialOptions: []grpc.DialOption{grpc.WithBlock()},
 		LogConfig: &zap.Config{
 			Level:            zap.NewAtomicLevelAt(zap.ErrorLevel),
