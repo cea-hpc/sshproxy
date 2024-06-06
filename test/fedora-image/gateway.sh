@@ -15,6 +15,7 @@ SSHPROXY_COMMIT="$(cd /sshproxy && git rev-parse HEAD)"
 
 # Create tarball
 rm -rf /tmp/sshproxy
+git config --global --add safe.directory /sshproxy/.git
 git clone /sshproxy /tmp/sshproxy
 cd /tmp/sshproxy
 git archive --format=tar --prefix="${SSHPROXY_FULLNAME}/" "${SSHPROXY_COMMIT}" | gzip -c > "/root/rpmbuild/SOURCES/${SSHPROXY_FULLNAME}.tar.gz"
