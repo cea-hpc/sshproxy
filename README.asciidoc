@@ -84,6 +84,80 @@ Modify the SSH daemon configuration +/etc/ssh/sshd_config+ by adding:
 
 	ForceCommand /usr/sbin/sshproxy
 
+Migrating to sshproxy 2
+-----------------------
+
+Version 2 brings a lot of changes to sshproxy:
+
+1. configuration file:
+  - **all** configuration options can now be set outside of overrides (those are
+    the default values) or inside an override
+  - `users`, `groups` and `routes` options have been replaced by the overrides
+    system:
+    * old style:
+
+          routes:
+            default:
+              some_default_options…
+            service1:
+              source: [an.ip.sshd.listens.to]
+              some_sources_options…
+          users:
+            - alice,bob:
+                some_users_options…
+          groups:
+            - foo,bar:
+                some_groups_options…
+
+    * new style:
+
+          some_default_options…
+          overrides:
+            - match:
+                - sources: [an.ip.sshd.listens.to]
+              some_sources_options…
+            - match:
+                - users: [alice,bob]
+              some_users_options…
+          overrides:
+            - match:
+                - groups: [foo,bar]
+              some_groups_options…
+
+  - the `match` conditions of the overrides system can be combined. Here is an
+    example meaning "match if (the user is in the group foo **and** in the
+    group bar) **or** ((the user is alice **or** bob) **and** the user is
+    connected to an.ip.sshd.listens.to)":
+
+        overrides:
+          - match:
+              - groups: [foo]
+                groups: [bar]
+              - users: [alice,bob]
+                sources: [an.ip.sshd.listens.to]
+
+  - nodesets can now be used for the `dest` key
+  - if `libnodeset.so` (from https://github.com/fdiakh/nodeset-rs) is found, it
+    allows the use of clustershell groups where nodesets are allowed
+  - new option: `blocking_command` runs a command before starting the ssh
+    connection to the destination. If the command does not return 0, the
+    connection is aborted
+2. command line interface:
+  - in all the tables, `Host` and `Port` columns are now merged into a single
+    `Host:Port`
+  - `sshproxyctl get_config` has been removed and replaced by
+    `sshproxyctl show config`
+  - `sshproxyctl show hosts` and `sshproxyctl show users -all` now display
+    persist info
+  - `sshproxyctl enable HOST [PORT]` has been removed and replaced by
+    `sshproxyctl enable -all|-host HOST [-port PORT]`
+  - `sshproxyctl disable HOST [PORT]` has been removed and replaced by
+     `sshproxyctl disable -all|-host HOST [-port PORT]`
+  - `sshproxyctl forget HOST [PORT]` has been removed and replaced by
+     `sshproxyctl forget host -all|-host HOST [-port PORT]`
+  - `sshproxyctl error_banner` (without any parameter) has been removed and
+    replaced by `sshproxyctl forget error_banner`
+
 Copying
 -------
 

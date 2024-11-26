@@ -9,6 +9,18 @@ _sshproxyctl() {
         opts="-h -c ${commands}"
 
         case "${prev}" in
+            disable)
+                COMPREPLY=( $(compgen -W '-all -host -port' -- "${cur}") )
+                ;;
+            enable)
+                COMPREPLY=( $(compgen -W '-all -host -port' -- "${cur}") )
+                ;;
+            error_banner)
+                COMPREPLY=( $(compgen -W '-expire' -- "${cur}") )
+                ;;
+            forget)
+                COMPREPLY=( $(compgen -W '-all -host -port host error_banner' -- "${cur}") )
+                ;;
             help)
                 COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
                 ;;
@@ -17,6 +29,9 @@ _sshproxyctl() {
                 ;;
             connections)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
+                ;;
+            host)
+                COMPREPLY=( $(compgen -W '-all -host -port' -- "${cur}") )
                 ;;
             hosts)
                 COMPREPLY=( $(compgen -W '-csv -json' -- "${cur}") )
@@ -30,26 +45,29 @@ _sshproxyctl() {
             config)
                 COMPREPLY=( $(compgen -W '-user -groups -source' -- "${cur}") )
                 ;;
-            error_banner)
-                COMPREPLY=( $(compgen -W '-expire' -- "${cur}") )
-                ;;
             -all)
-                COMPREPLY=( $(compgen -W '-csv -json connections users groups' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-csv -json -port connections users groups' -- "${cur}") )
                 ;;
             -csv)
                 COMPREPLY=( $(compgen -W '-all connections hosts users groups' -- "${cur}") )
                 ;;
-            -json)
-                COMPREPLY=( $(compgen -W '-all connections hosts users groups' -- "${cur}") )
-                ;;
-            -user)
-                COMPREPLY=( $(compgen -W '-groups -source config' -- "${cur}") )
-                ;;
             -groups)
                 COMPREPLY=( $(compgen -W '-user -source config' -- "${cur}") )
                 ;;
+            -host)
+                COMPREPLY=( $(compgen -W '-port' -- "${cur}") )
+                ;;
+            -json)
+                COMPREPLY=( $(compgen -W '-all connections hosts users groups' -- "${cur}") )
+                ;;
+            -port)
+                COMPREPLY=( $(compgen -W '-all -host' -- "${cur}") )
+                ;;
             -source)
                 COMPREPLY=( $(compgen -W '-user -groups config' -- "${cur}") )
+                ;;
+            -user)
+                COMPREPLY=( $(compgen -W '-groups -source config' -- "${cur}") )
                 ;;
             -c)
                 _filedir

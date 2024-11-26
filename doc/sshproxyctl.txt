@@ -39,29 +39,40 @@ COMMANDS
 *version*::
 	Show version number and exit.
 
-*enable HOST [PORT]*::
-	Enable a destination host in etcd if the host was previously disabled by
-	the 'disable' command (see below). The port by default is 22 if not
-	specified. Host and port can be nodesets. If libnodeset.so is
-	available, clustershell groups can also be used.
+*enable -all|-host HOST [-port PORT]*::
+	Enable a destination host in etcd if the host was previously disabled
+	by the 'disable' command (see below). If '-all' is specified instead
+	of '-host', all the hosts present in the configuration are enabled. If
+	no '-port' is specified, all the ports present in the configuration are
+	used. 'HOST' and 'PORT' can be nodesets. If libnodeset.so (from
+	https://github.com/fdiakh/nodeset-rs) is available, clustershell groups
+	can also be used.
 
-*disable HOST [PORT]*::
+*disable -all|-host HOST [-port PORT]*::
 	Disable a destination host in etcd. A disabled host will not be
 	proposed as a destination. The only way to enable it again is to send
-	the 'enable' command. It could be used for host maintenance. The port
-	by default is 22 if not specified. Host and port can be nodesets. If
-	libnodeset.so is available, clustershell groups can also be used.
+	the 'enable' command. It could be used for host maintenance. If
+	'-all' is specified instead of '-host', all the hosts present in the
+	configuration are enabled. If no '-port' is specified, all the ports
+	present in the configuration are used. 'HOST' and 'PORT' can be
+	nodesets. If libnodeset.so (from https://github.com/fdiakh/nodeset-rs)
+	is available, clustershell groups can also be used.
 
-*forget HOST [PORT]*::
+*forget host -all|-host HOST [-port PORT]*::
 	Forget a host in etcd. Remember that if this host is used, it will
-	appear back in the list. The port by default is 22 if not specified.
-	Host and port can be nodesets. If libnodeset.so is available,
-	clustershell groups can also be used.
+	appear back in the list. If '-all' is specified instead of '-host',
+	all the hosts present in the configuration are forgotten. If no '-port'
+	is specified, all the ports present in the configuration are used.
+	'HOST' and 'PORT' can be nodesets. If libnodeset.so (from
+	https://github.com/fdiakh/nodeset-rs) is available, clustershell groups
+	can also be used.
+
+*forget error_banner*::
+	Remove the error banner in etcd.
 
 *error_banner [-expire EXPIRATION] MESSAGE*::
-	Set the error banner in etcd. Removes the error banner in etcd if
-	'MESSAGE' is absent. 'MESSAGE' can be multiline. The error banner is
-	displayed to the client when no backend can be reached (more
+	Set the error banner in etcd. 'MESSAGE' can be multiline. The error
+	banner is displayed to the client when no backend can be reached (more
 	precisely, when all backends are either down or disabled in etcd).
 	'-expire' sets the expiration date of this error banner. Format:
 	'YYYY-MM-DD[ HH:MM[:SS]]'
