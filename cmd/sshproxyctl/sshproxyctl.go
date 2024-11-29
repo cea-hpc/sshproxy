@@ -25,9 +25,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cea-hpc/sshproxy/pkg/nodesets"
 	"github.com/cea-hpc/sshproxy/pkg/utils"
 
-	"github.com/iskylite/nodeset"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -709,6 +709,8 @@ The options are:
 }
 
 func getHostPortFromCommandLine(args []string) ([]string, []string, error) {
+	_, nodesetDlclose, nodesetExpand := nodesets.Functions()
+	defer nodesetDlclose()
 	hostsNodeset, portsNodeset := "", defaultHostPort
 	switch len(args) {
 	case 2:
@@ -718,11 +720,12 @@ func getHostPortFromCommandLine(args []string) ([]string, []string, error) {
 	default:
 		return []string{}, []string{}, fmt.Errorf("wrong number of arguments")
 	}
-	hosts, err := nodeset.Expand(hostsNodeset)
+
+	hosts, err := nodesetExpand(hostsNodeset)
 	if err != nil {
 		return []string{}, []string{}, fmt.Errorf("%s", err)
 	}
-	ports, err := nodeset.Expand(portsNodeset)
+	ports, err := nodesetExpand(portsNodeset)
 	if err != nil {
 		return []string{}, []string{}, fmt.Errorf("%s", err)
 	}

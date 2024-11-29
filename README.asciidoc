@@ -56,6 +56,22 @@ Install binaries and manpages:
 +sshproxy+ and +sshproxy-dumpd+ are installed in +/usr/sbin+, +sshproxyctl+
 and +sshproxy-replay+ in +/usr/bin+.
 
+Optional installation
+---------------------
+
+If you want to use clustershell groups with sshproxy, you have to install
++libnodeset.so+ from https://github.com/fdiakh/nodeset-rs
+
+If you don't, you'll still be able to use nodesets, but not clustershell
+groups.
+
+You can check if sshproxy uses +libnodeset.so+ with this command:
+
+	$ sshproxyctl show config
+	[…]
+	libnodeset.so found
+	[…]
+
 Configuration
 -------------
 

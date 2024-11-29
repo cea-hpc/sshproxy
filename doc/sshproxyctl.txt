@@ -42,18 +42,21 @@ COMMANDS
 *enable HOST [PORT]*::
 	Enable a destination host in etcd if the host was previously disabled by
 	the 'disable' command (see below). The port by default is 22 if not
-	specified. Host and port can be nodesets.
+	specified. Host and port can be nodesets. If libnodeset.so is
+	available, clustershell groups can also be used.
 
 *disable HOST [PORT]*::
 	Disable a destination host in etcd. A disabled host will not be
 	proposed as a destination. The only way to enable it again is to send
 	the 'enable' command. It could be used for host maintenance. The port
-	by default is 22 if not specified. Host and port can be nodesets.
+	by default is 22 if not specified. Host and port can be nodesets. If
+	libnodeset.so is available, clustershell groups can also be used.
 
 *forget HOST [PORT]*::
 	Forget a host in etcd. Remember that if this host is used, it will
 	appear back in the list. The port by default is 22 if not specified.
-	Host and port can be nodesets.
+	Host and port can be nodesets. If libnodeset.so is available,
+	clustershell groups can also be used.
 
 *error_banner [-expire EXPIRATION] MESSAGE*::
 	Set the error banner in etcd. Removes the error banner in etcd if

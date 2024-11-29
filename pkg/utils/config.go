@@ -16,7 +16,10 @@ import (
 	"os"
 	"regexp"
 	"slices"
+	"strings"
 	"time"
+
+	"github.com/cea-hpc/sshproxy/pkg/nodesets"
 
 	"gopkg.in/yaml.v2"
 )
@@ -34,8 +37,12 @@ var (
 	defaultDest    = []string{}
 )
 
+var cachedConfig Config
+
 // Config represents the configuration for sshproxy.
 type Config struct {
+	ready                 bool
+	Nodeset               string
 	Debug                 bool
 	Log                   string
 	CheckInterval         Duration `yaml:"check_interval"`
@@ -119,7 +126,8 @@ type subConfig struct {
 
 // Return slice of strings containing formatted configuration values
 func PrintConfig(config *Config, groups map[string]bool) []string {
-	output := []string{fmt.Sprintf("groups = %v", groups)}
+	output := []string{config.Nodeset}
+	output = append(output, fmt.Sprintf("groups = %v", groups))
 	output = append(output, fmt.Sprintf("config.debug = %v", config.Debug))
 	output = append(output, fmt.Sprintf("config.log = %s", config.Log))
 	output = append(output, fmt.Sprintf("config.check_interval = %s", config.CheckInterval.Duration()))
@@ -268,6 +276,10 @@ func replace(src string, replacer *patternReplacer) string {
 
 // LoadConfig load configuration file and adapt it according to specified user/group/sshdHostPort.
 func LoadConfig(filename, currentUsername, sid string, start time.Time, groups map[string]bool, sshdHostPort string) (*Config, error) {
+	if cachedConfig.ready {
+		return &cachedConfig, nil
+	}
+
 	patterns := map[string]*patternReplacer{
 		"{user}": {regexp.MustCompile(`{user}`), currentUsername},
 		"{sid}":  {regexp.MustCompile(`{sid}`), sid},
@@ -279,15 +291,14 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		return nil, err
 	}
 
-	var config Config
-	// if no environment is defined in config it seems to not be allocated
-	config.Environment = make(map[string]string)
+	// if no environment is defined in cachedConfig it seems to not be allocated
+	cachedConfig.Environment = make(map[string]string)
 
-	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
+	if err := yaml.Unmarshal(yamlFile, &cachedConfig); err != nil {
 		return nil, err
 	}
 
-	for _, override := range config.Overrides {
+	for _, override := range cachedConfig.Overrides {
 		for _, conditions := range override.Match {
 			match := true
 			for cType, cValue := range conditions {
@@ -330,7 +341,7 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 			}
 			if match {
 				// apply the override because we're in an "or" statement
-				if err := parseSubConfig(&config, &override); err != nil {
+				if err := parseSubConfig(&cachedConfig, &override); err != nil {
 					return nil, err
 				}
 				// no need to to parse the same subconfig twice
@@ -339,64 +350,75 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		}
 	}
 
-	if config.Service == "" {
-		config.Service = defaultService
+	if cachedConfig.Service == "" {
+		cachedConfig.Service = defaultService
 	}
 
-	if config.Dest == nil {
-		config.Dest = defaultDest
+	if cachedConfig.Dest == nil {
+		cachedConfig.Dest = defaultDest
 	}
 
-	if config.SSH.Exe == "" {
-		config.SSH.Exe = defaultSSHExe
+	if cachedConfig.SSH.Exe == "" {
+		cachedConfig.SSH.Exe = defaultSSHExe
 	}
 
-	if config.SSH.Args == nil {
-		config.SSH.Args = defaultSSHArgs
+	if cachedConfig.SSH.Args == nil {
+		cachedConfig.SSH.Args = defaultSSHArgs
 	}
 
-	if config.RouteSelect == "" {
-		config.RouteSelect = defaultAlgorithm
+	if cachedConfig.RouteSelect == "" {
+		cachedConfig.RouteSelect = defaultAlgorithm
 	}
 
-	if !IsRouteAlgorithm(config.RouteSelect) {
-		return nil, fmt.Errorf("invalid value for `route_select` option of service '%s': %s", config.Service, config.RouteSelect)
+	if !IsRouteAlgorithm(cachedConfig.RouteSelect) {
+		return nil, fmt.Errorf("invalid value for `route_select` option of service '%s': %s", cachedConfig.Service, cachedConfig.RouteSelect)
 	}
 
-	if config.Mode == "" {
-		config.Mode = defaultMode
+	if cachedConfig.Mode == "" {
+		cachedConfig.Mode = defaultMode
 	}
 
-	if !IsRouteMode(config.Mode) {
-		return nil, fmt.Errorf("invalid value for `mode` option of service '%s': %s", config.Service, config.Mode)
+	if !IsRouteMode(cachedConfig.Mode) {
+		return nil, fmt.Errorf("invalid value for `mode` option of service '%s': %s", cachedConfig.Service, cachedConfig.Mode)
 	}
 
-	if config.Log != "" {
-		config.Log = replace(config.Log, patterns["{user}"])
+	if cachedConfig.Log != "" {
+		cachedConfig.Log = replace(cachedConfig.Log, patterns["{user}"])
 	}
 
-	for k, v := range config.Environment {
-		config.Environment[k] = replace(v, patterns["{user}"])
+	for k, v := range cachedConfig.Environment {
+		cachedConfig.Environment[k] = replace(v, patterns["{user}"])
 	}
 
-	if len(config.Dest) == 0 {
-		return nil, fmt.Errorf("no destination defined for service '%s'", config.Service)
+	if len(cachedConfig.Dest) == 0 {
+		return nil, fmt.Errorf("no destination defined for service '%s'", cachedConfig.Service)
 	}
+
+	// exand destination nodesets
+	nodesetComment, nodesetDlclose, nodesetExpand := nodesets.Functions()
+	defer nodesetDlclose()
+	cachedConfig.Nodeset = nodesetComment
+	dsts, err := nodesetExpand(strings.Join(cachedConfig.Dest, ","))
+	if err != nil {
+		return nil, fmt.Errorf("invalid nodeset for service '%s': %s", cachedConfig.Service, err)
+	}
+	cachedConfig.Dest = dsts
 
 	// replace destinations (with possible missing port) with host:port
-	for i, dst := range config.Dest {
+	for i, dst := range cachedConfig.Dest {
 		host, port, err := SplitHostPort(dst)
 		if err != nil {
-			return nil, fmt.Errorf("invalid destination '%s' for service '%s': %s", dst, config.Service, err)
+			return nil, fmt.Errorf("invalid destination '%s' for service '%s': %s", dst, cachedConfig.Service, err)
 		}
-		config.Dest[i] = net.JoinHostPort(host, port)
+		cachedConfig.Dest[i] = net.JoinHostPort(host, port)
 	}
 
-	if config.Dump != "" {
+	if cachedConfig.Dump != "" {
 		for _, repl := range patterns {
-			config.Dump = replace(config.Dump, repl)
+			cachedConfig.Dump = replace(cachedConfig.Dump, repl)
 		}
 	}
 
-	return &config, nil
+	cachedConfig.ready = true
+	return &cachedConfig, nil
 }

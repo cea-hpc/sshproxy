@@ -184,7 +184,9 @@ The pattern '\{user}' will be replaced with the user login:
 	'default'.
 
 *dest*::
-	an array of destination hosts (with an optional port).
+	an array of destination hosts (with an optional port). Each host can
+	be a nodeset (eg. "host[5-6]"). If libnodeset.so is available,
+	clustershell groups can also be used (eg. "@hosts").
 
 	dest: [host5:4222]
 
