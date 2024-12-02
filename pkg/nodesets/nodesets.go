@@ -39,7 +39,11 @@ func goString(c uintptr) string {
 
 // NsChooser checks if nodeset-rs/libnodeset.so is available. If it is not
 // available, it falls back on iskylite's go implementation.
-func Functions() (string, func() error, func(ns string) ([]string, error)) {
+func Functions() (
+	string, // Comment for verbose logs
+	func() error, // Close function
+	func(ns string) ([]string, error)) { // Expand function
+
 	libnodeset, err := purego.Dlopen("libnodeset.so", purego.RTLD_NOW|purego.RTLD_GLOBAL)
 
 	if err != nil {
