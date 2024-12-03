@@ -709,7 +709,7 @@ The options are:
 }
 
 func getHostPortFromCommandLine(args []string) ([]string, []string, error) {
-	_, nodesetDlclose, nodesetExpand := nodesets.Functions()
+	_, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
 	defer nodesetDlclose()
 	hostsNodeset, portsNodeset := "", defaultHostPort
 	switch len(args) {

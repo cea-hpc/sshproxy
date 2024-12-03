@@ -37,9 +37,9 @@ func goString(c uintptr) string {
 	return string(unsafe.Slice((*byte)(ptr), length))
 }
 
-// NsChooser checks if nodeset-rs/libnodeset.so is available. If it is not
+// InitExpander checks if nodeset-rs/libnodeset.so is available. If it is not
 // available, it falls back on iskylite's go implementation.
-func Functions() (
+func InitExpander() (
 	string, // Comment for verbose logs
 	func() error, // Close function
 	func(ns string) ([]string, error)) { // Expand function

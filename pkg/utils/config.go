@@ -394,8 +394,8 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		return nil, fmt.Errorf("no destination defined for service '%s'", cachedConfig.Service)
 	}
 
-	// exand destination nodesets
-	nodesetComment, nodesetDlclose, nodesetExpand := nodesets.Functions()
+	// expand destination nodesets
+	nodesetComment, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
 	defer nodesetDlclose()
 	cachedConfig.Nodeset = nodesetComment
 	dsts, err := nodesetExpand(strings.Join(cachedConfig.Dest, ","))
