@@ -252,7 +252,14 @@ func TestNodesets(t *testing.T) {
 	checkHostState(t, "server1000:22", "up", true)
 	checkHostState(t, "server1001:22", "up", true)
 	checkHostState(t, "server1002:22", "up", true)
-	err := forgetHost("server[1000-1002]")
+	err := forgetHost("server[1001]")
+	if err != nil {
+		t.Errorf("got %s, expected no error", err)
+	}
+	checkHostState(t, "server1000:22", "up", true)
+	checkHostState(t, "server1001:22", "", false)
+	checkHostState(t, "server1002:22", "up", true)
+	err = forgetHost("server[1000-1002]")
 	if err != nil {
 		t.Errorf("got %s, expected no error", err)
 	}
