@@ -41,7 +41,7 @@ var cachedConfig Config
 
 // Config represents the configuration for sshproxy.
 type Config struct {
-	ready                 bool
+	ready                 bool // true when the configuration has already been loaded
 	Nodeset               string
 	Debug                 bool
 	Log                   string

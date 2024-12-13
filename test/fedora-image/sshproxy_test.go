@@ -208,12 +208,10 @@ func enableHost(host string) {
 	}
 }
 
-func forgetHost(host string) {
+func forgetHost(host string) error {
 	ctx := context.Background()
 	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s forget %s", SSHPROXYCTL, host)}, nil, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+	return err
 }
 
 var simpleConnectTests = []struct {
@@ -254,10 +252,21 @@ func TestNodesets(t *testing.T) {
 	checkHostState(t, "server1000:22", "up", true)
 	checkHostState(t, "server1001:22", "up", true)
 	checkHostState(t, "server1002:22", "up", true)
-	forgetHost("server[1000-1002]")
+	err := forgetHost("server[1000-1002]")
+	if err != nil {
+		t.Errorf("got %s, expected no error", err)
+	}
 	checkHostState(t, "server1000:22", "", false)
 	checkHostState(t, "server1001:22", "", false)
 	checkHostState(t, "server1002:22", "", false)
+	err = forgetHost("server[12345]")
+	if err != nil {
+		t.Errorf("got %s, expected no error", err)
+	}
+	checkHostState(t, "server12345:22", "", false)
+	if forgetHost("server[notAnumber]") == nil {
+		t.Errorf("got no error, expected error due to notAnumber not being a number")
+	}
 }
 
 var environmentTests = []struct {
