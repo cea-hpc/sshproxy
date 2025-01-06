@@ -17,6 +17,7 @@ SSHPROXY_SRC		= $(wildcard cmd/sshproxy/*.go)
 SSHPROXY_DUMPD_SRC	= $(wildcard cmd/sshproxy-dumpd/*.go)
 SSHPROXY_REPLAY_SRC	= $(wildcard cmd/sshproxy-replay/*.go)
 SSHPROXYCTL_SRC		= $(wildcard cmd/sshproxyctl/*.go)
+NODESETS_SRC		= $(wildcard pkg/nodesets/*.go)
 RECORD_SRC		= $(wildcard pkg/record/*.go)
 UTILS_SRC		= $(wildcard pkg/utils/*.go)
 
@@ -38,7 +39,7 @@ doc: $(MANDOC)
 %.8: %.txt
 	a2x $(ASCIIDOC_OPTS) -f manpage $<
 
-bin/sshproxy: $(SSHPROXY_SRC) $(RECORD_SRC) $(UTILS_SRC)
+bin/sshproxy: $(SSHPROXY_SRC) $(NODESETS_SRC) $(RECORD_SRC) $(UTILS_SRC)
 	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/cmd/sshproxy
 
 bin/sshproxy-dumpd: $(SSHPROXY_DUMPD_SRC) $(RECORD_SRC) $(UTILS_SRC)
@@ -47,7 +48,7 @@ bin/sshproxy-dumpd: $(SSHPROXY_DUMPD_SRC) $(RECORD_SRC) $(UTILS_SRC)
 bin/sshproxy-replay: $(SSHPROXY_REPLAY_SRC) $(RECORD_SRC)
 	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/cmd/sshproxy-replay
 
-bin/sshproxyctl: $(SSHPROXYCTL_SRC) $(UTILS_SRC)
+bin/sshproxyctl: $(SSHPROXYCTL_SRC) $(NODESETS_SRC) $(UTILS_SRC)
 	$(GO) build $(GO_OPTS) -o $@ $(SSHPROXY_GIT_URL)/cmd/sshproxyctl
 
 install: install-binaries install-doc-man

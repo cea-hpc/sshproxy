@@ -6,6 +6,7 @@ toolchain go1.23.3
 
 require (
 	github.com/creack/pty v1.1.24
+	github.com/ebitengine/purego v0.8.1
 	github.com/iskylite/nodeset v1.0.1
 	github.com/moby/term v0.5.0
 	github.com/olekukonko/tablewriter v0.0.5

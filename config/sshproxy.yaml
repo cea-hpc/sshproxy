@@ -126,7 +126,9 @@
 # name is "default".
 #service: default
 
-# The dest value is an array of destination hosts (with an optional port).
+# The dest value is an array of destination hosts (with an optional port). Each
+# host can be a nodeset (eg. "host[5-6]"). If libnodeset.so is available,
+# clustershell groups can also be used (eg. "@hosts").
 #dest: [host5:4222]
 
 # The route_select value defines how the host destination will be chosen. It

@@ -67,7 +67,7 @@ overrides:
     - match:
           - sources: ["gateway1:2022", "gateway2:2022"]
       service: service1
-      dest: ["server1", "server2"]
+      dest: ["server[1-2]"]
       route_select: ordered
       mode: sticky
       etcd_keyttl: 0

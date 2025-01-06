@@ -208,6 +208,12 @@ func enableHost(host string) {
 	}
 }
 
+func forgetHost(host string) error {
+	ctx := context.Background()
+	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s forget %s", SSHPROXYCTL, host)}, nil, nil)
+	return err
+}
+
 var simpleConnectTests = []struct {
 	user string
 	port int
@@ -234,6 +240,39 @@ func TestSimpleConnect(t *testing.T) {
 		} else if stdoutStr != tt.want {
 			t.Errorf("%s hostname = %s, want %s", cmd, stdoutStr, tt.want)
 		}
+	}
+}
+
+func TestNodesets(t *testing.T) {
+	disableHost("server[1000-1002]")
+	checkHostState(t, "server1000:22", "disabled", true)
+	checkHostState(t, "server1001:22", "disabled", true)
+	checkHostState(t, "server1002:22", "disabled", true)
+	enableHost("server[1000-1002]")
+	checkHostState(t, "server1000:22", "up", true)
+	checkHostState(t, "server1001:22", "up", true)
+	checkHostState(t, "server1002:22", "up", true)
+	err := forgetHost("server[1001]")
+	if err != nil {
+		t.Errorf("got %s, expected no error", err)
+	}
+	checkHostState(t, "server1000:22", "up", true)
+	checkHostState(t, "server1001:22", "", false)
+	checkHostState(t, "server1002:22", "up", true)
+	err = forgetHost("server[1000-1002]")
+	if err != nil {
+		t.Errorf("got %s, expected no error", err)
+	}
+	checkHostState(t, "server1000:22", "", false)
+	checkHostState(t, "server1001:22", "", false)
+	checkHostState(t, "server1002:22", "", false)
+	err = forgetHost("server[12345]")
+	if err != nil {
+		t.Errorf("got %s, expected no error", err)
+	}
+	checkHostState(t, "server12345:22", "", false)
+	if forgetHost("server[notAnumber]") == nil {
+		t.Errorf("got no error, expected error due to notAnumber not being a number")
 	}
 }
 
@@ -397,7 +436,7 @@ func TestStickyConnections(t *testing.T) {
 	time.Sleep(4 * time.Second)
 
 	disableHost("server1")
-	checkHostState(t, "server1:22", "disabled")
+	checkHostState(t, "server1:22", "disabled", true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -410,7 +449,7 @@ func TestStickyConnections(t *testing.T) {
 
 	time.Sleep(time.Second)
 	enableHost("server1")
-	checkHostState(t, "server1:22", "up")
+	checkHostState(t, "server1:22", "up", true)
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
 	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -429,7 +468,7 @@ func TestNotLongStickyConnections(t *testing.T) {
 	time.Sleep(4 * time.Second)
 
 	disableHost("server1")
-	checkHostState(t, "server1:22", "disabled")
+	checkHostState(t, "server1:22", "disabled", true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -441,7 +480,7 @@ func TestNotLongStickyConnections(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 	enableHost("server1")
-	checkHostState(t, "server1:22", "up")
+	checkHostState(t, "server1:22", "up", true)
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
 	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -460,7 +499,7 @@ func TestLongStickyConnections(t *testing.T) {
 
 	updateLineSSHProxyConf("etcd_keyttl", "10")
 	disableHost("server1")
-	checkHostState(t, "server1:22", "disabled")
+	checkHostState(t, "server1:22", "disabled", true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -472,7 +511,7 @@ func TestLongStickyConnections(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 	enableHost("server1")
-	checkHostState(t, "server1:22", "up")
+	checkHostState(t, "server1:22", "up", true)
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
 	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
@@ -565,7 +604,7 @@ func TestEtcdHosts(t *testing.T) {
 	checkHostCheck(t, "server1:22", timeZero)
 }
 
-func checkHostState(t *testing.T, host, state string) {
+func checkHostState(t *testing.T, host, state string, wantFound bool) {
 	hosts, jsonStr := getEtcdHosts()
 	found := false
 	for _, h := range hosts {
@@ -577,8 +616,10 @@ func checkHostState(t *testing.T, host, state string) {
 			break
 		}
 	}
-	if !found {
+	if wantFound && !found {
 		t.Errorf("%s cannot find entry for %s", jsonStr, host)
+	} else if !wantFound && found {
+		t.Errorf("%s should not contain entry %s", jsonStr, host)
 	}
 }
 
@@ -597,7 +638,7 @@ func TestEnableDisableHost(t *testing.T) {
 	}
 
 	disableHost("server[1,100]")
-	checkHostState(t, "server1:22", "disabled")
+	checkHostState(t, "server1:22", "disabled", true)
 
 	_, stdout, _, err = runCommand(ctx, "ssh", args, nil, nil)
 	if err != nil {
@@ -609,7 +650,7 @@ func TestEnableDisableHost(t *testing.T) {
 	}
 
 	enableHost("server1")
-	checkHostState(t, "server1:22", "up")
+	checkHostState(t, "server1:22", "up", true)
 
 	// test stickiness
 	_, stdout, _, err = runCommand(ctx, "ssh", args, nil, nil)
