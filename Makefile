@@ -26,6 +26,7 @@ TEST	= test/fedora-image/sshproxy_test.go
 EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-replay sshproxyctl)
 MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8 doc/sshproxyctl.8
 PACKAGE = sshproxy_$(SSHPROXY_VERSION)_$(shell uname -s)_$(shell uname -p)
+COMMIT  = $(shell git describe --dirty)
 
 all: exe doc
 
@@ -93,7 +94,11 @@ check:
 test:
 	cd test && bash ./run.sh
 
+benchmark:
+	mkdir -p $(GOPATH)/benchmarks/$(PACKAGE)
+	$(GO) test -failfast -race -count=6 -bench=. -run=^# -benchmem ./... | tee $(GOPATH)/benchmarks/$(PACKAGE)/$(COMMIT)
+
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy_*.tar.gz
 
-.PHONY: all exe doc install install-doc-man install-binaries package fmt get-deps check test clean
+.PHONY: all exe doc install install-doc-man install-binaries package fmt get-deps check test benchmark clean
