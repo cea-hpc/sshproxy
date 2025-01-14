@@ -1,0 +1,25 @@
+Benchmark Tests
+===============
+
+Launching the benchmark tests
+-----------------------------
+
+From the root directory of this repository, just run +make benchmark+. It will
+create a directory benchmarks/results, and store the results in it.
+
+Consistency
+-----------
+
+Benchmarks are only usable if they are consistently run on the same computer,
+and with no other resource-consuming program running at the same time. Keep
+this in mind in order to have consistent results.
+
+Analyzing the benchmark tests
+-----------------------------
+
+You can use +benchstat+ (https://pkg.go.dev/golang.org/x/perf/cmd/benchstat)
+for analyzing the results. Just pass the result file name as an argument in
+order to see the results. You can even compare different results by passing
+more than one file as arguments.
+
+// vim:tw=78:ft=asciidoc:

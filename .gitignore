@@ -11,3 +11,6 @@ doc/*.xml
 
 # packages
 sshproxy_*.tar.gz
+
+# benchmark results
+benchmarks/results
