@@ -27,6 +27,7 @@ EXE	= $(addprefix bin/, sshproxy sshproxy-dumpd sshproxy-replay sshproxyctl)
 MANDOC	= doc/sshproxy.yaml.5 doc/sshproxy.8 doc/sshproxy-dumpd.8 doc/sshproxy-replay.8 doc/sshproxyctl.8
 PACKAGE = sshproxy_$(SSHPROXY_VERSION)_$(shell uname -s)_$(shell uname -p)
 COMMIT  = $(shell git describe --dirty)
+DATE    = $(shell date -Iseconds)
 
 all: exe doc
 
@@ -95,8 +96,8 @@ test:
 	cd test && bash ./run.sh
 
 benchmark:
-	mkdir -p $(GOPATH)/benchmarks/$(PACKAGE)
-	$(GO) test -failfast -race -count=6 -bench=. -run=^# -benchmem ./... | tee $(GOPATH)/benchmarks/$(PACKAGE)/$(COMMIT)
+	mkdir -p benchmarks/results
+	$(GO) test -failfast -race -count=6 -bench=. -run=^# -benchmem ./... | tee benchmarks/results/$(DATE)-$(COMMIT)
 
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy_*.tar.gz
