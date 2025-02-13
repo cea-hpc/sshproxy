@@ -25,6 +25,26 @@ func TestCalcSessionID(t *testing.T) {
 	}
 }
 
+var calcSessionIDBenchmarks = []struct {
+	username, hostport string
+}{
+	{"arno", "127.0.0.1:22"},
+	{"arno", "192.168.100.100:1234"},
+	{"cyril", "127.0.0.1:22"},
+	{"cyril", "192.168.100.100:1234"},
+}
+
+func BenchmarkCalcSessionID(b *testing.B) {
+	d := time.Now()
+	for _, tt := range calcSessionIDBenchmarks {
+		b.Run(tt.username+"_"+tt.hostport, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				CalcSessionID(tt.username, d, tt.hostport)
+			}
+		})
+	}
+}
+
 var splithostportTests = []struct {
 	hostport, host, port string
 }{
@@ -64,6 +84,16 @@ func TestInvalidSplitHostPort(t *testing.T) {
 		} else if err.Error() != tt.want {
 			t.Errorf("%v SplitHostPort error = %v, want %v", tt.hostport, err, tt.want)
 		}
+	}
+}
+
+func BenchmarkSplitHostPort(b *testing.B) {
+	for _, tt := range splithostportTests {
+		b.Run(tt.hostport, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				SplitHostPort(tt.hostport)
+			}
+		})
 	}
 }
 
@@ -188,5 +218,16 @@ func TestInvalidMatchSource(t *testing.T) {
 		} else if err.Error() != tt.want {
 			t.Errorf("MatchSource(%s, %s) error = %v, want %v", tt.source, tt.sshdHostport, err, tt.want)
 		}
+	}
+}
+
+func BenchmarkMatchSource(b *testing.B) {
+	netLookupHost = mockNetLookupHost
+	for _, tt := range matchSourceTests {
+		b.Run(tt.source+"_"+tt.sshdHostport, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				MatchSource(tt.source, tt.sshdHostport)
+			}
+		})
 	}
 }
