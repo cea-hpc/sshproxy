@@ -71,7 +71,10 @@ install-binaries: $(EXE)
 	install -d $(DESTDIR)$(bashcompdir)
 	install -p -m 0644 misc/sshproxyctl-completion.bash $(DESTDIR)$(bashcompdir)
 
-package: $(EXE)
+source-archive:
+	git archive --prefix=sshproxy-$(SSHPROXY_VERSION)/ -o sshproxy-$(SSHPROXY_VERSION).tar.gz  v$(SSHPROXY_VERSION)
+
+binary-archive: $(EXE)
 	mkdir $(PACKAGE)
 	cp $(EXE) $(PACKAGE)
 	tar cfz $(PACKAGE).tar.gz $(PACKAGE)
@@ -101,6 +104,6 @@ benchmark:
 	$(GO) test -failfast -race -count=6 -bench=. -run=^# -benchmem ./... | tee benchmarks/results/$(DATE)-$(COMMIT)
 
 clean:
-	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy_*.tar.gz test/coverage.*
+	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy*.tar.gz test/coverage.*
 
-.PHONY: all exe doc install install-doc-man install-binaries package fmt get-deps check test benchmark clean
+.PHONY: all exe doc install install-doc-man install-binaries source-archive binary-archive fmt get-deps check test benchmark clean
