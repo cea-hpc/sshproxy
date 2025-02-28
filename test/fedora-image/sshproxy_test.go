@@ -53,6 +53,7 @@ func addLineSSHProxyConf(line string) {
 
 func removeLineSSHProxyConf(line string) {
 	ctx := context.Background()
+	line = strings.ReplaceAll(line, "/", "\\/")
 	for _, gateway := range gateways {
 		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", fmt.Sprintf("sed -i 's/^%s$//' %s", line, SSHPROXYCONFIG)}, nil, nil)
 		if err != nil {
@@ -63,6 +64,7 @@ func removeLineSSHProxyConf(line string) {
 
 func updateLineSSHProxyConf(key string, value string) {
 	ctx := context.Background()
+	value = strings.ReplaceAll(value, "/", "\\/")
 	for _, gateway := range gateways {
 		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", fmt.Sprintf("sed -i '/%s:/s/: .*$/: %s/' %s", key, value, SSHPROXYCONFIG)}, nil, nil)
 		if err != nil {
@@ -243,6 +245,29 @@ func TestSimpleConnect(t *testing.T) {
 	}
 }
 
+func TestBlockingCommand(t *testing.T) {
+	addLineSSHProxyConf("blocking_command: /bin/true")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	args, cmd := prepareCommand("gateway1", 2023, "hostname")
+	_, stdout, stderr, err := runCommand(ctx, "ssh", args, nil, nil)
+	stdoutStr := strings.TrimSpace(string(stdout))
+	if err != nil {
+		t.Errorf("%s unexpected error: %v | stderr = %s", cmd, err, string(stderr))
+	} else if stdoutStr != "server1" {
+		t.Errorf("%s hostname = %s, want server1", cmd, stdoutStr)
+	}
+	updateLineSSHProxyConf("blocking_command", "/bin/false")
+	defer removeLineSSHProxyConf("blocking_command: /bin/false")
+	args, _ = prepareCommand("gateway1", 2023, "hostname")
+	rc, _, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	if err == nil {
+		t.Errorf("got no error, expected error due to blocking_command")
+	} else if rc != 1 {
+		t.Errorf("blocking_command rc = %d, want 1", rc)
+	}
+}
+
 func TestNodesets(t *testing.T) {
 	disableHost("server[1000-1002]")
 	checkHostState(t, "server1000:22", "disabled", true)
@@ -382,12 +407,12 @@ func TestEtcdConnections(t *testing.T) {
 }
 
 func TestWithoutEtcd(t *testing.T) {
-	updateLineSSHProxyConf("endpoints", "[\"https:\\/\\/void:2379\"]")
+	updateLineSSHProxyConf("endpoints", "[\"https://void:2379\"]")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	args, cmdStr := prepareCommand("gateway1", 2023, "hostname")
 	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
-	updateLineSSHProxyConf("endpoints", "[\"https:\\/\\/etcd:2379\"]")
+	updateLineSSHProxyConf("endpoints", "[\"https://etcd:2379\"]")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -396,10 +421,10 @@ func TestWithoutEtcd(t *testing.T) {
 		t.Errorf("%s got %s, expected server1", cmdStr, dest)
 	}
 
-	updateLineSSHProxyConf("endpoints", "[\"https:\\/\\/void:2379\"]")
+	updateLineSSHProxyConf("endpoints", "[\"https://void:2379\"]")
 	updateLineSSHProxyConf("mandatory", "true")
 	_, _, _, err = runCommand(ctx, "ssh", args, nil, nil)
-	updateLineSSHProxyConf("endpoints", "[\"https:\\/\\/etcd:2379\"]")
+	updateLineSSHProxyConf("endpoints", "[\"https://etcd:2379\"]")
 	updateLineSSHProxyConf("mandatory", "false")
 	if err == nil {
 		t.Error("the connection should have been rejected")

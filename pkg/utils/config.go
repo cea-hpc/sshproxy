@@ -53,6 +53,7 @@ type Config struct {
 	Etcd                  etcdConfig
 	EtcdStatsInterval     Duration `yaml:"etcd_stats_interval"`
 	LogStatsInterval      Duration `yaml:"log_stats_interval"`
+	BlockingCommand       string   `yaml:"blocking_command"`
 	BgCommand             string   `yaml:"bg_command"`
 	SSH                   sshConfig
 	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands"`
@@ -110,6 +111,7 @@ type subConfig struct {
 	Etcd                  interface{}
 	EtcdStatsInterval     interface{} `yaml:"etcd_stats_interval"`
 	LogStatsInterval      interface{} `yaml:"log_stats_interval"`
+	BlockingCommand       interface{} `yaml:"blocking_command"`
 	BgCommand             interface{} `yaml:"bg_command"`
 	SSH                   interface{}
 	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands"`
@@ -138,6 +140,7 @@ func PrintConfig(config *Config, groups map[string]bool) []string {
 	output = append(output, fmt.Sprintf("config.etcd = %+v", config.Etcd))
 	output = append(output, fmt.Sprintf("config.etcd_stats_interval = %s", config.EtcdStatsInterval.Duration()))
 	output = append(output, fmt.Sprintf("config.log_stats_interval = %s", config.LogStatsInterval.Duration()))
+	output = append(output, fmt.Sprintf("config.blocking_command = %s", config.BlockingCommand))
 	output = append(output, fmt.Sprintf("config.bg_command = %s", config.BgCommand))
 	output = append(output, fmt.Sprintf("config.ssh = %+v", config.SSH))
 	for k, v := range config.TranslateCommands {
@@ -210,6 +213,10 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	if subconfig.BlockingCommand != nil {
+		config.BlockingCommand = subconfig.BlockingCommand.(string)
 	}
 
 	if subconfig.BgCommand != nil {
