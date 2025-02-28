@@ -525,6 +525,24 @@ func disableHost(host, port, configFile string) error {
 	return cli.SetHost(key, utils.Disabled, time.Now())
 }
 
+func forgetPersist(user, service, host, port, configFile string) error {
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
+
+	history, err := cli.GetHistory(user, service, host, port)
+	if err != nil {
+		return err
+	}
+
+	for _, kv := range history {
+		err := cli.DelHistory(kv.User)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func setErrorBanner(errorBanner string, expire time.Time, configFile string) error {
 	cli := mustInitEtcdClient(configFile)
 	defer cli.Close()
@@ -598,7 +616,7 @@ The commands are:
   version       show version number and exit
   show          show states present in etcd
   enable        enable a host in etcd
-  forget        forget a host/error_banner in etcd
+  forget        forget a host/error_banner/persist in etcd
   disable       disable a host in etcd
   error_banner  set the error banner in etcd
 
@@ -676,17 +694,22 @@ Enable a previously disabled host in etcd.
 	return fs
 }
 
-func newForgetParser(allFlag *bool, hostString *string, portString *string) *flag.FlagSet {
+func newForgetParser(allFlag *bool, hostString, portString, userString, serviceString *string) *flag.FlagSet {
 	fs := flag.NewFlagSet("forget", flag.ExitOnError)
 	fs.BoolVar(allFlag, "all", false, "forget all hosts present in config")
 	fs.StringVar(hostString, "host", "", "hostname to forget (can be a nodeset)")
 	fs.StringVar(portString, "port", "", "port to forget (can be a nodeset)")
+	fs.StringVar(userString, "user", "", "forget all persistent connections of this user")
+	fs.StringVar(serviceString, "service", "", "forget all persistent connections of this service")
 	fs.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s forget COMMAND [OPTIONS]
 
 The commands are:
-  host -all|-host HOST [-port PORT]    forget a host in etcd
-  error_banner                         forget the error_banner in etcd
+  host -all|-host HOST [-port PORT]                                  forget a host in etcd
+  error_banner                                                       forget the error_banner in etcd
+  persist [-user USER] [-service SERVICE] [-host HOST] [-port PORT]  forget a persistent connection in etcd
+                                                                       (needs at least one option)
+                                                                       (only connections matching all the options are forgotten)
 
 The options are:
 `, os.Args[0])
@@ -866,13 +889,14 @@ func main() {
 	var sourceString string
 	var hostString string
 	var portString string
+	var serviceString string
 
 	parsers := map[string]*flag.FlagSet{
 		"help":         newHelpParser(),
 		"version":      newVersionParser(),
 		"show":         newShowParser(&csvFlag, &jsonFlag, &allFlag, &userString, &groupsString, &sourceString),
 		"enable":       newEnableParser(&allFlag, &hostString, &portString),
-		"forget":       newForgetParser(&allFlag, &hostString, &portString),
+		"forget":       newForgetParser(&allFlag, &hostString, &portString, &userString, &serviceString),
 		"disable":      newDisableParser(&allFlag, &hostString, &portString),
 		"error_banner": newErrorBannerParser(&expire),
 	}
@@ -977,6 +1001,12 @@ func main() {
 			}
 		case "error_banner":
 			delErrorBanner(*configFile)
+		case "persist":
+			if userString == "" && serviceString == "" && hostString == "" && portString == "" {
+				fmt.Fprintf(os.Stderr, "ERROR: missing '-user', '-service', '-host' or '-port'\n\n")
+				p.Usage()
+			}
+			forgetPersist(userString, serviceString, hostString, portString, *configFile)
 		}
 	case "disable":
 		p := parsers[cmd]

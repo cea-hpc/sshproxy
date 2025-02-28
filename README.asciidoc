@@ -157,6 +157,8 @@ Version 2 brings a lot of changes to sshproxy:
      `sshproxyctl forget host -all|-host HOST [-port PORT]`
   - `sshproxyctl error_banner` (without any parameter) has been removed and
     replaced by `sshproxyctl forget error_banner`
+  - `sshproxyctl forget persist [-user USER] [-service SERVICE] [-host HOST] [-port PORT]`
+    has been added
 
 Copying
 -------
