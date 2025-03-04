@@ -12,7 +12,11 @@ package utils
 
 import (
 	"errors"
+	"fmt"
+	"os/user"
 	"reflect"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 )
@@ -97,6 +101,116 @@ func BenchmarkSplitHostPort(b *testing.B) {
 	}
 }
 
+func mockUserCurrent() (*user.User, error) {
+	return mockUserLookup("testuser")
+}
+
+func mockUserLookup(username string) (*user.User, error) {
+	var u user.User
+	if username == "root" {
+		u.Uid = "0"
+		u.Gid = "0"
+	} else if username == "testuser" {
+		u.Uid = "1000"
+		u.Gid = "1000"
+	} else if username == "userwithnogroupid" {
+		u.Uid = "1001"
+	} else if username == "userwithinvalidgroup" {
+		u.Uid = "1002"
+		u.Gid = "1002"
+	} else {
+		return &u, fmt.Errorf("user: unknown user %s", username)
+	}
+	u.Username = username
+	return &u, nil
+}
+
+func mockUserLookupGroupId(gid string) (*user.Group, error) {
+	var g user.Group
+	g.Gid = gid
+	if gid == "0" {
+		g.Name = "root"
+	} else if gid == "1000" {
+		g.Name = "testgroup"
+	} else {
+		return &g, fmt.Errorf("group: unknown group ID %s", gid)
+	}
+	return &g, nil
+}
+
+func BenchmarkGetGroupUser(b *testing.B) {
+	current, _ := userCurrent()
+	root, _ := userLookup("root")
+	for _, tt := range []*user.User{current, root} {
+		b.Run(tt.Username, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				GetGroupUser(tt)
+			}
+		})
+	}
+}
+
+func TestGetGroups(t *testing.T) {
+	userCurrent = mockUserCurrent
+	userLookupGroupId = mockUserLookupGroupId
+	groups, err := GetGroups()
+	if err != nil {
+		t.Errorf("GetGroups error = '%v', want nil", err)
+	} else if len(groups) < 1 {
+		t.Error("GetGroups must return at least one group")
+	}
+}
+
+func BenchmarkGetGroups(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		GetGroups()
+	}
+}
+
+var getGroupListTests = []struct {
+	user, groups, err string
+}{
+	{"root", "root", ""},
+	{"testuser", "testgroup", ""},
+	{"userwithnogroupid", "", "user: list groups for userwithnogroupid: invalid gid \"\""},
+	{"userwithinvalidgroup", "nonexistentgroup", "group: unknown group ID 1002"},
+	{"nonexistentuser", "nonexistentgroup", "user: unknown user nonexistentuser"},
+}
+
+func TestGetGroupList(t *testing.T) {
+	userLookup = mockUserLookup
+	userLookupGroupId = mockUserLookupGroupId
+	for _, tt := range getGroupListTests {
+		groups, err := GetGroupList(tt.user)
+		if err != nil {
+			if fmt.Sprintf("%s", err) != tt.err {
+				t.Errorf("GetGroupList error = '%v', want '%v'", err, tt.err)
+			}
+		} else {
+			g := make([]string, 0, len(groups))
+			for group := range groups {
+				g = append(g, group)
+			}
+			sort.Strings(g)
+			if strings.Join(g, " ") != tt.groups {
+				t.Errorf("GetGroupList groups = %v, want %v", strings.Join(g, " "), tt.groups)
+			}
+		}
+	}
+}
+
+func BenchmarkGetGroupList(b *testing.B) {
+	for _, tt := range getGroupListTests {
+		if tt.err == "" {
+			b.Run(tt.user, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					GetGroupList(tt.user)
+				}
+			})
+		}
+	}
+}
+
 func mockNetLookupHost(host string) ([]string, error) {
 	if host == "err" {
 		return nil, errors.New("LookupHost error")
@@ -104,6 +218,17 @@ func mockNetLookupHost(host string) ([]string, error) {
 		return []string{"127.0.0.1"}, nil
 	}
 	return []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}, nil
+}
+
+func BenchmarkNormalizeHostPort(b *testing.B) {
+	netLookupHost = mockNetLookupHost
+	for _, tt := range []string{"127.0.0.1", "127.0.0.1:123", "server1", "server1:123", "host:port:invalid", "err"} {
+		b.Run(tt, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				normalizeHostPort(tt)
+			}
+		})
+	}
 }
 
 var matchSourceTests = []struct {
@@ -159,6 +284,16 @@ var matchSourceTests = []struct {
 		"server1",
 		"server2",
 		true,
+	},
+	{
+		"127.0.0.1:22",
+		"127.0.0.1:122",
+		false,
+	},
+	{
+		"127.0.0.1:22",
+		"127.0.0.2:22",
+		false,
 	},
 }
 

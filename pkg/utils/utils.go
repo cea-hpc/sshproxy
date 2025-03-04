@@ -50,7 +50,12 @@ func SplitHostPort(hostport string) (string, string, error) {
 	return host, strconv.Itoa(portNum), nil
 }
 
-// GetGroupUser returns a map of group memberships for the specifised user.
+// Mocking user.Lookup and user.LookupGroupId for testing.
+var userCurrent = user.Current
+var userLookup = user.Lookup
+var userLookupGroupId = user.LookupGroupId
+
+// GetGroupUser returns a map of group memberships for the specified user.
 //
 // It can be used to quickly check if a user is in a specified group.
 func GetGroupUser(u *user.User) (map[string]bool, error) {
@@ -61,7 +66,7 @@ func GetGroupUser(u *user.User) (map[string]bool, error) {
 
 	groups := make(map[string]bool)
 	for _, gid := range groupids {
-		g, err := user.LookupGroupId(gid)
+		g, err := userLookupGroupId(gid)
 		if err != nil {
 			return nil, err
 		}
@@ -76,7 +81,7 @@ func GetGroupUser(u *user.User) (map[string]bool, error) {
 //
 // It can be used to quickly check if a user is in a specified group.
 func GetGroups() (map[string]bool, error) {
-	u, err := user.Current()
+	u, err := userCurrent()
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +98,7 @@ func GetGroups() (map[string]bool, error) {
 //
 // It can be used to quickly check if a user is in a specified group.
 func GetGroupList(username string) (map[string]bool, error) {
-	u, err := user.Lookup(username)
+	u, err := userLookup(username)
 	if err != nil {
 		return nil, err
 	}

@@ -12,5 +12,9 @@ doc/*.xml
 # packages
 sshproxy_*.tar.gz
 
+# coverage outputs
+test/coverage.out
+test/coverage.html
+
 # benchmark results
 benchmarks/results
