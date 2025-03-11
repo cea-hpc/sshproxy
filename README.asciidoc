@@ -1,8 +1,9 @@
 sshproxy
 ========
 
-image:https://api.cirrus-ci.com/github/cea-hpc/sshproxy.svg["Build Status",
-link="https://cirrus-ci.com/github/cea-hpc/sshproxy"]
+image:https://github.com/cea-hpc/sshproxy/actions/workflows/tests.yml/badge.svg[
+"Build Status",
+link="https://github.com/cea-hpc/sshproxy/actions/workflows/tests.yml"]
 
 What is sshproxy?
 -----------------
