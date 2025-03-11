@@ -374,6 +374,21 @@ func mainExitCode() int {
 		}()
 	}
 
+	// launch blocking command
+	if config.BlockingCommand != "" {
+		args := strings.Fields(config.BlockingCommand)
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		rc, err := runCommand(cmd, false)
+		if err != nil {
+			log.Errorf("error running blocking command: %s", err)
+		}
+		if rc != 0 {
+			return rc
+		}
+	}
+
 	// launch background command
 	if config.BgCommand != "" {
 		wg.Add(1)

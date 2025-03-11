@@ -79,6 +79,12 @@
 #    command: "sftp"
 #    disable_dump: true
 
+# A command can be launched before the bg_command and before connecting to the
+# destination. The standard and error outputs are displayed to the user. If the
+# return code of the blocking command is not 0, sshproxy will abort the
+# session.
+#blocking_command: ""
+
 # A command can be launched in the background for the session duration.
 # The standard and error outputs are only logged in debug mode.
 #bg_command: ""
