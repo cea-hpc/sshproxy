@@ -156,8 +156,7 @@ type aggConnection struct {
 }
 
 func getEtcdConnections() ([]aggConnection, string) {
-	ctx := context.Background()
-	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json connections", SSHPROXYCTL)}, nil, nil)
+	_, stdout, _, err := etcdCommand("show -json connections")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -179,8 +178,7 @@ type host struct {
 }
 
 func getEtcdHosts() ([]host, string) {
-	ctx := context.Background()
-	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json hosts", SSHPROXYCTL)}, nil, nil)
+	_, stdout, _, err := etcdCommand("show -json hosts")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -195,25 +193,80 @@ func getEtcdHosts() ([]host, string) {
 }
 
 func disableHost(host string) {
-	ctx := context.Background()
-	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s disable %s", SSHPROXYCTL, host)}, nil, nil)
+	_, _, _, err := etcdCommand(fmt.Sprintf("disable %s", host))
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 func enableHost(host string) {
-	ctx := context.Background()
-	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s enable %s", SSHPROXYCTL, host)}, nil, nil)
+	_, _, _, err := etcdCommand(fmt.Sprintf("enable %s", host))
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
 func forgetHost(host string) error {
-	ctx := context.Background()
-	_, _, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s forget %s", SSHPROXYCTL, host)}, nil, nil)
+	_, _, _, err := etcdCommand(fmt.Sprintf("forget host %s", host))
 	return err
+}
+
+type user struct {
+	User    string
+	Group   string
+	Service string
+	N       int
+}
+
+func getEtcdUsers(mode string, allFlag bool) (map[string]user, string) {
+	all := ""
+	if allFlag {
+		all = " -all"
+	}
+	_, stdout, _, err := etcdCommand(fmt.Sprintf("show -json %s%s", mode, all))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	jsonStr := strings.TrimSpace(string(stdout))
+	var users []user
+	if err := json.Unmarshal(stdout, &users); err != nil {
+		log.Fatal(err)
+	}
+	usersMap := map[string]user{}
+	for _, user := range users {
+		key := ""
+		if user.User != "" {
+			key = user.User
+		} else {
+			key = user.Group
+		}
+		if allFlag {
+			key += "@" + user.Service
+		}
+		usersMap[key] = user
+	}
+
+	return usersMap, jsonStr
+}
+
+func setEtcdErrorBanner(banner string) {
+	_, _, _, err := etcdCommand(fmt.Sprintf("error_banner '%s'", banner))
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func forgetEtcdErrorBanner() {
+	_, _, _, err := etcdCommand("forget error_banner")
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func etcdCommand(command string) (int, []byte, []byte, error) {
+	ctx := context.Background()
+	return runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s %s", SSHPROXYCTL, command)}, nil, nil)
 }
 
 var simpleConnectTests = []struct {
@@ -269,34 +322,34 @@ func TestBlockingCommand(t *testing.T) {
 }
 
 func TestNodesets(t *testing.T) {
-	disableHost("server[1000-1002]")
+	disableHost("-host server[1000-1002]")
 	checkHostState(t, "server1000:22", "disabled", true)
 	checkHostState(t, "server1001:22", "disabled", true)
 	checkHostState(t, "server1002:22", "disabled", true)
-	enableHost("server[1000-1002]")
+	enableHost("-host server[1000-1002]")
 	checkHostState(t, "server1000:22", "up", true)
 	checkHostState(t, "server1001:22", "up", true)
 	checkHostState(t, "server1002:22", "up", true)
-	err := forgetHost("server[1001]")
+	err := forgetHost("-host server[1001]")
 	if err != nil {
 		t.Errorf("got %s, expected no error", err)
 	}
 	checkHostState(t, "server1000:22", "up", true)
 	checkHostState(t, "server1001:22", "", false)
 	checkHostState(t, "server1002:22", "up", true)
-	err = forgetHost("server[1000-1002]")
+	err = forgetHost("-host server[1000-1002]")
 	if err != nil {
 		t.Errorf("got %s, expected no error", err)
 	}
 	checkHostState(t, "server1000:22", "", false)
 	checkHostState(t, "server1001:22", "", false)
 	checkHostState(t, "server1002:22", "", false)
-	err = forgetHost("server[12345]")
+	err = forgetHost("-host server[12345]")
 	if err != nil {
 		t.Errorf("got %s, expected no error", err)
 	}
 	checkHostState(t, "server12345:22", "", false)
-	if forgetHost("server[notAnumber]") == nil {
+	if forgetHost("-host server[notAnumber]") == nil {
 		t.Errorf("got no error, expected error due to notAnumber not being a number")
 	}
 }
@@ -460,7 +513,7 @@ func TestStickyConnections(t *testing.T) {
 	// remove old connections stored in etcd
 	time.Sleep(4 * time.Second)
 
-	disableHost("server1")
+	disableHost("-host server1")
 	checkHostState(t, "server1:22", "disabled", true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -473,7 +526,7 @@ func TestStickyConnections(t *testing.T) {
 	process1 := <-ch
 
 	time.Sleep(time.Second)
-	enableHost("server1")
+	enableHost("-host server1")
 	checkHostState(t, "server1:22", "up", true)
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
@@ -492,7 +545,7 @@ func TestNotLongStickyConnections(t *testing.T) {
 	// remove old connections stored in etcd
 	time.Sleep(4 * time.Second)
 
-	disableHost("server1")
+	disableHost("-host server1")
 	checkHostState(t, "server1:22", "disabled", true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -504,7 +557,7 @@ func TestNotLongStickyConnections(t *testing.T) {
 	}
 
 	time.Sleep(2 * time.Second)
-	enableHost("server1")
+	enableHost("-host server1")
 	checkHostState(t, "server1:22", "up", true)
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
@@ -523,7 +576,7 @@ func TestLongStickyConnections(t *testing.T) {
 	time.Sleep(4 * time.Second)
 
 	updateLineSSHProxyConf("etcd_keyttl", "10")
-	disableHost("server1")
+	disableHost("-host server1")
 	checkHostState(t, "server1:22", "disabled", true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -535,7 +588,7 @@ func TestLongStickyConnections(t *testing.T) {
 	}
 
 	time.Sleep(2 * time.Second)
-	enableHost("server1")
+	enableHost("-host server1")
 	checkHostState(t, "server1:22", "up", true)
 
 	args, cmdStr := prepareCommand("gateway2", 2022, "hostname")
@@ -662,7 +715,7 @@ func TestEnableDisableHost(t *testing.T) {
 		t.Errorf("%s got %s, expected server1", cmdStr, dest)
 	}
 
-	disableHost("server[1,100]")
+	disableHost("-host server[1,100]")
 	checkHostState(t, "server1:22", "disabled", true)
 
 	_, stdout, _, err = runCommand(ctx, "ssh", args, nil, nil)
@@ -674,7 +727,7 @@ func TestEnableDisableHost(t *testing.T) {
 		t.Errorf("%s got %s, expected server2", cmdStr, dest)
 	}
 
-	enableHost("server1")
+	enableHost("-host server1")
 	checkHostState(t, "server1:22", "up", true)
 
 	// test stickiness
@@ -697,46 +750,6 @@ func TestEnableDisableHost(t *testing.T) {
 	if dest != "server1" {
 		t.Errorf("%s got %s, expected server1", cmdStr, dest)
 	}
-}
-
-type user struct {
-	User    string
-	Group   string
-	Service string
-	N       int
-}
-
-func getEtcdUsers(mode string, allFlag bool) (map[string]user, string) {
-	all := ""
-	if allFlag {
-		all = " -all"
-	}
-	ctx := context.Background()
-	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json %s%s", SSHPROXYCTL, mode, all)}, nil, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	jsonStr := strings.TrimSpace(string(stdout))
-	var users []user
-	if err := json.Unmarshal(stdout, &users); err != nil {
-		log.Fatal(err)
-	}
-	usersMap := map[string]user{}
-	for _, user := range users {
-		key := ""
-		if user.User != "" {
-			key = user.User
-		} else {
-			key = user.Group
-		}
-		if allFlag {
-			key += "@" + user.Service
-		}
-		usersMap[key] = user
-	}
-
-	return usersMap, jsonStr
 }
 
 func TestEtcdUsers(t *testing.T) {
@@ -962,6 +975,40 @@ func TestSCP(t *testing.T) {
 		if !reflect.DeepEqual(refSum, sum) {
 			t.Errorf("MD5 are different: got %v, want %v (%s)", sum, refSum, mode)
 		}
+	}
+}
+
+func compareSshToErrorBanner(errorBanner string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	args, _ := prepareCommand("gateway1", 2023, "hostname")
+	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	stdoutStr := strings.TrimSpace(string(stdout))
+	if err == nil {
+		return "Expected error because all hosts are disabled, got no error"
+	} else if stdoutStr != errorBanner {
+		return fmt.Sprintf("got error = %s, want %s", stdoutStr, errorBanner)
+	}
+	return ""
+}
+
+func TestErrorBanner(t *testing.T) {
+	disableHost("-all")
+	defer enableHost("-all")
+	defaultError := "a default error"
+	line := fmt.Sprintf("error_banner: %s", defaultError)
+	addLineSSHProxyConf(line)
+	defer removeLineSSHProxyConf(line)
+
+	customError := "a custom error"
+	setEtcdErrorBanner(customError)
+	if errStr := compareSshToErrorBanner(customError); errStr != "" {
+		t.Error(errStr)
+	}
+
+	forgetEtcdErrorBanner()
+	if errStr := compareSshToErrorBanner(defaultError); errStr != "" {
+		t.Error(errStr)
 	}
 }
 

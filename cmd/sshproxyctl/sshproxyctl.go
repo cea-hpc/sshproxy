@@ -35,7 +35,6 @@ var (
 	// SshproxyVersion is set by Makefile
 	SshproxyVersion = "0.0.0+noproperlybuilt"
 	defaultConfig   = "/etc/sshproxy/sshproxy.yaml"
-	defaultHostPort = "22"
 )
 
 func mustInitEtcdClient(configFile string) *utils.Client {
@@ -536,6 +535,13 @@ func setErrorBanner(errorBanner string, expire time.Time, configFile string) err
 	return cli.SetErrorBanner(errorBanner, expire)
 }
 
+func delErrorBanner(configFile string) error {
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
+
+	return cli.DelErrorBanner()
+}
+
 func showErrorBanner(configFile string) {
 	cli := mustInitEtcdClient(configFile)
 	defer cli.Close()
@@ -592,7 +598,7 @@ The commands are:
   version       show version number and exit
   show          show states present in etcd
   enable        enable a host in etcd
-  forget        forget a host in etcd
+  forget        forget a host/error_banner in etcd
   disable       disable a host in etcd
   error_banner  set the error banner in etcd
 
@@ -654,39 +660,53 @@ The options are:
 	return fs
 }
 
-func newEnableParser() *flag.FlagSet {
+func newEnableParser(allFlag *bool, hostString *string, portString *string) *flag.FlagSet {
 	fs := flag.NewFlagSet("enable", flag.ExitOnError)
+	fs.BoolVar(allFlag, "all", false, "enable all hosts present in config")
+	fs.StringVar(hostString, "host", "", "hostname to enable (can be a nodeset)")
+	fs.StringVar(portString, "port", "", "port to enable (can be a nodeset)")
 	fs.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s enable HOST [PORT]
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s enable -all|-host HOST [-port PORT]
 
-Enable a previously disabled host in etcd. The default port is %s. Host and port
-can be nodesets.
-`, os.Args[0], defaultHostPort)
+Enable a previously disabled host in etcd.
+`, os.Args[0])
+		fs.PrintDefaults()
 		os.Exit(2)
 	}
 	return fs
 }
 
-func newForgetParser() *flag.FlagSet {
+func newForgetParser(allFlag *bool, hostString *string, portString *string) *flag.FlagSet {
 	fs := flag.NewFlagSet("forget", flag.ExitOnError)
+	fs.BoolVar(allFlag, "all", false, "forget all hosts present in config")
+	fs.StringVar(hostString, "host", "", "hostname to forget (can be a nodeset)")
+	fs.StringVar(portString, "port", "", "port to forget (can be a nodeset)")
 	fs.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s forget HOST [PORT]
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s forget COMMAND [OPTIONS]
 
-Forget a host in etcd. The default port is %s. Remember that if this host is
-used, it will appear back in the list. Host and port can be nodesets.
-`, os.Args[0], defaultHostPort)
+The commands are:
+  host -all|-host HOST [-port PORT]    forget a host in etcd
+  error_banner                         forget the error_banner in etcd
+
+The options are:
+`, os.Args[0])
+		fs.PrintDefaults()
 		os.Exit(2)
 	}
 	return fs
 }
 
-func newDisableParser() *flag.FlagSet {
+func newDisableParser(allFlag *bool, hostString *string, portString *string) *flag.FlagSet {
 	fs := flag.NewFlagSet("disable", flag.ExitOnError)
+	fs.BoolVar(allFlag, "all", false, "disable all hosts present in config")
+	fs.StringVar(hostString, "host", "", "hostname to disable (can be a nodeset)")
+	fs.StringVar(portString, "port", "", "port to disable (can be a nodeset)")
 	fs.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s disable HOST [PORT]
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s disable -all|-host HOST [-port PORT]
 
-Disable a host in etcd. The default port is %s. Host and port can be nodesets.
-`, os.Args[0], defaultHostPort)
+Disable a host in etcd.
+`, os.Args[0])
+		fs.PrintDefaults()
 		os.Exit(2)
 	}
 	return fs
@@ -708,53 +728,66 @@ The options are:
 	return fs
 }
 
-func getHostPortFromCommandLine(args []string) ([]string, []string, error) {
+func getHostPortFromCommandLine(allFlag bool, hostsNodeset string, portsNodeset string, configFile string) ([]string, error) {
 	_, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
 	defer nodesetDlclose()
-	hostsNodeset, portsNodeset := "", defaultHostPort
-	switch len(args) {
-	case 2:
-		hostsNodeset, portsNodeset = args[0], args[1]
-	case 1:
-		hostsNodeset = args[0]
-	default:
-		return []string{}, []string{}, fmt.Errorf("wrong number of arguments")
+
+	configDests, err := utils.LoadAllDestsFromConfig(configFile)
+	if err != nil {
+		return []string{}, fmt.Errorf("%s", err)
 	}
 
-	hosts, err := nodesetExpand(hostsNodeset)
-	if err != nil {
-		return []string{}, []string{}, fmt.Errorf("%s", err)
+	if allFlag && portsNodeset == "" {
+		return configDests, nil
 	}
-	ports, err := nodesetExpand(portsNodeset)
-	if err != nil {
-		return []string{}, []string{}, fmt.Errorf("%s", err)
+
+	var hosts []string
+	var ports []string
+	for _, configDest := range configDests {
+		host, port, err := utils.SplitHostPort(configDest)
+		if err != nil {
+			return []string{}, fmt.Errorf("%s", err)
+		}
+		hosts = append(hosts, host)
+		ports = append(ports, port)
 	}
+
+	if !allFlag {
+		hosts, err = nodesetExpand(hostsNodeset)
+		if err != nil {
+			return []string{}, fmt.Errorf("%s", err)
+		}
+	}
+
+	if portsNodeset != "" {
+		ports, err = nodesetExpand(portsNodeset)
+		if err != nil {
+			return []string{}, fmt.Errorf("%s", err)
+		}
+	}
+
+	var hostPorts []string
 	for _, port := range ports {
 		if iport, err := strconv.Atoi(port); err != nil {
-			return []string{}, []string{}, fmt.Errorf("port \"%s\" must be an integer", port)
+			return []string{}, fmt.Errorf("port \"%s\" must be an integer", port)
 		} else if iport < 0 || iport > 65535 {
-			return []string{}, []string{}, fmt.Errorf("port \"%s\" must be in the 0-65535 range", port)
+			return []string{}, fmt.Errorf("port \"%s\" must be in the 0-65535 range", port)
 		}
 		for _, host := range hosts {
 			if _, _, err := net.SplitHostPort(host + ":" + port); err != nil {
-				return []string{}, []string{}, fmt.Errorf("%s", err)
+				return []string{}, fmt.Errorf("%s", err)
 			}
+			hostPorts = append(hostPorts, host+":"+port)
 		}
 	}
-	return hosts, ports, nil
+	return hostPorts, nil
 }
 
 func getErrorBannerFromCommandLine(args []string) (string, error) {
-	errorBanner := ""
-	switch len(args) {
-	case 0:
-		errorBanner = ""
-	case 1:
-		errorBanner = args[0]
-	default:
-		return "", fmt.Errorf("wrong number of arguments")
+	if len(args) == 1 {
+		return args[0], nil
 	}
-	return errorBanner, nil
+	return "", fmt.Errorf("wrong number of arguments")
 }
 
 func byteToHuman(b int, passthrough bool) string {
@@ -831,14 +864,16 @@ func main() {
 	var userString string
 	var groupsString string
 	var sourceString string
+	var hostString string
+	var portString string
 
 	parsers := map[string]*flag.FlagSet{
 		"help":         newHelpParser(),
 		"version":      newVersionParser(),
 		"show":         newShowParser(&csvFlag, &jsonFlag, &allFlag, &userString, &groupsString, &sourceString),
-		"enable":       newEnableParser(),
-		"forget":       newForgetParser(),
-		"disable":      newDisableParser(),
+		"enable":       newEnableParser(&allFlag, &hostString, &portString),
+		"forget":       newForgetParser(&allFlag, &hostString, &portString),
+		"disable":      newDisableParser(&allFlag, &hostString, &portString),
 		"error_banner": newErrorBannerParser(&expire),
 	}
 
@@ -866,7 +901,7 @@ func main() {
 		p := parsers[cmd]
 		p.Parse(args)
 		if p.NArg() == 0 {
-			fmt.Fprintf(os.Stderr, "ERROR: missing 'hosts' or 'connections'\n\n")
+			fmt.Fprintf(os.Stderr, "ERROR: missing 'hosts', 'connections', 'users', 'groups', 'error_banner' or 'config'\n\n")
 			p.Usage()
 		}
 		subcmd := p.Arg(0)
@@ -893,41 +928,75 @@ func main() {
 	case "enable":
 		p := parsers[cmd]
 		p.Parse(args)
-		hosts, ports, err := getHostPortFromCommandLine(p.Args())
+		if !allFlag && hostString == "" {
+			fmt.Fprintf(os.Stderr, "ERROR: missing '-all' or '-host'\n\n")
+			p.Usage()
+		}
+		hostPorts, err := getHostPortFromCommandLine(allFlag, hostString, portString, *configFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
 			p.Usage()
 		}
-		for _, host := range hosts {
-			for _, port := range ports {
-				enableHost(host, port, *configFile)
+		for _, hostPort := range hostPorts {
+			host, port, err := utils.SplitHostPort(hostPort)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+				p.Usage()
 			}
+			enableHost(host, port, *configFile)
 		}
 	case "forget":
 		p := parsers[cmd]
 		p.Parse(args)
-		hosts, ports, err := getHostPortFromCommandLine(p.Args())
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+		if p.NArg() == 0 {
+			fmt.Fprintf(os.Stderr, "ERROR: missing 'host' or 'error_banner'\n\n")
 			p.Usage()
 		}
-		for _, host := range hosts {
-			for _, port := range ports {
+		subcmd := p.Arg(0)
+		// parse flags after subcommand
+		args = p.Args()[1:]
+		p.Parse(args)
+		switch subcmd {
+		case "host":
+			if !allFlag && hostString == "" {
+				fmt.Fprintf(os.Stderr, "ERROR: missing '-all' or '-host'\n\n")
+				p.Usage()
+			}
+			hostPorts, err := getHostPortFromCommandLine(allFlag, hostString, portString, *configFile)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+				p.Usage()
+			}
+			for _, hostPort := range hostPorts {
+				host, port, err := utils.SplitHostPort(hostPort)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+					p.Usage()
+				}
 				forgetHost(host, port, *configFile)
 			}
+		case "error_banner":
+			delErrorBanner(*configFile)
 		}
 	case "disable":
 		p := parsers[cmd]
 		p.Parse(args)
-		hosts, ports, err := getHostPortFromCommandLine(p.Args())
+		if !allFlag && hostString == "" {
+			fmt.Fprintf(os.Stderr, "ERROR: missing '-all' or '-host'\n\n")
+			p.Usage()
+		}
+		hostPorts, err := getHostPortFromCommandLine(allFlag, hostString, portString, *configFile)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
 			p.Usage()
 		}
-		for _, host := range hosts {
-			for _, port := range ports {
-				disableHost(host, port, *configFile)
+		for _, hostPort := range hostPorts {
+			host, port, err := utils.SplitHostPort(hostPort)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+				p.Usage()
 			}
+			disableHost(host, port, *configFile)
 		}
 	case "error_banner":
 		p := parsers[cmd]
