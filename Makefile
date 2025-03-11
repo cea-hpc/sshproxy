@@ -90,7 +90,8 @@ check:
 	$(GO) vet $(TEST)
 	staticcheck ./...
 	staticcheck $(TEST)
-	$(GO) test -failfast -race -count=1 -timeout=10s ./...
+	$(GO) test -coverprofile=test/coverage.out -failfast -race -count=1 -timeout=10s ./...
+	$(GO) tool cover -html=test/coverage.out -o test/coverage.html
 
 test:
 	cd test && bash ./run.sh
@@ -100,6 +101,6 @@ benchmark:
 	$(GO) test -failfast -race -count=6 -bench=. -run=^# -benchmem ./... | tee benchmarks/results/$(DATE)-$(COMMIT)
 
 clean:
-	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy_*.tar.gz
+	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy_*.tar.gz test/coverage.*
 
 .PHONY: all exe doc install install-doc-man install-binaries package fmt get-deps check test benchmark clean
