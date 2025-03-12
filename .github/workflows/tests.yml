@@ -75,16 +75,16 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - target: rocky+epel-8-x86_64
+          - target: rocky+raven-8-x86_64
             arch: x86_64
             dist: el8
-          - target: rocky+epel-9-x86_64
+          - target: rocky+raven-9-x86_64
             arch: x86_64
             dist: el9
     steps:
       - name: Prepare mock and rpm-build
         run: |
-          dnf -y install epel-release
+          dnf -y install raven-release
           dnf -y install git make mock rpm-build
           echo "config_opts['print_main_output'] = True" >>/etc/mock/site-defaults.cfg
 
