@@ -1,0 +1,7 @@
+routes:
+  default:
+    route_select: connections
+    mode: sticky
+    force_command: /bin/false
+    command_must_match: true
+    etcd_keyttl: 1800
