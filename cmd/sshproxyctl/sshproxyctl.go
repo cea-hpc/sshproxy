@@ -601,6 +601,7 @@ The commands are:
   forget        forget a host/error_banner in etcd
   disable       disable a host in etcd
   error_banner  set the error banner in etcd
+  convert       displays the config, converted from v1 to v2
 
 The common options are:
 `, os.Args[0])
@@ -723,6 +724,20 @@ Set the error banner in etcd.
 The options are:
 `, os.Args[0])
 		fs.PrintDefaults()
+		os.Exit(2)
+	}
+	return fs
+}
+
+func newConvertParser() *flag.FlagSet {
+	fs := flag.NewFlagSet("convert", flag.ExitOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), `Usage: %s convert
+
+Show configuration converted from v1 to v2 and exit.
+Should be used like this:
+  %s -c %s.old convert > %s.new
+`, os.Args[0], os.Args[0], defaultConfig, defaultConfig)
 		os.Exit(2)
 	}
 	return fs
@@ -875,6 +890,7 @@ func main() {
 		"forget":       newForgetParser(&allFlag, &hostString, &portString),
 		"disable":      newDisableParser(&allFlag, &hostString, &portString),
 		"error_banner": newErrorBannerParser(&expire),
+		"convert":      newConvertParser(),
 	}
 
 	cmd := flag.Arg(0)
@@ -1016,6 +1032,16 @@ func main() {
 			p.Usage()
 		}
 		setErrorBanner(errorBanner, t, *configFile)
+	case "convert":
+		p := parsers[cmd]
+		p.Parse(args)
+		yamlOutput, err := utils.ConvertConfigV1(*configFile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: %s\n\n", err)
+			usage()
+		}
+		fmt.Println("---")
+		fmt.Print(string(yamlOutput[:]))
 	default:
 		fmt.Fprintf(os.Stderr, "ERROR: unknown command: %s\n\n", cmd)
 		usage()

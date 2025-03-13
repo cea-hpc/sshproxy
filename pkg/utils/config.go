@@ -41,32 +41,32 @@ var cachedConfig Config
 
 // Config represents the configuration for sshproxy.
 type Config struct {
-	ready                 bool // true when the configuration has already been loaded
-	Nodeset               string
-	Debug                 bool
-	Log                   string
-	CheckInterval         Duration `yaml:"check_interval"`
-	ErrorBanner           string   `yaml:"error_banner"`
-	Dump                  string
-	DumpLimitSize         uint64   `yaml:"dump_limit_size"`
-	DumpLimitWindow       Duration `yaml:"dump_limit_window"`
-	Etcd                  etcdConfig
-	EtcdStatsInterval     Duration `yaml:"etcd_stats_interval"`
-	LogStatsInterval      Duration `yaml:"log_stats_interval"`
-	BlockingCommand       string   `yaml:"blocking_command"`
-	BgCommand             string   `yaml:"bg_command"`
-	SSH                   sshConfig
-	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands"`
-	Environment           map[string]string
-	Service               string
-	Dest                  []string
-	RouteSelect           string `yaml:"route_select"`
-	Mode                  string
-	ForceCommand          string `yaml:"force_command"`
-	CommandMustMatch      bool   `yaml:"command_must_match"`
-	EtcdKeyTTL            int64  `yaml:"etcd_keyttl"`
-	MaxConnectionsPerUser int    `yaml:"max_connections_per_user"`
-	Overrides             []subConfig
+	ready                 bool                               // true when the configuration has already been loaded
+	Nodeset               string                             `yaml:",omitempty"`
+	Debug                 bool                               `yaml:",omitempty"`
+	Log                   string                             `yaml:",omitempty"`
+	CheckInterval         time.Duration                      `yaml:"check_interval,omitempty"`
+	ErrorBanner           string                             `yaml:"error_banner,omitempty"`
+	Dump                  string                             `yaml:",omitempty"`
+	DumpLimitSize         uint64                             `yaml:"dump_limit_size,omitempty"`
+	DumpLimitWindow       time.Duration                      `yaml:"dump_limit_window,omitempty"`
+	Etcd                  etcdConfig                         `yaml:",omitempty"`
+	EtcdStatsInterval     time.Duration                      `yaml:"etcd_stats_interval,omitempty"`
+	LogStatsInterval      time.Duration                      `yaml:"log_stats_interval,omitempty"`
+	BlockingCommand       string                             `yaml:"blocking_command,omitempty"`
+	BgCommand             string                             `yaml:"bg_command,omitempty"`
+	SSH                   sshConfig                          `yaml:",omitempty"`
+	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands,omitempty"`
+	Environment           map[string]string                  `yaml:",omitempty"`
+	Service               string                             `yaml:",omitempty"`
+	Dest                  []string                           `yaml:",flow,omitempty"`
+	RouteSelect           string                             `yaml:"route_select,omitempty"`
+	Mode                  string                             `yaml:",omitempty"`
+	ForceCommand          string                             `yaml:"force_command,omitempty"`
+	CommandMustMatch      bool                               `yaml:"command_must_match,omitempty"`
+	EtcdKeyTTL            int64                              `yaml:"etcd_keyttl,omitempty"`
+	MaxConnectionsPerUser int                                `yaml:"max_connections_per_user,omitempty"`
+	Overrides             []subConfig                        `yaml:",omitempty"`
 }
 
 // TranslateCommandConfig represents the configuration of a translate_command.
@@ -74,21 +74,21 @@ type Config struct {
 type TranslateCommandConfig struct {
 	SSHArgs     []string `yaml:"ssh_args"`
 	Command     string
-	DisableDump bool `yaml:"disable_dump"`
+	DisableDump bool `yaml:"disable_dump,omitempty"`
 }
 
 type sshConfig struct {
-	Exe  string
-	Args []string
+	Exe  string   `yaml:",omitempty"`
+	Args []string `yaml:",flow,omitempty"`
 }
 
 type etcdConfig struct {
-	Endpoints []string
-	TLS       etcdTLSConfig
-	Username  string
-	Password  string
-	KeyTTL    int64
-	Mandatory bool
+	Endpoints []string      `yaml:",flow"`
+	TLS       etcdTLSConfig `yaml:",omitempty"`
+	Username  string        `yaml:",omitempty"`
+	Password  string        `yaml:",omitempty"`
+	KeyTTL    int64         `yaml:",omitempty"`
+	Mandatory bool          `yaml:",omitempty"`
 }
 
 type etcdTLSConfig struct {
@@ -100,30 +100,30 @@ type etcdTLSConfig struct {
 // We use interface{} instead of real type to check if the option was specified
 // or not.
 type subConfig struct {
-	Match                 []map[string][]string
-	Debug                 interface{}
-	Log                   interface{}
-	CheckInterval         interface{} `yaml:"check_interval"`
-	ErrorBanner           interface{} `yaml:"error_banner"`
-	Dump                  interface{}
-	DumpLimitSize         interface{} `yaml:"dump_limit_size"`
-	DumpLimitWindow       interface{} `yaml:"dump_limit_window"`
-	Etcd                  interface{}
-	EtcdStatsInterval     interface{} `yaml:"etcd_stats_interval"`
-	LogStatsInterval      interface{} `yaml:"log_stats_interval"`
-	BlockingCommand       interface{} `yaml:"blocking_command"`
-	BgCommand             interface{} `yaml:"bg_command"`
-	SSH                   interface{}
-	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands"`
-	Environment           map[string]string
-	Service               interface{}
-	Dest                  []string
-	RouteSelect           interface{} `yaml:"route_select"`
-	Mode                  interface{}
-	ForceCommand          interface{} `yaml:"force_command"`
-	CommandMustMatch      interface{} `yaml:"command_must_match"`
-	EtcdKeyTTL            interface{} `yaml:"etcd_keyttl"`
-	MaxConnectionsPerUser interface{} `yaml:"max_connections_per_user"`
+	Match                 []map[string][]string              `yaml:",omitempty"`
+	Debug                 interface{}                        `yaml:",omitempty"`
+	Log                   interface{}                        `yaml:",omitempty"`
+	CheckInterval         interface{}                        `yaml:"check_interval,omitempty"`
+	ErrorBanner           interface{}                        `yaml:"error_banner,omitempty"`
+	Dump                  interface{}                        `yaml:",omitempty"`
+	DumpLimitSize         interface{}                        `yaml:"dump_limit_size,omitempty"`
+	DumpLimitWindow       interface{}                        `yaml:"dump_limit_window,omitempty"`
+	Etcd                  interface{}                        `yaml:",omitempty"`
+	EtcdStatsInterval     interface{}                        `yaml:"etcd_stats_interval,omitempty"`
+	LogStatsInterval      interface{}                        `yaml:"log_stats_interval,omitempty"`
+	BlockingCommand       interface{}                        `yaml:"blocking_command,omitempty"`
+	BgCommand             interface{}                        `yaml:"bg_command,omitempty"`
+	SSH                   interface{}                        `yaml:",omitempty"`
+	TranslateCommands     map[string]*TranslateCommandConfig `yaml:"translate_commands,omitempty"`
+	Environment           map[string]string                  `yaml:",omitempty"`
+	Service               interface{}                        `yaml:",omitempty"`
+	Dest                  []string                           `yaml:",flow,omitempty"`
+	RouteSelect           interface{}                        `yaml:"route_select,omitempty"`
+	Mode                  interface{}                        `yaml:",omitempty"`
+	ForceCommand          interface{}                        `yaml:"force_command,omitempty"`
+	CommandMustMatch      interface{}                        `yaml:"command_must_match,omitempty"`
+	EtcdKeyTTL            interface{}                        `yaml:"etcd_keyttl,omitempty"`
+	MaxConnectionsPerUser interface{}                        `yaml:"max_connections_per_user,omitempty"`
 }
 
 // Return slice of strings containing formatted configuration values
@@ -132,14 +132,14 @@ func PrintConfig(config *Config, groups map[string]bool) []string {
 	output = append(output, fmt.Sprintf("groups = %v", groups))
 	output = append(output, fmt.Sprintf("config.debug = %v", config.Debug))
 	output = append(output, fmt.Sprintf("config.log = %s", config.Log))
-	output = append(output, fmt.Sprintf("config.check_interval = %s", config.CheckInterval.Duration()))
+	output = append(output, fmt.Sprintf("config.check_interval = %s", config.CheckInterval))
 	output = append(output, fmt.Sprintf("config.error_banner = %s", config.ErrorBanner))
 	output = append(output, fmt.Sprintf("config.dump = %s", config.Dump))
 	output = append(output, fmt.Sprintf("config.dump_limit_size = %d", config.DumpLimitSize))
-	output = append(output, fmt.Sprintf("config.dump_limit_window = %s", config.DumpLimitWindow.Duration()))
+	output = append(output, fmt.Sprintf("config.dump_limit_window = %s", config.DumpLimitWindow))
 	output = append(output, fmt.Sprintf("config.etcd = %+v", config.Etcd))
-	output = append(output, fmt.Sprintf("config.etcd_stats_interval = %s", config.EtcdStatsInterval.Duration()))
-	output = append(output, fmt.Sprintf("config.log_stats_interval = %s", config.LogStatsInterval.Duration()))
+	output = append(output, fmt.Sprintf("config.etcd_stats_interval = %s", config.EtcdStatsInterval))
+	output = append(output, fmt.Sprintf("config.log_stats_interval = %s", config.LogStatsInterval))
 	output = append(output, fmt.Sprintf("config.blocking_command = %s", config.BlockingCommand))
 	output = append(output, fmt.Sprintf("config.bg_command = %s", config.BgCommand))
 	output = append(output, fmt.Sprintf("config.ssh = %+v", config.SSH))
@@ -169,7 +169,7 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 
 	if subconfig.CheckInterval != nil {
 		var err error
-		config.CheckInterval, err = ParseDuration(subconfig.CheckInterval.(string))
+		config.CheckInterval, err = time.ParseDuration(subconfig.CheckInterval.(string))
 		if err != nil {
 			return err
 		}
@@ -189,7 +189,7 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 
 	if subconfig.DumpLimitWindow != nil {
 		var err error
-		config.DumpLimitWindow, err = ParseDuration(subconfig.DumpLimitWindow.(string))
+		config.DumpLimitWindow, err = time.ParseDuration(subconfig.DumpLimitWindow.(string))
 		if err != nil {
 			return err
 		}
@@ -201,7 +201,7 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 
 	if subconfig.EtcdStatsInterval != nil {
 		var err error
-		config.EtcdStatsInterval, err = ParseDuration(subconfig.EtcdStatsInterval.(string))
+		config.EtcdStatsInterval, err = time.ParseDuration(subconfig.EtcdStatsInterval.(string))
 		if err != nil {
 			return err
 		}
@@ -209,7 +209,7 @@ func parseSubConfig(config *Config, subconfig *subConfig) error {
 
 	if subconfig.LogStatsInterval != nil {
 		var err error
-		config.LogStatsInterval, err = ParseDuration(subconfig.LogStatsInterval.(string))
+		config.LogStatsInterval, err = time.ParseDuration(subconfig.LogStatsInterval.(string))
 		if err != nil {
 			return err
 		}

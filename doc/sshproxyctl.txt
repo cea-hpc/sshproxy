@@ -105,6 +105,9 @@ COMMANDS
 	(host[:port]) is given with the '-source' option, the configuration
 	will be calculated for this specific source.
 
+*convert*::
+	Displays the configuration, converted from v1 to v2.
+
 
 FILES
 -----
