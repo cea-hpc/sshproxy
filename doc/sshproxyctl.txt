@@ -70,6 +70,10 @@ COMMANDS
 *forget error_banner*::
 	Remove the error banner in etcd.
 
+*forget persist [-user USER] [-service SERVICE] [-host HOST] [-port PORT]*::
+	Forget a persistent connection in etcd. Needs at least one option.
+	Only connections matching all the options are forgotten.
+
 *error_banner [-expire EXPIRATION] MESSAGE*::
 	Set the error banner in etcd. 'MESSAGE' can be multiline. The error
 	banner is displayed to the client when no backend can be reached (more
