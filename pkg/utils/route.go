@@ -30,14 +30,6 @@ type HostChecker interface {
 	Check(hostport string) bool
 }
 
-// BasicHostChecker implements the HostChecker interface.
-type BasicHostChecker struct{}
-
-// Check tests if a connection to host:port can be made with a 1s timeout.
-func (bhc *BasicHostChecker) Check(hostport string) bool {
-	return CanConnect(hostport)
-}
-
 var (
 	routeSelecters = map[string]selectDestinationFunc{
 		"ordered":     selectDestinationOrdered,
@@ -47,9 +39,12 @@ var (
 	}
 )
 
+// Mocking net.DialTimeout for testing.
+var NetDialTimeout = net.DialTimeout
+
 // CanConnect tests if a connection to host:port can be made (with a 1s timeout).
 func CanConnect(hostport string) bool {
-	c, err := net.DialTimeout("tcp", hostport, time.Second)
+	c, err := NetDialTimeout("tcp", hostport, time.Second)
 	if err != nil {
 		mylog.Infof("cannot connect to %s: %s", hostport, err)
 		return false
@@ -164,16 +159,6 @@ func selectDestinationBandwidth(destinations []string, checker HostChecker, cli 
 // checker.
 func SelectRoute(algo string, destinations []string, checker HostChecker, cli *Client, key string) (string, error) {
 	return routeSelecters[algo](destinations, checker, cli, key)
-}
-
-// IsDestinationInRoutes returns true if dest exists in routes, false otherwise
-func IsDestinationInRoutes(dest string, routes []string) bool {
-	for _, route := range routes {
-		if dest == route {
-			return true
-		}
-	}
-	return false
 }
 
 // IsRouteAlgorithm checks if the specified algo is valid.

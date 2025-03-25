@@ -101,7 +101,7 @@ test:
 
 benchmark:
 	mkdir -p benchmarks/results
-	$(GO) test -failfast -race -count=6 -bench=. -run=^# -benchmem ./... | tee benchmarks/results/$(DATE)-$(COMMIT)
+	$(GO) test -failfast -race -count=6 -timeout=20m -bench=. -run=^# -benchmem ./... | tee benchmarks/results/$(DATE)-$(COMMIT)
 
 clean:
 	rm -f $(EXE) $(MANDOC) doc/*.xml sshproxy*.tar.gz test/coverage.*
