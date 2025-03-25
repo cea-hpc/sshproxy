@@ -1,22 +1,22 @@
 ---
 # Debug mode
-#debug: false
+debug: true
 
 # Where logs will be written.
 # Default is empty but it can either be "syslog" if you want to use syslog or a
 # filename where the pattern '{user}' which will be replaced by the user login
 # (e.g. "/var/log/sshproxy/{user}.log").
-#log: ""
+log: "/var/log/sshproxy/{user}.log"
 
 # Minimum interval for checking if an host is alive.
 # Empty by default (i.e. always check host).
 # The string can contain a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s").
-#check_interval: ""
+check_interval: "2m30s"
 
 # Banner displayed to the client when no backend can be reached (more
 # precisely, when all backends are either down or disabled in etcd). This
 # message can be multiline.
-#error_banner: ""
+error_banner: "an error banner"
 
 # Where raw dumps are written. Only interactive sessions are dumped.
 # Default is empty.
@@ -31,13 +31,13 @@
 # It can also be "etcd", in order to store stats into etcd.
 # It can also be a network address where to send dumps if specified as
 # 'TCP:host:port' (the TCP is case sensitive), e.g. 'TCP:collector:5555'.
-#dump: ""
+dump: "/var/lib/sshproxy/dumps/{user}/{time}-{sid}.dump"
 
 # Maximum amount of bytes of a dump. Setting the 'dump_limit_window' option
 # will limit the amount of bytes per window. This option is only useful if the
 # 'dump' option is set to a file or to a network address. Defaults to 0 (no
 # limit).
-#dump_limit_size: 0
+dump_limit_size: 10
 
 # Duration of a dump measurement window. "0" by default, the string can contain
 # a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s"). When set to "0", a
@@ -47,19 +47,19 @@
 # when few enough data are transferred during the previous window and the
 # current one. This option is only useful when the 'dump_limit_size' option is
 # set.
-#dump_limit_window: "0"
+dump_limit_window: "2m31s"
 
 # Interval at which basic statistics of transferred bytes are logged.
 # "0" by default (i.e. disabled), the string can contain a unit suffix such as
 # 'h', 'm' and 's' (e.g. "2m30s"). These statistics are only available when the
 # 'dump' option is set.
-#log_stats_interval: "0"
+log_stats_interval: "2m32s"
 
 # Interval at which bandwidth is updated in etcd. "0" by default (i.e.
 # disabled), the string can contain a unit suffix such as 'h', 'm' and 's'
 # (e.g. "2m30s"). These statistics are only available when the 'dump' option is
 # set.
-#etcd_stats_interval: "0"
+etcd_stats_interval: "2m33s"
 
 # Commands can be translated between what is received by sshproxy and what is
 # executed by the ssh forked by sshproxy. The keys are strings containing the
@@ -67,17 +67,17 @@
 # be passed to ssh. command is a mandatory string, the actual executed command.
 # disable_dump is false by default. If true, no dumps will be done for this
 # command.
-#translate_commands:
-#  "internal-sftp":
-#    ssh_args:
-#      - "-oForwardX11=no"
-#      - "-oForwardAgent=no"
-#      - "-oPermitLocalCommand=no"
-#      - "-oClearAllForwardings=yes"
-#      - "-oProtocol=2"
-#      - "-s"
-#    command: "sftp"
-#    disable_dump: true
+translate_commands:
+  "internal-sftp":
+    ssh_args:
+      - "-oForwardX11=no"
+      - "-oForwardAgent=no"
+      - "-oPermitLocalCommand=no"
+      - "-oClearAllForwardings=yes"
+      - "-oProtocol=2"
+      - "-s"
+    command: "sftp"
+    disable_dump: true
 
 # A command can be launched before the bg_command and before connecting to the
 # destination. The standard and error outputs are displayed to the user. If the
@@ -99,23 +99,23 @@
 #   ended. Default is 5 seconds.
 # - mandatory: if true, connections will be allowed only if etcd is available.
 #   Default is false.
-#etcd:
-#    endpoints:
-#        - "host1:port1"
-#        - "host2:port2"
-#    tls:
-#        cafile: ""
-#        keyfile: ""
-#        certfile: ""
-#    username: ""
-#    password: ""
-#    keyttl: 5
-#    mandatory: false
+etcd:
+    endpoints:
+        - "host1:port1"
+        - "host2:port2"
+    tls:
+        cafile: "ca.pem"
+        keyfile: "cert.key"
+        certfile: "cert.pem"
+    username: "test"
+    password: "pass"
+    keyttl: 5
+    mandatory: true
 
 # Environment variables can be set if needed. The '{user}' pattern will be
 # replaced with the user login.
-#environment:
-#    XAUTHORITY: /tmp/.Xauthority_{user}
+environment:
+    XAUTHORITY: /tmp/.Xauthority_{user}
 
 # Global SSH options.
 #ssh:
@@ -125,7 +125,7 @@
 # Maximum number of connections allowed per user.  Connections are counted in
 # the etcd database. If set to 0, there is no limit number of connections per
 # user. Default is 0.
-#max_connections_per_user: 0
+max_connections_per_user: 50
 
 # The service name is used for display. It's also used as a key in order to
 # check in etcd if a user already has active connections. The default service
@@ -135,7 +135,7 @@
 # The dest value is an array of destination hosts (with an optional port). Each
 # host can be a nodeset (eg. "host[5-6]"). If libnodeset.so is available,
 # clustershell groups can also be used (eg. "@hosts").
-#dest: [host5:4222]
+dest: ["host5:4222"]
 
 # The route_select value defines how the host destination will be chosen. It
 # can be "ordered" (the default), "random", "connections" or "bandwidth". If
@@ -161,12 +161,12 @@
 # If command_must_match is set to true, then the connection is closed if the
 # original command is not the same as the force_command. command_must_match
 # defaults to false.
-#command_must_match: false
+command_must_match: true
 
 # etcd_keyttl defaults to
 # 0. If a value is set (in seconds), the chosen backend will be remembered for
 # this amount of time.
-#etcd_keyttl: 3600
+etcd_keyttl: 3600
 
 # Each option can be overridden for specific sources (IP address or DNS name of
 # the listening SSH daemon, with an optional port), for specific users and/or
@@ -178,34 +178,60 @@
 # alice, bob and any user in the group foo will have the debug set to true. But
 # if any of those are also in the groups bar AND baz, debug will be set to
 # false, as the last override takes precedence.
-#overrides:
-#    - match:
-#        - sources: [192.168.0.1]
-#      service: service1
-#      dest: [host1, host2]
-#    - match:
-#        - sources: [192.168.0.2]
-#      service: service2
-#      dest: [host3, host4]
-#      route_select: bandwidth
-#      mode: balanced
-#      force_command: "internal-sftp"
-#      command_must_match: true
-#      etcd_keyttl: 3600
-#      environment:
-#          XAUTHORITY: /dev/shm/.Xauthority_{user}
-#    - match:
-#        - users: [alice, bob]
-#        - groups: [foo]
-#      debug: true
-#      log: /tmp/sshproxy-foo/{user}.log
-#      dump: /tmp/sshproxy-{user}-{time}.dump
-#      environment:
-#          ENV1: /tmp/env
-#      ssh:
-#          args: ["-vvv", "-Y"]
-#      dest: [hostx]
-#    - match:
-#        - groups: [bar]
-#          groups: [baz]
-#      debug: false
+overrides:
+    - match:
+        - sources: [127.0.0.1]
+      environment:
+          XAUTHORITY: /dev/shm/.Xauthority_{user}
+    - match:
+        - users: [alice, bob]
+          sources: [127.0.0.1]
+          groups: [foo]
+      debug: true
+      log: /tmp/sshproxy-foo/{user}.log
+      check_interval: "2m"
+      error_banner: "an other error banner"
+      dump: /tmp/sshproxy-{user}-{time}.dump
+      dump_limit_size: 20
+      dump_limit_window: "3m"
+      etcd:
+        endpoints:
+            - "host2"
+        tls:
+            cafile: "ca2.pem"
+            keyfile: "cert2.key"
+            certfile: "cert2.pem"
+        username: "test2"
+        password: "pass2"
+        keyttl: 2
+        mandatory: false
+      etcd_stats_interval: "4m"
+      log_stats_interval: "5m"
+      blocking_command: "/a/blocking/command"
+      bg_command: "/a/background/command"
+      ssh:
+          exe: sshhhhh
+          args: ["-vvv", "-Y"]
+      translate_commands:
+        "internal-sftp":
+          ssh_args:
+            - "-s"
+          command: "anothercommand"
+        "acommand":
+          command: "something"
+          disable_dump: true
+      environment:
+          ENV1: /tmp/env
+      service: service5
+      dest: ["server1:12345"]
+      route_select: bandwidth
+      mode: balanced
+      force_command: acommand
+      command_must_match: false
+      etcd_keyttl: 0
+      max_connections_per_user: 0
+    - match:
+        - groups: [bar]
+          groups: [baz]
+      debug: false
+      dest: ["192.168.0.[1-9]"]

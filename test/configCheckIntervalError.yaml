@@ -1,0 +1,5 @@
+dest: [127.0.0.1]
+overrides:
+- match:
+  - sources: [127.0.0.1]
+  check_interval: "not a duration"
