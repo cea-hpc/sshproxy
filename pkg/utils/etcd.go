@@ -133,6 +133,8 @@ type Bandwidth struct {
 	Out int // stdout + stderr
 }
 
+var Clientv3New = clientv3.New
+
 // NewEtcdClient creates a new etcd client.
 func NewEtcdClient(config *Config, log *logging.Logger) (*Client, error) {
 	var tlsConfig *tls.Config
@@ -154,7 +156,7 @@ func NewEtcdClient(config *Config, log *logging.Logger) (*Client, error) {
 		tlsConfig = cfg
 	}
 
-	cli, err := clientv3.New(clientv3.Config{
+	cli, err := Clientv3New(clientv3.Config{
 		DialTimeout: 2 * time.Second,
 		Endpoints:   config.Etcd.Endpoints,
 		TLS:         tlsConfig,

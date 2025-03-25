@@ -51,7 +51,7 @@ type Config struct {
 	Dump                  string                             `yaml:",omitempty"`
 	DumpLimitSize         uint64                             `yaml:"dump_limit_size,omitempty"`
 	DumpLimitWindow       time.Duration                      `yaml:"dump_limit_window,omitempty"`
-	Etcd                  etcdConfig                         `yaml:",omitempty"`
+	Etcd                  EtcdConfig                         `yaml:",omitempty"`
 	EtcdStatsInterval     time.Duration                      `yaml:"etcd_stats_interval,omitempty"`
 	LogStatsInterval      time.Duration                      `yaml:"log_stats_interval,omitempty"`
 	BlockingCommand       string                             `yaml:"blocking_command,omitempty"`
@@ -85,7 +85,7 @@ type sshConfig struct {
 
 // We use interface{} instead of real type to check if the option was specified
 // or not.
-type etcdConfig struct {
+type EtcdConfig struct {
 	Endpoints []string      `yaml:",flow"`
 	TLS       etcdTLSConfig `yaml:",omitempty"`
 	Username  string        `yaml:",omitempty"`
@@ -111,7 +111,7 @@ type subConfig struct {
 	Dump                  interface{}                        `yaml:",omitempty"`
 	DumpLimitSize         interface{}                        `yaml:"dump_limit_size,omitempty"`
 	DumpLimitWindow       interface{}                        `yaml:"dump_limit_window,omitempty"`
-	Etcd                  etcdConfig                         `yaml:",omitempty"`
+	Etcd                  EtcdConfig                         `yaml:",omitempty"`
 	EtcdStatsInterval     interface{}                        `yaml:"etcd_stats_interval,omitempty"`
 	LogStatsInterval      interface{}                        `yaml:"log_stats_interval,omitempty"`
 	BlockingCommand       interface{}                        `yaml:"blocking_command,omitempty"`

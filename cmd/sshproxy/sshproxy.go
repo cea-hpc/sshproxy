@@ -22,6 +22,7 @@ import (
 	"os/user"
 	"regexp"
 	"runtime/debug"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -109,7 +110,7 @@ func findDestination(cli *utils.Client, username string, config *utils.Config, s
 				log.Errorf("problem with etcd: %v", err)
 			}
 		} else {
-			if utils.IsDestinationInRoutes(dest, config.Dest) {
+			if slices.Contains(config.Dest, dest) {
 				if checker.Check(dest) {
 					log.Debugf("found destination in etcd: %s", dest)
 					return dest, nil
@@ -167,6 +168,7 @@ func NewSSHInfo(s string) (*SSHInfo, error) {
 	}
 	srcport, err := strconv.Atoi(infos[2])
 	if err != nil {
+		// will never happen
 		return nil, errors.New("bad value for source port")
 	}
 	dstip := net.ParseIP(infos[3])
@@ -175,6 +177,7 @@ func NewSSHInfo(s string) (*SSHInfo, error) {
 	}
 	dstport, err := strconv.Atoi(infos[4])
 	if err != nil {
+		// will never happen
 		return nil, errors.New("bad value for destination port")
 	}
 
