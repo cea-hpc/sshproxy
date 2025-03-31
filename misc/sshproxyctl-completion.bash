@@ -9,6 +9,7 @@ _sshproxyctl() {
         opts="-h -c ${commands}"
 
         case "${prev}" in
+            # Main commands
             disable)
                 COMPREPLY=( $(compgen -W '-all -host -port' -- "${cur}") )
                 ;;
@@ -19,15 +20,22 @@ _sshproxyctl() {
                 COMPREPLY=( $(compgen -W '-expire' -- "${cur}") )
                 ;;
             forget)
-                COMPREPLY=( $(compgen -W '-all -host -port host error_banner' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all -host -port -service -user error_banner host persist' -- "${cur}") )
                 ;;
             help)
                 COMPREPLY=( $(compgen -W "${commands}" -- "${cur}") )
                 ;;
             show)
-                COMPREPLY=( $(compgen -W '-all -csv -json -user -groups -source connections hosts users groups error_banner config' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all -csv -groups -json -source -user config connections error_banner groups hosts users' -- "${cur}") )
+                ;;
+            # Sub-commands
+            config)
+                COMPREPLY=( $(compgen -W '-groups -source -user' -- "${cur}") )
                 ;;
             connections)
+                COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
+                ;;
+            groups)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
                 ;;
             host)
@@ -36,42 +44,44 @@ _sshproxyctl() {
             hosts)
                 COMPREPLY=( $(compgen -W '-csv -json' -- "${cur}") )
                 ;;
+            persist)
+                COMPREPLY=( $(compgen -W '-host -port -service -user' -- "${cur}") )
+                ;;
             users)
                 COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
                 ;;
-            groups)
-                COMPREPLY=( $(compgen -W '-all -csv -json' -- "${cur}") )
-                ;;
-            config)
-                COMPREPLY=( $(compgen -W '-user -groups -source' -- "${cur}") )
-                ;;
+            # Options
             -all)
-                COMPREPLY=( $(compgen -W '-csv -json -port connections users groups' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-csv -json -port connections groups host users' -- "${cur}") )
                 ;;
             -csv)
-                COMPREPLY=( $(compgen -W '-all connections hosts users groups' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all connections groups hosts users' -- "${cur}") )
                 ;;
             -groups)
-                COMPREPLY=( $(compgen -W '-user -source config' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-source -user config' -- "${cur}") )
                 ;;
             -host)
-                COMPREPLY=( $(compgen -W '-port' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-port -service -user host persist' -- "${cur}") )
                 ;;
             -json)
-                COMPREPLY=( $(compgen -W '-all connections hosts users groups' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all connections groups hosts users' -- "${cur}") )
                 ;;
             -port)
-                COMPREPLY=( $(compgen -W '-all -host' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-all -host -service -user host persist' -- "${cur}") )
+                ;;
+            -service)
+                COMPREPLY=( $(compgen -W '-host -port -user persist' -- "${cur}") )
                 ;;
             -source)
-                COMPREPLY=( $(compgen -W '-user -groups config' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-groups -user config' -- "${cur}") )
                 ;;
             -user)
-                COMPREPLY=( $(compgen -W '-groups -source config' -- "${cur}") )
+                COMPREPLY=( $(compgen -W '-groups -host -port -service -source config persist' -- "${cur}") )
                 ;;
             -c)
                 _filedir
                 ;;
+            # Default
             *)
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 ;;
