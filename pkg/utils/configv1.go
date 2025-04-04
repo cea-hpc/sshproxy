@@ -27,7 +27,7 @@ type configV1 struct {
 	Dump                  string
 	DumpLimitSize         uint64        `yaml:"dump_limit_size"`
 	DumpLimitWindow       time.Duration `yaml:"dump_limit_window"`
-	Etcd                  etcdConfig
+	Etcd                  EtcdConfig
 	EtcdStatsInterval     time.Duration `yaml:"etcd_stats_interval"`
 	LogStatsInterval      time.Duration `yaml:"log_stats_interval"`
 	BgCommand             string        `yaml:"bg_command"`
