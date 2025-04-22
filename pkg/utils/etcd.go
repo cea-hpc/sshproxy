@@ -20,10 +20,13 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/cea-hpc/sshproxy/pkg/nodesets"
 
 	"github.com/op/go-logging"
 	"go.etcd.io/etcd/client/v3"
@@ -399,6 +402,18 @@ func (c *Client) DelHost(hostport string) error {
 	return nil
 }
 
+// DelHistory deletes a history key (passed as "user@service") in etcd.
+func (c *Client) DelHistory(history string) error {
+	key := toHistoryKey(history)
+	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
+	_, err := c.cli.Delete(ctx, key, clientv3.WithPrefix())
+	cancel()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // SetHost sets a host (passed as "host:port") state and last checked time (ts)
 // in etcd.
 func (c *Client) SetHost(hostport string, state State, ts time.Time) error {
@@ -666,7 +681,7 @@ func (c *Client) GetAllHosts() ([]*FlatHost, error) {
 		}
 	}
 
-	history, err := c.GetAllHistory()
+	history, err := c.GetHistory("", "", "", "")
 	if err != nil {
 		return nil, fmt.Errorf("ERROR: getting history from etcd: %v", err)
 	}
@@ -748,7 +763,7 @@ func (c *Client) GetAllUsers(allFlag bool) ([]*FlatUser, error) {
 	}
 
 	if allFlag {
-		history, err := c.GetAllHistory()
+		history, err := c.GetHistory("", "", "", "")
 		if err != nil {
 			return nil, fmt.Errorf("ERROR: getting history from etcd: %v", err)
 		}
@@ -863,36 +878,56 @@ type FlatHistory struct {
 	TTL  int64
 }
 
-// GetAllHistory returns a list of all history keys present in etcd.
-func (c *Client) GetAllHistory() ([]*FlatHistory, error) {
+// GetHistory returns a list of matching history keys present in etcd.
+func (c *Client) GetHistory(user, service, host, port string) ([]*FlatHistory, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.requestTimeout)
-	resp, err := c.cli.Get(ctx, etcdHistoryPath, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+	resp, err := c.cli.Get(ctx, etcdHistoryPath+"/"+user, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
 	defer cancel()
 	if err != nil {
 		return nil, err
 	}
 
-	history := make([]*FlatHistory, len(resp.Kvs))
-	for i, ev := range resp.Kvs {
+	_, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
+	defer nodesetDlclose()
+	hosts, err := nodesetExpand(host)
+	if err != nil {
+		return nil, err
+	}
+	ports, err := nodesetExpand(port)
+	if err != nil {
+		return nil, err
+	}
+	var history []*FlatHistory
+	for _, ev := range resp.Kvs {
 		subkey := string(ev.Key)[len(etcdHistoryPath)+1:]
 		fields := strings.Split(subkey, "/")
 		if len(fields) != 2 {
 			return nil, fmt.Errorf("bad key format %s", subkey)
 		}
+		evHost, evPort, err := SplitHostPort(string(ev.Value))
+		if err != nil {
+			return nil, err
+		}
 
-		v := &FlatHistory{}
-		v.User = fields[0]
-		v.Dest = string(ev.Value)
-		leaseID, err := strconv.Atoi(fields[1])
-		if err != nil {
-			return nil, err
+		if (user == "" && service == "" && host == "" && port == "") ||
+			((user == "" || strings.Contains("/"+fields[0], "/"+user+"@")) &&
+				(service == "" || strings.Contains(fields[0]+"/", "@"+service+"/")) &&
+				(host == "" || slices.Contains(hosts, evHost)) &&
+				(port == "" || slices.Contains(ports, evPort))) {
+			v := &FlatHistory{}
+			v.User = fields[0]
+			v.Dest = string(ev.Value)
+			leaseID, err := strconv.Atoi(fields[1])
+			if err != nil {
+				return nil, err
+			}
+			ttl, err := c.cli.TimeToLive(ctx, clientv3.LeaseID(leaseID))
+			if err != nil {
+				return nil, err
+			}
+			v.TTL = ttl.TTL
+			history = append(history, v)
 		}
-		ttl, err := c.cli.TimeToLive(ctx, clientv3.LeaseID(leaseID))
-		if err != nil {
-			return nil, err
-		}
-		v.TTL = ttl.TTL
-		history[i] = v
 	}
 
 	return history, nil

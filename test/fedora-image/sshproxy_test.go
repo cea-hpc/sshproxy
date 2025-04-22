@@ -170,6 +170,33 @@ func getEtcdConnections() ([]aggConnection, string) {
 	return connections, jsonStr
 }
 
+type aggUser struct {
+	User    string
+	Service string
+	Groups  string
+	N       int
+	BwIn    int
+	BwOut   int
+	Dest    string
+	TTL     int
+}
+
+func getEtcdAllUsers() ([]aggUser, string) {
+	ctx := context.Background()
+	_, stdout, _, err := runCommand(ctx, "ssh", []string{"gateway1", "--", fmt.Sprintf("%s show -json users -all", SSHPROXYCTL)}, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	jsonStr := strings.TrimSpace(string(stdout))
+	var users []aggUser
+	if err := json.Unmarshal(stdout, &users); err != nil {
+		log.Fatal(err)
+	}
+
+	return users, jsonStr
+}
+
 type host struct {
 	Hostname string
 	Port     string
@@ -208,6 +235,11 @@ func enableHost(host string) {
 
 func forgetHost(host string) error {
 	_, _, _, err := etcdCommand(fmt.Sprintf("forget host %s", host))
+	return err
+}
+
+func forgetPersist() error {
+	_, _, _, err := etcdCommand("forget persist -port 22")
 	return err
 }
 
@@ -600,6 +632,33 @@ func TestLongStickyConnections(t *testing.T) {
 	dest := strings.TrimSpace(string(stdout))
 	if dest != "server2" {
 		t.Errorf("%s got %s, expected server2", cmdStr, dest)
+	}
+}
+
+func TestForgetPersist(t *testing.T) {
+	updateLineSSHProxyConf("etcd_keyttl", "3600")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	args, _ := prepareCommand("gateway1", 2022, "hostname")
+	_, stdout, _, err := runCommand(ctx, "ssh", args, nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	dest := strings.TrimSpace(string(stdout)) + ":22"
+
+	users, _ := getEtcdAllUsers()
+	if users[0].Dest != dest {
+		t.Errorf("'Persist to' is %s, want %s", users[0].Dest, dest)
+	}
+	err = forgetPersist()
+	if err != nil {
+		log.Fatal(err)
+	}
+	updateLineSSHProxyConf("etcd_keyttl", "0")
+	users, _ = getEtcdAllUsers()
+	if users[0].Dest != "" {
+		t.Errorf("'Persist to' is %s, want empty string", users[0].Dest)
 	}
 }
 
