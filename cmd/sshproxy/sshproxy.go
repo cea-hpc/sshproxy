@@ -46,7 +46,7 @@ var log = logging.MustGetLogger("sshproxy")
 
 type etcdChecker struct {
 	LastState     utils.State
-	checkInterval utils.Duration
+	checkInterval time.Duration
 	cli           *utils.Client
 }
 
@@ -68,7 +68,7 @@ func (c *etcdChecker) Check(hostport string) bool {
 		c.LastState = c.doCheck(hostport)
 	case host.State == utils.Disabled:
 		c.LastState = host.State
-	case ts.Sub(host.Ts) > c.checkInterval.Duration():
+	case ts.Sub(host.Ts) > c.checkInterval:
 		c.LastState = c.doCheck(hostport)
 	default:
 		c.LastState = host.State
@@ -478,7 +478,7 @@ func mainExitCode() int {
 
 	var recorder *Recorder
 	if config.Dump != "" {
-		recorder = NewRecorder(conninfo, config.Dump, doCmd, config.EtcdStatsInterval.Duration(), config.LogStatsInterval.Duration(), config.DumpLimitSize, config.DumpLimitWindow.Duration())
+		recorder = NewRecorder(conninfo, config.Dump, doCmd, config.EtcdStatsInterval, config.LogStatsInterval, config.DumpLimitSize, config.DumpLimitWindow)
 
 		wg.Add(1)
 		go func() {

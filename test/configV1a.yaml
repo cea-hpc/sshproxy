@@ -1,0 +1,49 @@
+check_interval: 2m30s
+environment:
+  XAUTHORITY: /tmp/.Xauthority_{user}
+routes:
+  service1:
+    source: [192.168.0.2]
+    dest: [host3, host4]
+    route_select: bandwidth
+    mode: balanced
+    force_command: internal-sftp
+    command_must_match: true
+    etcd_keyttl: 3600
+    environment:
+      XAUTHORITY: /dev/shm/.Xauthority_{user}
+  default:
+    dest: ['host5:4222']
+    environment:
+      TEST: test
+groups:
+- foo,bar:
+    debug: true
+    log: /tmp/sshproxy-foo/{user}.log
+    environment:
+      ENV1: /tmp/env
+    ssh:
+      args: ['-vvv', '-Y']
+    routes:
+      default:
+        dest: [hostx]
+        environment:
+          ENV2: /tmp/foo
+      service1:
+        source: [127.0.0.1]
+        dest: [hosty]
+users:
+- alice,bob:
+    debug: true
+    log: /tmp/sshproxy-{user}.log
+    dump: /tmp/sshproxy-{user}-{time}.dump
+    routes:
+      default:
+        dest: [hostz]
+        environment:
+          ENV3: /tmp/foo
+      service1:
+        source: [127.0.0.2]
+        dest: ['hostz:4222']
+        environment:
+          ENV4: /tmp/foo

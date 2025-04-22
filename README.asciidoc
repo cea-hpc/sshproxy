@@ -143,6 +143,9 @@ Version 2 brings a lot of changes to sshproxy:
     connection to the destination. If the command does not return 0, the
     connection is aborted
 2. command line interface:
+  - `sshproxyctl convert` has been added: it converts your old v1
+    configuration file to the v2 format. Can be used like this:
+    `sshproxyctl -c /etc/sshproxy/sshproxy.old.yaml convert > /etc/sshproxy/sshproxy.new.yaml`
   - in all the tables, `Host` and `Port` columns are now merged into a single
     `Host:Port`
   - `sshproxyctl get_config` has been removed and replaced by
