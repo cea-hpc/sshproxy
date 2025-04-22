@@ -1,4 +1,4 @@
-FROM fedora:41
+FROM fedora:latest
 
 # Install development environment to compile RPM
 RUN set -ex \

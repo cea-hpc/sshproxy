@@ -111,24 +111,12 @@ jobs:
     name: Publish RPMs
     runs-on: ubuntu-latest
     container:
-      image: rockylinux/rockylinux:9
+      image: fedora:latest
       options: --privileged
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: rocky+epel-8-x86_64
-            arch: x86_64
-            dist: el8
-          - target: rocky+epel-9-x86_64
-            arch: x86_64
-            dist: el9
     steps:
       - name: Prepare mock and rpm-build
         run: |
-          dnf -y install epel-release
-          dnf -y install git make mock rpm-build
-          echo "config_opts['print_main_output'] = True" >>/etc/mock/site-defaults.cfg
+          dnf -y install asciidoc git golang make rpm-build
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -141,13 +129,16 @@ jobs:
           make source-archive
 
       - name: Build RPMs
-        run: mock -r ${{ matrix.target }} --rebuild --spec=misc/sshproxy.spec --sources=.
+        run: |
+          mkdir -p ~/rpmbuild/SOURCES
+          mv sshproxy-*.tar.gz ~/rpmbuild/SOURCES/
+          rpmbuild -ba misc/sshproxy.spec
 
       - name: Attach RPM and SRPM to release
         uses: xresloader/upload-to-github-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          file: "/var/lib/mock/${{ matrix.target }}/result/sshproxy-*.rpm"
+          file: "/github/home/rpmbuild/RPMS/x86_64/*.rpm;/github/home/rpmbuild/SRPMS/*.rpm"
           tags: true
           draft: true
