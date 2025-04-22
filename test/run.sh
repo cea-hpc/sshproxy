@@ -6,18 +6,23 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
+DOCKERCOMPOSE='docker compose'
+if type 'docker-compose' >/dev/null 2>&1; then
+    # fallback to docker-compose v1
+    DOCKERCOMPOSE='docker-compose'
+fi
 
 # kill and remove any running containers
 cleanup () {
-    docker compose -p ci kill
-    docker compose -p ci rm -f
+    ${DOCKERCOMPOSE} -p ci kill
+    ${DOCKERCOMPOSE} -p ci rm -f
 }
 
 # catch unexpected failures, do cleanup and output an error message
 trap 'cleanup ; printf "${RED}Tests Failed For Unexpected Reasons${NC}\n"' HUP INT QUIT PIPE TERM
 
 # build and run the composed services
-docker compose -p ci build && docker compose -p ci up -d
+${DOCKERCOMPOSE} -p ci build && ${DOCKERCOMPOSE} -p ci up -d
 if (( $? != 0 )); then
     printf "${RED}Docker Compose Failed${NC}\n"
     exit -1
