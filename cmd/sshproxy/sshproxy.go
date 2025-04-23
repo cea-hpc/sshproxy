@@ -296,7 +296,7 @@ func mainExitCode() int {
 			}
 		}
 	} else {
-		if config.Etcd.Mandatory {
+		if config.Etcd.Mandatory.(bool) {
 			log.Fatal("Etcd is mandatory but unavailable")
 		}
 	}
