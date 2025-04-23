@@ -32,7 +32,7 @@ export GOPATH=$(pwd)/_build:%{gopath}
 make
 
 %install
-make install DESTDIR=%{buildroot} prefix=%{_prefix} mandir=%{_mandir}
+make install DESTDIR=%{buildroot} prefix=%{_prefix} mandir=%{_mandir} bindir=%{_bindir} sbindir=%{_sbindir}
 install -d -m0755 %{buildroot}%{_sysconfdir}/sshproxy
 install -p -m 0644 config/sshproxy.yaml %{buildroot}%{_sysconfdir}/sshproxy
 
