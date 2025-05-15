@@ -77,19 +77,12 @@ func displayJSON(objs interface{}) {
 }
 
 func displayTable(headers []string, rows [][]string) {
-	table := tablewriter.NewWriter(os.Stdout)
-
-	colours := make([]tablewriter.Colors, len(headers))
-	for i := 0; i < len(headers); i++ {
-		colours[i] = tablewriter.Colors{tablewriter.Bold}
-	}
-
-	table.SetHeader(headers)
-	table.SetBorder(false)
-	table.SetAutoFormatHeaders(false)
-	//table.SetAutoWrapText(false)
-	table.SetHeaderColor(colours...)
-	table.AppendBulk(rows)
+	table := tablewriter.NewTable(os.Stdout,
+		tablewriter.WithConfig(tablewriter.Config{
+			MaxWidth: 200,
+		}))
+	table.Header(headers)
+	table.Bulk(rows)
 	table.Render()
 }
 
