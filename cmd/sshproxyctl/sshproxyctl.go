@@ -29,6 +29,7 @@ import (
 	"github.com/cea-hpc/sshproxy/pkg/utils"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 var (
@@ -76,12 +77,18 @@ func displayJSON(objs interface{}) {
 	}
 }
 
-func displayTable(headers []string, rows [][]string) {
+func displayTable(headers []string, rows [][]string, footers []string) {
 	table := tablewriter.NewTable(os.Stdout,
 		tablewriter.WithConfig(tablewriter.Config{
 			MaxWidth: 200,
+			Row: tw.CellConfig{
+				Formatting: tw.CellFormatting{
+					Alignment: tw.AlignRight,
+				},
+			},
 		}))
 	table.Header(headers)
+	table.Footer(footers)
 	table.Bulk(rows)
 	table.Render()
 }
@@ -98,28 +105,42 @@ type aggConnection struct {
 
 type aggregatedConnections []*aggConnection
 
-func (ac aggregatedConnections) toRows(passthrough bool) [][]string {
+func (ac aggregatedConnections) toRows(passthrough bool) ([][]string, map[string]string) {
 	rows := make([][]string, len(ac))
+	totalConnections := 0
+	totalIn := 0
+	totalOut := 0
 
 	for i, c := range ac {
 		rows[i] = []string{
 			c.User,
 			c.Service,
 			c.Dest,
-			strconv.Itoa(c.N),
+			fmt.Sprintf("%d", c.N),
 			c.Last.Format("2006-01-02 15:04:05"),
 			byteToHuman(c.BwIn, passthrough),
 			byteToHuman(c.BwOut, passthrough),
 		}
+		totalConnections += c.N
+		totalIn += c.BwIn
+		totalOut += c.BwOut
+	}
+	footer := map[string]string{
+		"connections": fmt.Sprintf("%d", totalConnections),
+		"in":          byteToHuman(totalIn, passthrough),
+		"out":         byteToHuman(totalOut, passthrough),
 	}
 
-	return rows
+	return rows, footer
 }
 
 type flatConnections []*utils.FlatConnection
 
-func (fc flatConnections) getAllConnections(passthrough bool) [][]string {
+func (fc flatConnections) getAllConnections(passthrough bool) ([][]string, map[string]string) {
 	rows := make([][]string, len(fc))
+	totalConnections := 0
+	totalIn := 0
+	totalOut := 0
 
 	for i, c := range fc {
 		rows[i] = []string{
@@ -131,9 +152,17 @@ func (fc flatConnections) getAllConnections(passthrough bool) [][]string {
 			byteToHuman(c.BwIn, passthrough),
 			byteToHuman(c.BwOut, passthrough),
 		}
+		totalConnections += 1
+		totalIn += c.BwIn
+		totalOut += c.BwOut
+	}
+	footer := map[string]string{
+		"connections": fmt.Sprintf("%d", totalConnections),
+		"in":          byteToHuman(totalIn, passthrough),
+		"out":         byteToHuman(totalOut, passthrough),
 	}
 
-	return rows
+	return rows, footer
 }
 
 func (fc flatConnections) getAggregatedConnections() aggregatedConnections {
@@ -203,9 +232,9 @@ func (fc flatConnections) displayCSV(allFlag bool) {
 	var rows [][]string
 
 	if allFlag {
-		rows = fc.getAllConnections(true)
+		rows, _ = fc.getAllConnections(true)
 	} else {
-		rows = fc.getAggregatedConnections().toRows(true)
+		rows, _ = fc.getAggregatedConnections().toRows(true)
 	}
 
 	displayCSV(rows)
@@ -225,21 +254,25 @@ func (fc flatConnections) displayJSON(allFlag bool) {
 
 func (fc flatConnections) displayTable(allFlag bool) {
 	var rows [][]string
+	var footer map[string]string
 
 	if allFlag {
-		rows = fc.getAllConnections(false)
+		rows, footer = fc.getAllConnections(false)
 	} else {
-		rows = fc.getAggregatedConnections().toRows(false)
+		rows, footer = fc.getAggregatedConnections().toRows(false)
 	}
 
 	var headers []string
+	var footers []string
 	if allFlag {
 		headers = []string{"User", "Service", "From", "Destination", "Start time", "Bw in", "Bw out"}
+		footers = []string{"", "", "", "Totals", footer["connections"], footer["in"], footer["out"]}
 	} else {
 		headers = []string{"User", "Service", "Destination", "# of conns", "Last connection", "Bw in", "Bw out"}
+		footers = []string{"", "", "Totals", footer["connections"], "", footer["in"], footer["out"]}
 	}
 
-	displayTable(headers, rows)
+	displayTable(headers, rows, footers)
 }
 
 func showConnections(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
@@ -271,8 +304,12 @@ type flatUserLight struct {
 
 type flatUsers []*utils.FlatUser
 
-func (fu flatUsers) getAllUsers(allFlag bool, passthrough bool) [][]string {
+func (fu flatUsers) getAllUsers(allFlag bool, passthrough bool) ([][]string, map[string]string) {
 	rows := make([][]string, len(fu))
+	totalConnections := 0
+	totalIn := 0
+	totalOut := 0
+
 	for i, v := range fu {
 		if allFlag {
 			rows[i] = []string{
@@ -294,6 +331,9 @@ func (fu flatUsers) getAllUsers(allFlag bool, passthrough bool) [][]string {
 				byteToHuman(v.BwOut, passthrough),
 			}
 		}
+		totalConnections += v.N
+		totalIn += v.BwIn
+		totalOut += v.BwOut
 	}
 
 	sort.Slice(rows, func(i, j int) bool {
@@ -303,8 +343,13 @@ func (fu flatUsers) getAllUsers(allFlag bool, passthrough bool) [][]string {
 			return rows[i][0] < rows[j][0]
 		}
 	})
+	footer := map[string]string{
+		"connections": fmt.Sprintf("%d", totalConnections),
+		"in":          byteToHuman(totalIn, passthrough),
+		"out":         byteToHuman(totalOut, passthrough),
+	}
 
-	return rows
+	return rows, footer
 }
 
 func (fu flatUsers) displayJSON(allFlag bool) {
@@ -326,22 +371,25 @@ func (fu flatUsers) displayJSON(allFlag bool) {
 }
 
 func (fu flatUsers) displayCSV(allFlag bool) {
-	rows := fu.getAllUsers(allFlag, true)
+	rows, _ := fu.getAllUsers(allFlag, true)
 
 	displayCSV(rows)
 }
 
 func (fu flatUsers) displayTable(allFlag bool) {
-	rows := fu.getAllUsers(allFlag, false)
+	rows, footer := fu.getAllUsers(allFlag, false)
 
 	var headers []string
+	var footers []string
 	if allFlag {
 		headers = []string{"User", "Service", "Groups", "# of conns", "Bw in", "Bw out", "Persist to", "Persist TTL"}
+		footers = []string{"", "", "Totals", footer["connections"], footer["in"], footer["out"], "", ""}
 	} else {
 		headers = []string{"User", "Groups", "# of conns", "Bw in", "Bw out"}
+		footers = []string{"", "Totals", footer["connections"], footer["in"], footer["out"]}
 	}
 
-	displayTable(headers, rows)
+	displayTable(headers, rows, footers)
 }
 
 func showUsers(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
@@ -431,13 +479,14 @@ func (fg flatGroups) displayTable(allFlag bool) {
 	rows := fg.getAllGroups(allFlag, false)
 
 	var headers []string
+	var footers []string
 	if allFlag {
 		headers = []string{"Group", "Service", "Users", "# of conns", "Bw in", "Bw out"}
 	} else {
 		headers = []string{"Group", "Users", "# of conns", "Bw in", "Bw out"}
 	}
 
-	displayTable(headers, rows)
+	displayTable(headers, rows, footers)
 }
 
 func showGroups(configFile string, csvFlag bool, jsonFlag bool, allFlag bool) {
@@ -474,6 +523,10 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 	}
 
 	rows := make([][]string, len(hosts))
+	totalConns := 0
+	totalIn := 0
+	totalOut := 0
+	totalPersist := 0
 
 	for i, h := range hosts {
 		rows[i] = []string{
@@ -485,12 +538,34 @@ func showHosts(configFile string, csvFlag bool, jsonFlag bool) {
 			byteToHuman(h.BwOut, csvFlag),
 			fmt.Sprintf("%d", h.HistoryN),
 		}
+		totalConns += h.N
+		totalIn += h.BwIn
+		totalOut += h.BwOut
+		totalPersist += h.HistoryN
 	}
 
 	if csvFlag {
 		displayCSV(rows)
 	} else {
-		displayTable([]string{"Host", "State", "Last check", "# of conns", "Bw in", "Bw out", "# persist"}, rows)
+		headers := []string{
+			"Host",
+			"State",
+			"Last check",
+			"# of conns",
+			"Bw in",
+			"Bw out",
+			"# persist",
+		}
+		footers := []string{
+			"",
+			"",
+			"Totals",
+			fmt.Sprintf("%d", totalConns),
+			byteToHuman(totalIn, false),
+			byteToHuman(totalOut, false),
+			fmt.Sprintf("%d", totalPersist),
+		}
+		displayTable(headers, rows, footers)
 	}
 }
 
