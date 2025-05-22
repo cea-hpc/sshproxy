@@ -42,30 +42,30 @@ COMMANDS
 *enable -all|-host HOST [-port PORT]*::
 	Enable a destination host in etcd if the host was previously disabled
 	by the 'disable' command (see below). If '-all' is specified instead
-	of '-host', all the hosts present in the configuration are enabled. If
-	no '-port' is specified, all the ports present in the configuration are
-	used. 'HOST' and 'PORT' can be nodesets. If libnodeset.so (from
-	https://github.com/fdiakh/nodeset-rs) is available, clustershell groups
-	can also be used.
+	of '-host', all the hosts present in etcd are enabled. If no '-port'
+	is specified, all the ports present in etcd are used. 'HOST' and
+	'PORT' can be nodesets. If libnodeset.so (from
+	https://github.com/fdiakh/nodeset-rs) is available, clustershell
+	groups can also be used.
 
 *disable -all|-host HOST [-port PORT]*::
 	Disable a destination host in etcd. A disabled host will not be
 	proposed as a destination. The only way to enable it again is to send
 	the 'enable' command. It could be used for host maintenance. If
-	'-all' is specified instead of '-host', all the hosts present in the
-	configuration are enabled. If no '-port' is specified, all the ports
-	present in the configuration are used. 'HOST' and 'PORT' can be
-	nodesets. If libnodeset.so (from https://github.com/fdiakh/nodeset-rs)
-	is available, clustershell groups can also be used.
+	'-all' is specified instead of '-host', all the hosts present in etcd
+	are enabled. If no '-port' is specified, all the ports present in etcd
+	are used. 'HOST' and 'PORT' can be nodesets. If libnodeset.so (from
+	https://github.com/fdiakh/nodeset-rs) is available, clustershell
+	groups can also be used.
 
 *forget host -all|-host HOST [-port PORT]*::
 	Forget a host in etcd. Remember that if this host is used, it will
 	appear back in the list. If '-all' is specified instead of '-host',
-	all the hosts present in the configuration are forgotten. If no '-port'
-	is specified, all the ports present in the configuration are used.
-	'HOST' and 'PORT' can be nodesets. If libnodeset.so (from
-	https://github.com/fdiakh/nodeset-rs) is available, clustershell groups
-	can also be used.
+	all the hosts present in etcd are forgotten. If no '-port' is
+	specified, all the ports present in etcd are used.  'HOST' and 'PORT'
+	can be nodesets. If libnodeset.so (from
+	https://github.com/fdiakh/nodeset-rs) is available, clustershell
+	groups can also be used.
 
 *forget error_banner*::
 	Remove the error banner in etcd.

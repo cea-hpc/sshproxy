@@ -335,31 +335,6 @@ func replace(src string, replacer *patternReplacer) string {
 	return replacer.Regexp.ReplaceAllString(src, replacer.Text)
 }
 
-// LoadAllDestsFromConfig loads configuration file and returns all defined destinations.
-func LoadAllDestsFromConfig(filename string) ([]string, error) {
-	yamlFile, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-	var config Config
-	if err := yaml.Unmarshal(yamlFile, &config); err != nil {
-		return nil, err
-	}
-	for _, override := range config.Overrides {
-		if override.Dest != nil {
-			config.Dest = append(config.Dest, override.Dest...)
-		}
-	}
-	// expand destination nodesets
-	_, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
-	defer nodesetDlclose()
-	dsts, err := nodesetExpand(strings.Join(config.Dest, ","))
-	if err != nil {
-		return nil, fmt.Errorf("invalid nodeset: %s", err)
-	}
-	return dsts, nil
-}
-
 // LoadConfig load configuration file and adapt it according to specified user/group/sshdHostPort.
 func LoadConfig(filename, currentUsername, sid string, start time.Time, groups map[string]bool, sshdHostPort string) (*Config, error) {
 	if cachedConfig.ready {

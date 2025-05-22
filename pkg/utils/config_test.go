@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"slices"
 	"testing"
 	"time"
 )
@@ -55,56 +54,6 @@ func BenchmarkReplace(b *testing.B) {
 		b.Run(fmt.Sprint(n), func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				replace(tt.option, patterns[tt.pattern])
-			}
-		})
-	}
-}
-
-var loadAllDestsFromConfigTests = []struct {
-	filename string
-	want     []string
-	err      string
-}{
-	{"nonexistingfile.yaml", []string{}, "open nonexistingfile.yaml: no such file or directory"},
-	{"../../test/configInvalid.yaml", []string{}, "yaml: found character that cannot start any token"},
-	{"../../test/configDestNodesetError.yaml", []string{}, "invalid nodeset: cannont convert ending range to integer a - rangeset parse error"},
-	{"../../test/configDefault.yaml", []string{"127.0.0.1"}, ""},
-	{"../../test/config.yaml", []string{
-		"192.168.0.1",
-		"192.168.0.2",
-		"192.168.0.3",
-		"192.168.0.4",
-		"192.168.0.5",
-		"192.168.0.6",
-		"192.168.0.7",
-		"192.168.0.8",
-		"192.168.0.9",
-		"host5:4222",
-		"server1:12345",
-	}, ""},
-}
-
-func TestLoadAllDestsFromConfig(t *testing.T) {
-	for _, tt := range loadAllDestsFromConfigTests {
-		config, err := LoadAllDestsFromConfig(tt.filename)
-		if err == nil && tt.err != "" {
-			t.Errorf("got no error, want %s", tt.err)
-		} else if err != nil && err.Error() != tt.err {
-			t.Errorf("ERROR: %s, want %s", err, tt.err)
-		} else if err == nil {
-			slices.Sort(config)
-			if !reflect.DeepEqual(config, tt.want) {
-				t.Errorf("want:\n%v\ngot:\n%v", tt.want, config)
-			}
-		}
-	}
-}
-
-func BenchmarkLoadAllDestsFromConfig(b *testing.B) {
-	for _, tt := range loadAllDestsFromConfigTests {
-		b.Run(tt.filename, func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
-				LoadAllDestsFromConfig(tt.filename)
 			}
 		})
 	}

@@ -769,19 +769,25 @@ Should be used like this:
 func getHostPortFromCommandLine(allFlag bool, hostsNodeset string, portsNodeset string, configFile string) ([]string, error) {
 	_, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
 	defer nodesetDlclose()
+	cli := mustInitEtcdClient(configFile)
+	defer cli.Close()
 
-	configDests, err := utils.LoadAllDestsFromConfig(configFile)
+	etcdFlatHosts, err := cli.GetAllHosts()
 	if err != nil {
-		return []string{}, fmt.Errorf("%s", err)
+		return []string{}, fmt.Errorf("ERROR: getting hosts from etcd: %v", err)
+	}
+	etcdHosts := make([]string, len(etcdFlatHosts))
+	for i, h := range etcdFlatHosts {
+		etcdHosts[i] = h.Hostname
 	}
 
 	if allFlag && portsNodeset == "" {
-		return configDests, nil
+		return etcdHosts, nil
 	}
 
 	var hosts []string
 	var ports []string
-	for _, configDest := range configDests {
+	for _, configDest := range etcdHosts {
 		host, port, err := utils.SplitHostPort(configDest)
 		if err != nil {
 			return []string{}, fmt.Errorf("%s", err)
