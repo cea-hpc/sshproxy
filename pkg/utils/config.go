@@ -476,10 +476,6 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		cachedConfig.Environment[k] = replace(v, patterns["{user}"])
 	}
 
-	if len(cachedConfig.Dest) == 0 {
-		return nil, fmt.Errorf("no destination defined for service '%s'", cachedConfig.Service)
-	}
-
 	// expand destination nodesets
 	nodesetComment, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
 	defer nodesetDlclose()
