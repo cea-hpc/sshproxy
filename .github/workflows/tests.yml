@@ -37,42 +37,6 @@ jobs:
           name: coverage-${{ matrix.go }}
           path: test/coverage.out
 
-  coverage:
-    name: Publish Coverage
-    needs: check
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Download coverage artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-stable
-
-      - name: Setup go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 'stable'
-
-      - name: Convert go coverage to corbetura format
-        run: |
-          go install github.com/boumenot/gocover-cobertura@latest
-          gocover-cobertura -by-files < coverage.out > coverage.xml
-
-      - name: Get PR number
-        uses: jwalton/gh-find-current-pr@v1
-        id: finder
-
-      - name: Add Coverage PR Comment
-        uses: 5monkeys/cobertura-action@master
-        with:
-          path: coverage.xml
-          skip_covered: false
-          minimum_coverage: 0
-          fail_below_threshold: true
-          pull_request_number: ${{ steps.finder.outputs.pr }}
-
   test:
     name: Docker tests
     runs-on: ubuntu-latest
