@@ -33,9 +33,10 @@ var (
 	defaultAlgorithm = "ordered"
 	// defaultMode is the default mode used to find a route if no other mode is
 	// specified in the configuration.
-	defaultMode    = "sticky"
-	defaultService = "default"
-	defaultDest    = []string{}
+	defaultMode          = "sticky"
+	defaultService       = "default"
+	defaultDest          = []string{}
+	defaultEtcdMandatory = false
 )
 
 var cachedConfig Config
@@ -425,6 +426,10 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 
 	if cachedConfig.SSH.Args == nil {
 		cachedConfig.SSH.Args = defaultSSHArgs
+	}
+
+	if cachedConfig.Etcd.Mandatory == nil {
+		cachedConfig.Etcd.Mandatory = defaultEtcdMandatory
 	}
 
 	if cachedConfig.RouteSelect == "" {
