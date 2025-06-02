@@ -65,6 +65,7 @@ jobs:
         id: finder
 
       - name: Add Coverage PR Comment
+        if: steps.finder.outputs.number
         uses: 5monkeys/cobertura-action@master
         with:
           path: coverage.xml
