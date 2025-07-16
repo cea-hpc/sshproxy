@@ -262,8 +262,6 @@ Any key can be defined (in this example, the keys are overriden if the user is
 	      ssh:
 	          args: ["-vvv", "-Y"]
 
-The routes are merged with previous defined ones.
-
 If a user belongs to several groups and these groups are defined in the
 configuration file, each setting can be overridden by the next group.
 
