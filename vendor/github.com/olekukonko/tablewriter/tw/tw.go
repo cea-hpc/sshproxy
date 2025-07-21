@@ -15,6 +15,8 @@ const (
 	Skip    = ""
 	Space   = " "
 	NewLine = "\n"
+	Column  = ":"
+	Dash    = "-"
 )
 
 // Feature State Constants
@@ -54,7 +56,7 @@ const (
 )
 
 const (
-	SectionHeader = "heder"
+	SectionHeader = "header"
 	SectionRow    = "row"
 	SectionFooter = "footer"
 )

@@ -82,9 +82,7 @@ func displayTable(headers []string, rows [][]string, footers []string) {
 		tablewriter.WithConfig(tablewriter.Config{
 			MaxWidth: 200,
 			Row: tw.CellConfig{
-				Formatting: tw.CellFormatting{
-					Alignment: tw.AlignRight,
-				},
+				Alignment: tw.CellAlignment{Global: tw.AlignRight},
 			},
 		}))
 	table.Header(headers)

@@ -28,14 +28,14 @@ go get github.com/olekukonko/tablewriter@v0.0.5
 #### Latest  Version
 The latest stable version
 ```bash
-go get github.com/olekukonko/tablewriter@v1.0.6
+go get github.com/olekukonko/tablewriter@v1.0.7
 ```
 
 **Warning:** Version `v1.0.0` contains missing functionality and should not be used.
 
 
 > **Version Guidance**
-> - Production: Use `v0.0.5` (stable)
+> - Legacy: Use `v0.0.5` (stable)
 > - New Features: Use `@latest` (includes generics, super fast streaming APIs)
 > - Legacy Docs: See [README_LEGACY.md](README_LEGACY.md)
 
@@ -62,7 +62,7 @@ func main() {
 	data := [][]string{
 		{"Package", "Version", "Status"},
 		{"tablewriter", "v0.0.5", "legacy"},
-		{"tablewriter", "v1.0.6", "latest"},
+		{"tablewriter", "v1.0.7", "latest"},
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -77,7 +77,7 @@ func main() {
 │   PACKAGE   │ VERSION │ STATUS │
 ├─────────────┼─────────┼────────┤
 │ tablewriter │ v0.0.5  │ legacy │
-│ tablewriter │ v1.0.6  │ latest │
+│ tablewriter │ v1.0.7  │ latest │
 └─────────────┴─────────┴────────┘
 ```
 
@@ -85,6 +85,43 @@ func main() {
 ## Detailed Usage
 
 Create a table with `NewTable` or `NewWriter`, configure it using options or a `Config` struct, add data with `Append` or `Bulk`, and render to an `io.Writer`. Use renderers like `Blueprint` (ASCII), `HTML`, `Markdown`, `Colorized`, or `Ocean` (streaming).
+
+Here's how the API primitives map to the generated ASCII table:
+
+```
+API Call                                  ASCII Table Component
+--------                                  ---------------------
+
+table.Header([]string{"NAME", "AGE"})     ┌──────┬─────┐  ← Borders.Top
+                                          │ NAME │ AGE │  ← Header row
+                                          ├──────┼─────┤  ← Lines.ShowTop (header separator)
+
+table.Append([]string{"Alice", "25"})     │ Alice│ 25  │  ← Data row
+                                          ├──────┼─────┤  ← Separators.BetweenRows
+
+table.Append([]string{"Bob", "30"})       │ Bob  │ 30  │  ← Data row
+                                          ├──────┼─────┤  ← Lines.ShowBottom (footer separator)
+
+table.Footer([]string{"Total", "2"})      │ Total│ 2   │  ← Footer row
+                                          └──────┴─────┘  ← Borders.Bottom
+```
+
+The core components include:
+
+- **Renderer** - Implements the core interface for converting table data into output formats. Available renderers include Blueprint (ASCII), HTML, Markdown, Colorized (ASCII with color), Ocean (streaming ASCII), and SVG.
+
+- **Config** - The root configuration struct that controls all table behavior and appearance
+  - **Behavior** - Controls high-level rendering behaviors including auto-hiding empty columns, trimming row whitespace, header/footer visibility, and compact mode for optimized merged cell calculations
+  - **CellConfig** - The comprehensive configuration template used for table sections (header, row, footer). Combines formatting, padding, alignment, filtering, callbacks, and width constraints with global and per-column control
+  - **StreamConfig** - Configuration for streaming mode including enable/disable state and strict column validation
+
+- **Rendition** - Defines how a renderer formats tables and contains the complete visual styling configuration
+  - **Borders** - Control the outer frame visibility (top, bottom, left, right edges) of the table
+  - **Lines** - Control horizontal boundary lines (above/below headers, above footers) that separate different table sections
+  - **Separators** - Control the visibility of separators between rows and between columns within the table content
+  - **Symbols** - Define the characters used for drawing table borders, corners, and junctions
+
+These components can be configured with various `tablewriter.With*()` functional options when creating a new table.
 
 ## Examples
 
@@ -297,7 +334,7 @@ func main() {
 	}
 
 	table.Configure(func(config *tablewriter.Config) {
-		config.Row.Formatting.Alignment = tw.AlignLeft
+		config.Row.Alignment.Global = tw.AlignLeft
 	})
 	table.Render()
 }
@@ -368,14 +405,12 @@ func main() {
 		tablewriter.WithRenderer(renderer.NewColorized(colorCfg)),
 		tablewriter.WithConfig(tablewriter.Config{
 			Row: tw.CellConfig{
-				Formatting: tw.CellFormatting{
-					AutoWrap:  tw.WrapNormal, // Wrap long content
-					Alignment: tw.AlignLeft,  // Left-align rows
-				},
+				Formatting:   tw.CellFormatting{AutoWrap: tw.WrapNormal}, // Wrap long content
+				Alignment:    tw.CellAlignment{Global: tw.AlignLeft},     // Left-align rows
 				ColMaxWidths: tw.CellWidth{Global: 25},
 			},
 			Footer: tw.CellConfig{
-				Formatting: tw.CellFormatting{Alignment: tw.AlignRight},
+				Alignment: tw.CellAlignment{Global: tw.AlignRight},
 			},
 		}),
 	)
@@ -480,19 +515,13 @@ func main() {
 
 	table := tablewriter.NewTable(os.Stdout,
 		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
-			Settings: tw.Settings{
-				Separators: tw.Separators{BetweenRows: tw.On},
-			},
+			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.On}},
 		})),
 		tablewriter.WithConfig(tablewriter.Config{
-			Header: tw.CellConfig{
-				Formatting: tw.CellFormatting{Alignment: tw.AlignCenter},
-			},
+			Header: tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignCenter}},
 			Row: tw.CellConfig{
-				Formatting: tw.CellFormatting{
-					MergeMode: tw.MergeHierarchical,
-					Alignment: tw.AlignLeft,
-				},
+				Formatting: tw.CellFormatting{MergeMode: tw.MergeHierarchical},
+				Alignment:  tw.CellAlignment{Global: tw.AlignLeft},
 			},
 		}),
 	)
@@ -546,21 +575,20 @@ func main() {
 
 	table := tablewriter.NewTable(os.Stdout,
 		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
-			Settings: tw.Settings{
-				Separators: tw.Separators{BetweenRows: tw.On},
-			},
+			Settings: tw.Settings{Separators: tw.Separators{BetweenRows: tw.On}},
 		})),
 		tablewriter.WithConfig(tablewriter.Config{
 			Row: tw.CellConfig{
-				Formatting:   tw.CellFormatting{MergeMode: tw.MergeBoth},
-				ColumnAligns: []tw.Align{tw.Skip, tw.Skip, tw.AlignRight, tw.AlignLeft},
+				Formatting: tw.CellFormatting{MergeMode: tw.MergeBoth},
+				Alignment:  tw.CellAlignment{PerColumn: []tw.Align{tw.Skip, tw.Skip, tw.AlignRight, tw.AlignLeft}},
 			},
+
 			Footer: tw.CellConfig{
 				Padding: tw.CellPadding{
 					Global:    tw.Padding{Left: "*", Right: "*"},
 					PerColumn: []tw.Padding{{}, {}, {Bottom: "^"}, {Bottom: "^"}},
 				},
-				ColumnAligns: []tw.Align{tw.Skip, tw.Skip, tw.AlignRight, tw.AlignLeft},
+				Alignment: tw.CellAlignment{PerColumn: []tw.Align{tw.Skip, tw.Skip, tw.AlignRight, tw.AlignLeft}},
 			},
 		}),
 	)
@@ -617,9 +645,7 @@ func main() {
 			})),
 			tablewriter.WithConfig(tablewriter.Config{
 				MaxWidth: 10,
-				Row: tw.CellConfig{
-					Formatting: tw.CellFormatting{Alignment: tw.AlignCenter},
-				},
+				Row:      tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignCenter}},
 			}),
 		)
 		table.Append([]string{s, s})
@@ -631,16 +657,12 @@ func main() {
 	// Main table
 	table := tablewriter.NewTable(os.Stdout,
 		tablewriter.WithRenderer(renderer.NewBlueprint(tw.Rendition{
-			Borders: tw.BorderNone,
-			Settings: tw.Settings{
-				Separators: tw.Separators{BetweenColumns: tw.On},
-			},
+			Borders:  tw.BorderNone,
+			Settings: tw.Settings{Separators: tw.Separators{BetweenColumns: tw.On}},
 		})),
 		tablewriter.WithConfig(tablewriter.Config{
 			MaxWidth: 30,
-			Row: tw.CellConfig{
-				Formatting: tw.CellFormatting{Alignment: tw.AlignCenter},
-			},
+			Row:      tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignCenter}},
 		}),
 	)
 	table.Append([]string{createSubTable("A"), createSubTable("B")})
@@ -711,14 +733,11 @@ func main() {
 		tablewriter.WithStringer(employeeStringer),
 		tablewriter.WithConfig(tablewriter.Config{
 			Header: tw.CellConfig{
-				Formatting: tw.CellFormatting{Alignment: tw.AlignCenter, AutoFormat: tw.On},
+				Formatting: tw.CellFormatting{AutoFormat: tw.On},
+				Alignment:  tw.CellAlignment{Global: tw.AlignCenter},
 			},
-			Row: tw.CellConfig{
-				Formatting: tw.CellFormatting{Alignment: tw.AlignLeft},
-			},
-			Footer: tw.CellConfig{
-				Formatting: tw.CellFormatting{Alignment: tw.AlignRight},
-			},
+			Row:    tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignLeft}},
+			Footer: tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignRight}},
 		}),
 	)
 	table.Header([]string{"ID", "Name", "Age", "Department", "Salary"})
@@ -784,23 +803,17 @@ func main() {
 	}
 
 	table := tablewriter.NewTable(os.Stdout,
-		tablewriter.WithRenderer(renderer.NewHTML(os.Stdout, false, htmlCfg)),
+		tablewriter.WithRenderer(renderer.NewHTML(htmlCfg)),
 		tablewriter.WithConfig(tablewriter.Config{
 			Header: tw.CellConfig{
-				Formatting: tw.CellFormatting{
-					Alignment: tw.AlignCenter,
-					MergeMode: tw.MergeHorizontal, // Merge identical header cells
-				},
+				Formatting: tw.CellFormatting{MergeMode: tw.MergeHorizontal}, // Merge identical header cells
+				Alignment:  tw.CellAlignment{Global: tw.AlignCenter},
 			},
 			Row: tw.CellConfig{
-				Formatting: tw.CellFormatting{
-					MergeMode: tw.MergeHorizontal, // Merge identical row cells
-					Alignment: tw.AlignLeft,
-				},
+				Formatting: tw.CellFormatting{MergeMode: tw.MergeHorizontal}, // Merge identical row cells
+				Alignment:  tw.CellAlignment{Global: tw.AlignLeft},
 			},
-			Footer: tw.CellConfig{
-				Formatting: tw.CellFormatting{Alignment: tw.AlignRight},
-			},
+			Footer: tw.CellConfig{Alignment: tw.CellAlignment{Global: tw.AlignRight}},
 		}),
 	)
 

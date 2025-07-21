@@ -2,6 +2,7 @@ package renderer
 
 import (
 	"github.com/olekukonko/ll"
+	"github.com/olekukonko/tablewriter/pkg/twwidth"
 	"io"
 	"strings"
 
@@ -35,7 +36,7 @@ func NewMarkdown(configs ...tw.Rendition) *Markdown {
 	if len(configs) > 0 {
 		cfg = mergeMarkdownConfig(cfg, configs[0])
 	}
-	return &Markdown{config: cfg}
+	return &Markdown{config: cfg, logger: ll.New("markdown")}
 }
 
 // mergeMarkdownConfig combines user-provided config with Markdown defaults, enforcing Markdown-specific settings.
@@ -140,10 +141,10 @@ func (m *Markdown) resolveAlignment(ctx tw.Formatting) tw.Alignment {
 
 	// build default alignment
 	for i := 0; i < total; i++ {
-		m.alignment = append(m.alignment, tw.AlignLeft)
+		m.alignment = append(m.alignment, tw.AlignNone) // Default to AlignNone
 	}
 
-	// add per colum alignment if it exits
+	// add per column alignment if it exists
 	for i := 0; i < total; i++ {
 		m.alignment[i] = ctx.Row.Current[i].Align
 	}
@@ -157,7 +158,7 @@ func (m *Markdown) formatCell(content string, width int, align tw.Align, padding
 	//if m.config.Settings.TrimWhitespace.Enabled() {
 	//	content = strings.TrimSpace(content)
 	//}
-	contentVisualWidth := tw.DisplayWidth(content)
+	contentVisualWidth := twwidth.Width(content)
 
 	// Use specified padding characters or default to spaces
 	padLeftChar := padding.Left
@@ -170,8 +171,8 @@ func (m *Markdown) formatCell(content string, width int, align tw.Align, padding
 	}
 
 	// Calculate padding widths
-	padLeftCharWidth := tw.DisplayWidth(padLeftChar)
-	padRightCharWidth := tw.DisplayWidth(padRightChar)
+	padLeftCharWidth := twwidth.Width(padLeftChar)
+	padRightCharWidth := twwidth.Width(padRightChar)
 	minWidth := tw.Max(3, contentVisualWidth+padLeftCharWidth+padRightCharWidth)
 	targetWidth := tw.Max(width, minWidth)
 
@@ -212,7 +213,7 @@ func (m *Markdown) formatCell(content string, width int, align tw.Align, padding
 	result := leftPadStr + content + rightPadStr
 
 	// Adjust width if needed
-	finalWidth := tw.DisplayWidth(result)
+	finalWidth := twwidth.Width(result)
 	if finalWidth != targetWidth {
 		m.logger.Debugf("Markdown formatCell MISMATCH: content='%s', target_w=%d, paddingL='%s', paddingR='%s', align=%s -> result='%s', result_w=%d",
 			content, targetWidth, padding.Left, padding.Right, align, result, finalWidth)
@@ -229,9 +230,9 @@ func (m *Markdown) formatCell(content string, width int, align tw.Align, padding
 				result += adjStr
 			}
 		} else {
-			result = tw.TruncateString(result, targetWidth)
+			result = twwidth.Truncate(result, targetWidth)
 		}
-		m.logger.Debugf("Markdown formatCell Corrected: target_w=%d, result='%s', new_w=%d", targetWidth, result, tw.DisplayWidth(result))
+		m.logger.Debugf("Markdown formatCell Corrected: target_w=%d, result='%s', new_w=%d", targetWidth, result, twwidth.Width(result))
 	}
 
 	m.logger.Debugf("Markdown formatCell: content='%s', width=%d, align=%s, paddingL='%s', paddingR='%s' -> '%s' (target %d)",
@@ -255,17 +256,18 @@ func (m *Markdown) formatSeparator(width int, align tw.Align) string {
 		sb.WriteRune(':')
 		sb.WriteString(strings.Repeat("-", targetWidth-2))
 		sb.WriteRune(':')
+	case tw.AlignNone:
+		sb.WriteString(strings.Repeat("-", targetWidth))
 	default:
-		sb.WriteRune(':')
-		sb.WriteString(strings.Repeat("-", targetWidth-1))
+		sb.WriteString(strings.Repeat("-", targetWidth)) // Fallback
 	}
 
 	result := sb.String()
-	currentLen := tw.DisplayWidth(result)
+	currentLen := twwidth.Width(result)
 	if currentLen < targetWidth {
 		result += strings.Repeat("-", targetWidth-currentLen)
 	} else if currentLen > targetWidth {
-		result = tw.TruncateString(result, targetWidth)
+		result = twwidth.Truncate(result, targetWidth)
 	}
 
 	m.logger.Debugf("Markdown formatSeparator: width=%d, align=%s -> '%s'", width, align, result)
@@ -313,7 +315,7 @@ func (m *Markdown) renderMarkdownLine(line []string, ctx tw.Formatting, isHeader
 	output.WriteString(prefix)
 
 	colIndex := 0
-	separatorWidth := tw.DisplayWidth(separator)
+	separatorWidth := twwidth.Width(separator)
 
 	for colIndex < numCols {
 		cellCtx, ok := ctx.Row.Current[colIndex]
@@ -321,12 +323,11 @@ func (m *Markdown) renderMarkdownLine(line []string, ctx tw.Formatting, isHeader
 
 		defaultPadding := tw.Padding{Left: tw.Space, Right: tw.Space}
 		if !ok {
-
 			cellCtx = tw.CellContext{
 				Data: tw.Empty, Align: align, Padding: defaultPadding,
 				Width: ctx.Row.Widths.Get(colIndex), Merge: tw.MergeState{},
 			}
-		} else if cellCtx.Padding == (tw.Padding{}) {
+		} else if !cellCtx.Padding.Paddable() {
 			cellCtx.Padding = defaultPadding
 		}
 
@@ -339,18 +340,6 @@ func (m *Markdown) renderMarkdownLine(line []string, ctx tw.Formatting, isHeader
 
 		// Calculate width and span
 		span := 1
-
-		if align == tw.AlignNone || align == tw.Empty {
-			if ctx.Row.Position == tw.Header && !isHeaderSep {
-				align = tw.AlignCenter
-			} else if ctx.Row.Position == tw.Footer {
-				align = tw.AlignRight
-			} else {
-				align = tw.AlignLeft
-			}
-			m.logger.Debugf("renderMarkdownLine: Col %d using default align '%s'", colIndex, align)
-		}
-
 		visualWidth := 0
 		isHMergeStart := ok && cellCtx.Merge.Horizontal.Present && cellCtx.Merge.Horizontal.Start
 		if isHMergeStart {
@@ -383,10 +372,11 @@ func (m *Markdown) renderMarkdownLine(line []string, ctx tw.Formatting, isHeader
 			var formattedSegment string
 			if isHeaderSep {
 				// Use header's alignment from ctx.Row.Previous
-				headerAlign := tw.AlignCenter // Default for headers
+				headerAlign := align
 				if headerCellCtx, headerOK := ctx.Row.Previous[colIndex]; headerOK {
 					headerAlign = headerCellCtx.Align
-					if headerAlign == tw.AlignNone || headerAlign == tw.Empty {
+					// Preserve tw.AlignNone for separator
+					if headerAlign != tw.AlignNone && (headerAlign == tw.Empty || headerAlign == tw.Skip) {
 						headerAlign = tw.AlignCenter
 					}
 				}
@@ -402,6 +392,16 @@ func (m *Markdown) renderMarkdownLine(line []string, ctx tw.Formatting, isHeader
 					if headerCellCtx.Align != tw.AlignNone && headerCellCtx.Align != tw.Empty {
 						rowAlign = headerCellCtx.Align
 					}
+				}
+				if rowAlign == tw.AlignNone || rowAlign == tw.Empty {
+					if ctx.Row.Position == tw.Header {
+						rowAlign = tw.AlignCenter
+					} else if ctx.Row.Position == tw.Footer {
+						rowAlign = tw.AlignRight
+					} else {
+						rowAlign = tw.AlignLeft
+					}
+					m.logger.Debugf("renderMarkdownLine: Col %d using default align '%s'", colIndex, rowAlign)
 				}
 				formattedSegment = m.formatCell(content, visualWidth, rowAlign, cellCtx.Padding)
 			}

@@ -108,21 +108,25 @@ type Settings struct {
 
 // Border defines the visibility states of table borders.
 type Border struct {
-	Left   State // Left border visibility
-	Right  State // Right border visibility
-	Top    State // Top border visibility
-	Bottom State // Bottom border visibility
+	Left      State // Left border visibility
+	Right     State // Right border visibility
+	Top       State // Top border visibility
+	Bottom    State // Bottom border visibility
+	Overwrite bool
 }
-
-// BorderNone defines a border configuration with all sides disabled.
-var (
-	PaddingNone    = Padding{Left: Empty, Right: Empty, Top: Empty, Bottom: Empty}
-	BorderNone     = Border{Left: Off, Right: Off, Top: Off, Bottom: Off}
-	LinesNone      = Lines{ShowTop: Off, ShowBottom: Off, ShowHeaderLine: Off, ShowFooterLine: Off}
-	SeparatorsNone = Separators{ShowHeader: Off, ShowFooter: Off, BetweenRows: Off, BetweenColumns: Off}
-)
 
 type StreamConfig struct {
 	Enable bool
-	Widths CellWidth // Cell/column widths
+
+	// StrictColumns, if true, causes Append() to return an error
+	// in streaming mode if the number of cells in an appended row
+	// does not match the established number of columns for the stream.
+	// If false (default), rows with mismatched column counts will be
+	// padded or truncated with a warning log.
+	StrictColumns bool
+
+	// Deprecated: Use top-level Config.Widths for streaming width control.
+	// This field will be removed in a future version. It will be respected if
+	// Config.Widths is not set and this field is.
+	Widths CellWidth
 }
