@@ -216,7 +216,7 @@ The pattern '\{user}' will be replaced with the user login:
 	'balanced', the route_select algorithm will be used for every
 	connection.
 
-*The force_command*::
+*force_command*::
 	a string. Can be set to override the command asked by the user.
 
 *command_must_match*::
