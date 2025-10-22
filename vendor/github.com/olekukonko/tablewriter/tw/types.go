@@ -3,9 +3,12 @@
 package tw
 
 import (
-	"fmt"
-	"github.com/olekukonko/errors"
+	"bytes"
+	"io"
+	"strconv"
 	"strings"
+
+	"github.com/olekukonko/errors"
 ) // Custom error handling library
 
 // Position defines where formatting applies in the table (e.g., header, footer, or rows).
@@ -31,6 +34,13 @@ type Formatter interface {
 	Format() string // Returns the formatted string representation
 }
 
+// Counter defines an interface that combines io.Writer with a method to retrieve a total.
+// This is used by the WithCounter option to allow for counting lines, bytes, etc.
+type Counter interface {
+	io.Writer // It must be a writer to be used in io.MultiWriter.
+	Total() int
+}
+
 // Align specifies the text alignment within a table cell.
 type Align string
 
@@ -52,7 +62,7 @@ func (a Alignment) String() string {
 		if i > 0 {
 			str.WriteString("; ")
 		}
-		str.WriteString(fmt.Sprint(i))
+		str.WriteString(strconv.Itoa(i))
 		str.WriteString("=")
 		str.WriteString(string(a))
 	}
@@ -141,10 +151,23 @@ type Compact struct {
 	Merge State // Merge enables compact width calculation during cell merging, optimizing space allocation.
 }
 
+// Struct holds settings for struct-based operations like AutoHeader.
+type Struct struct {
+	// AutoHeader automatically extracts and sets headers from struct fields when Bulk is called with a slice of structs.
+	// Uses JSON tags if present, falls back to field names (title-cased). Skips unexported or json:"-" fields.
+	// Enabled by default for convenience.
+	AutoHeader State
+
+	// Tags is a priority-ordered list of struct tag keys to check for header names.
+	// The first tag found on a field will be used. Defaults to ["json", "db"].
+	Tags []string
+}
+
 // Behavior defines settings that control table rendering behaviors, such as column visibility and content formatting.
 type Behavior struct {
 	AutoHide  State // AutoHide determines whether empty columns are hidden. Ignored in streaming mode.
 	TrimSpace State // TrimSpace enables trimming of leading and trailing spaces from cell content.
+	TrimLine  State // TrimLine determines whether empty visual lines within a cell are collapsed.
 
 	Header Control // Header specifies control settings for the table header.
 	Footer Control // Footer specifies control settings for the table footer.
@@ -152,6 +175,9 @@ type Behavior struct {
 	// Compact enables optimized width calculation for merged cells, such as in horizontal merges,
 	// by systematically determining the most efficient width instead of scaling by the number of columns.
 	Compact Compact
+
+	// Structs contains settings for how struct data is processed.
+	Structs Struct
 }
 
 // Padding defines the spacing characters around cell content in all four directions.
@@ -196,4 +222,22 @@ func (p Padding) Empty() bool {
 // apply the padding settings.
 func (p Padding) Paddable() bool {
 	return !p.Empty() || p.Overwrite
+}
+
+// LineCounter is the default implementation of the Counter interface.
+// It counts the number of newline characters written to it.
+type LineCounter struct {
+	count int
+}
+
+// Write implements the io.Writer interface, counting newlines in the input.
+// It uses a pointer receiver to modify the internal count.
+func (lc *LineCounter) Write(p []byte) (n int, err error) {
+	lc.count += bytes.Count(p, []byte{'\n'})
+	return len(p), nil
+}
+
+// Total implements the Counter interface, returning the final count.
+func (lc *LineCounter) Total() int {
+	return lc.count
 }
