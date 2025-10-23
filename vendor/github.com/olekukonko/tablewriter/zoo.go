@@ -3,14 +3,15 @@ package tablewriter
 import (
 	"database/sql"
 	"fmt"
-	"github.com/olekukonko/errors"
-	"github.com/olekukonko/tablewriter/pkg/twwidth"
-	"github.com/olekukonko/tablewriter/tw"
 	"io"
 	"math"
 	"reflect"
 	"strconv"
 	"strings"
+
+	"github.com/olekukonko/errors"
+	"github.com/olekukonko/tablewriter/pkg/twwidth"
+	"github.com/olekukonko/tablewriter/tw"
 )
 
 // applyHierarchicalMerges applies hierarchical merges to row content.
@@ -542,10 +543,7 @@ func (t *Table) buildCoreCellContexts(line []string, merges map[int]tw.MergeStat
 // It generates a []string where each element is the padding content for a column, using the specified padChar.
 func (t *Table) buildPaddingLineContents(padChar string, widths tw.Mapper[int, int], numCols int, merges map[int]tw.MergeState) []string {
 	line := make([]string, numCols)
-	padWidth := twwidth.Width(padChar)
-	if padWidth < 1 {
-		padWidth = 1
-	}
+	padWidth := max(twwidth.Width(padChar), 1)
 	for j := 0; j < numCols; j++ {
 		mergeState := tw.MergeState{}
 		if merges != nil {
@@ -582,9 +580,9 @@ func (t *Table) calculateAndNormalizeWidths(ctx *renderContext) error {
 		ctx.numCols, t.config.Behavior.Compact.Merge.Enabled())
 
 	// Initialize width maps
-	//t.headerWidths = tw.NewMapper[int, int]()
-	//t.rowWidths = tw.NewMapper[int, int]()
-	//t.footerWidths = tw.NewMapper[int, int]()
+	// t.headerWidths = tw.NewMapper[int, int]()
+	// t.rowWidths = tw.NewMapper[int, int]()
+	// t.footerWidths = tw.NewMapper[int, int]()
 
 	// Compute content-based widths for each section
 	for _, lines := range ctx.headerLines {
@@ -720,7 +718,7 @@ func (t *Table) calculateAndNormalizeWidths(ctx *renderContext) error {
 				twwidth.Width(headerCellPadding.Left) +
 				twwidth.Width(headerCellPadding.Right)
 			currentSumOfColumnWidths := 0
-			workingWidths.Each(func(_ int, w int) { currentSumOfColumnWidths += w })
+			workingWidths.Each(func(_, w int) { currentSumOfColumnWidths += w })
 			numSeparatorsInFullSpan := 0
 			if ctx.numCols > 1 {
 				if t.renderer != nil && t.renderer.Config().Settings.Separators.BetweenColumns.Enabled() {
@@ -733,7 +731,7 @@ func (t *Table) calculateAndNormalizeWidths(ctx *renderContext) error {
 					mergedContentString, actualMergedHeaderContentPhysicalWidth, totalCurrentSpanPhysicalWidth)
 				shortfall := actualMergedHeaderContentPhysicalWidth - totalCurrentSpanPhysicalWidth
 				numNonZeroCols := 0
-				workingWidths.Each(func(_ int, w int) {
+				workingWidths.Each(func(_, w int) {
 					if w > 0 {
 						numNonZeroCols++
 					}
@@ -744,7 +742,7 @@ func (t *Table) calculateAndNormalizeWidths(ctx *renderContext) error {
 				if numNonZeroCols > 0 && shortfall > 0 {
 					extraPerColumn := int(math.Ceil(float64(shortfall) / float64(numNonZeroCols)))
 					finalSumAfterExpansion := 0
-					workingWidths.Each(func(colIdx int, currentW int) {
+					workingWidths.Each(func(colIdx, currentW int) {
 						if currentW > 0 || (numNonZeroCols == ctx.numCols && ctx.numCols > 0) {
 							newWidth := currentW + extraPerColumn
 							workingWidths.Set(colIdx, newWidth)
@@ -782,7 +780,7 @@ func (t *Table) calculateAndNormalizeWidths(ctx *renderContext) error {
 	if t.config.Widths.Global > 0 {
 		ctx.logger.Debugf("Applying global width constraint: %d", t.config.Widths.Global)
 		currentSumOfFinalColWidths := 0
-		finalWidths.Each(func(_ int, w int) { currentSumOfFinalColWidths += w })
+		finalWidths.Each(func(_, w int) { currentSumOfFinalColWidths += w })
 		numSeparators := 0
 		if ctx.numCols > 1 && t.renderer != nil && t.renderer.Config().Settings.Separators.BetweenColumns.Enabled() {
 			numSeparators = (ctx.numCols - 1) * twwidth.Width(t.renderer.Config().Symbols.Column())
@@ -790,16 +788,13 @@ func (t *Table) calculateAndNormalizeWidths(ctx *renderContext) error {
 		totalCurrentTablePhysicalWidth := currentSumOfFinalColWidths + numSeparators
 		if totalCurrentTablePhysicalWidth > t.config.Widths.Global {
 			ctx.logger.Debugf("Table width %d exceeds global limit %d. Shrinking.", totalCurrentTablePhysicalWidth, t.config.Widths.Global)
-			targetTotalColumnContentWidth := t.config.Widths.Global - numSeparators
-			if targetTotalColumnContentWidth < 0 {
-				targetTotalColumnContentWidth = 0
-			}
+			targetTotalColumnContentWidth := max(t.config.Widths.Global-numSeparators, 0)
 			if ctx.numCols > 0 && targetTotalColumnContentWidth < ctx.numCols {
 				targetTotalColumnContentWidth = ctx.numCols
 			}
 			hardMinimums := tw.NewMapper[int, int]()
 			sumOfHardMinimums := 0
-			isHeaderContentHardToWrap := !(t.config.Header.Formatting.AutoWrap == tw.WrapNormal || t.config.Header.Formatting.AutoWrap == tw.WrapBreak)
+			isHeaderContentHardToWrap := t.config.Header.Formatting.AutoWrap != tw.WrapNormal && t.config.Header.Formatting.AutoWrap != tw.WrapBreak
 			for i := 0; i < ctx.numCols; i++ {
 				minW := 1
 				if isHeaderContentHardToWrap && len(ctx.headerLines) > 0 {
@@ -820,7 +815,7 @@ func (t *Table) calculateAndNormalizeWidths(ctx *renderContext) error {
 				}
 				tempSum := 0
 				scaledHardMinimums := tw.NewMapper[int, int]()
-				hardMinimums.Each(func(colIdx int, currentMinW int) {
+				hardMinimums.Each(func(colIdx, currentMinW int) {
 					scaledMinW := int(math.Round(float64(currentMinW) * scaleFactorMin))
 					if scaledMinW < 1 && targetTotalColumnContentWidth > 0 {
 						scaledMinW = 1
@@ -894,31 +889,29 @@ func (t *Table) calculateAndNormalizeWidths(ctx *renderContext) error {
 								if errorInDist < 0 {
 									adj = -1
 								}
-								if !(adj < 0 && w+adj < hardMinimums.Get(colToAdjust)) {
+								if adj >= 0 || w+adj >= hardMinimums.Get(colToAdjust) {
 									finalWidths.Set(colToAdjust, w+adj)
 								} else if adj > 0 {
 									finalWidths.Set(colToAdjust, w+adj)
 								}
 							}
 						}
-					} else {
-						if ctx.numCols > 0 {
-							extraPerCol := remainingWidthToDistribute / ctx.numCols
-							rem := remainingWidthToDistribute % ctx.numCols
-							for i := 0; i < ctx.numCols; i++ {
-								currentW := finalWidths.Get(i)
-								add := extraPerCol
-								if i < rem {
-									add++
-								}
-								finalWidths.Set(i, currentW+add)
+					} else if ctx.numCols > 0 {
+						extraPerCol := remainingWidthToDistribute / ctx.numCols
+						rem := remainingWidthToDistribute % ctx.numCols
+						for i := 0; i < ctx.numCols; i++ {
+							currentW := finalWidths.Get(i)
+							add := extraPerCol
+							if i < rem {
+								add++
 							}
+							finalWidths.Set(i, currentW+add)
 						}
 					}
 				}
 			}
 			finalSumCheck := 0
-			finalWidths.Each(func(idx int, w int) {
+			finalWidths.Each(func(idx, w int) {
 				if w < 1 && targetTotalColumnContentWidth > 0 {
 					finalWidths.Set(idx, 1)
 				} else if w < 0 {
@@ -945,10 +938,7 @@ func (t *Table) calculateContentMaxWidth(colIdx int, config tw.CellConfig, padLe
 
 	if isStreaming {
 		// Existing streaming logic remains unchanged
-		totalColumnWidthFromStream := t.streamWidths.Get(colIdx)
-		if totalColumnWidthFromStream < 0 {
-			totalColumnWidthFromStream = 0
-		}
+		totalColumnWidthFromStream := max(t.streamWidths.Get(colIdx), 0)
 		effectiveContentMaxWidth = totalColumnWidthFromStream - padLeftWidth - padRightWidth
 		if effectiveContentMaxWidth < 1 && totalColumnWidthFromStream > (padLeftWidth+padRightWidth) {
 			effectiveContentMaxWidth = 1
@@ -1197,6 +1187,10 @@ func (t *Table) convertToString(value interface{}) string {
 // convertItemToCells is responsible for converting a single input item (which could be
 // a struct, a basic type, or an item implementing Stringer/Formatter) into a slice
 // of strings, where each string represents a cell for the table row.
+// zoo.go
+
+// convertItemToCells is responsible for converting a single input item into a slice of strings.
+// It now uses the unified struct parser for structs.
 func (t *Table) convertItemToCells(item interface{}) ([]string, error) {
 	t.logger.Debugf("convertItemToCells: Converting item of type %T", item)
 
@@ -1204,10 +1198,10 @@ func (t *Table) convertItemToCells(item interface{}) ([]string, error) {
 	if t.stringer != nil {
 		res, err := t.convertToStringer(item)
 		if err == nil {
-			t.logger.Debugf("convertItemToCells: Used custom table stringer (t.stringer) for type %T. Produced %d cells: %v", item, len(res), res)
+			t.logger.Debugf("convertItemToCells: Used custom table stringer for type %T. Produced %d cells: %v", item, len(res), res)
 			return res, nil
 		}
-		t.logger.Warnf("convertItemToCells: Custom table stringer (t.stringer) was set but incompatible or errored for type %T: %v. Will attempt other conversion methods.", item, err)
+		t.logger.Warnf("convertItemToCells: Custom table stringer was set but incompatible for type %T: %v. Will attempt other methods.", item, err)
 	}
 
 	// 2. Handle untyped nil directly.
@@ -1216,85 +1210,26 @@ func (t *Table) convertItemToCells(item interface{}) ([]string, error) {
 		return []string{""}, nil
 	}
 
-	itemValue := reflect.ValueOf(item)
-	itemType := itemValue.Type()
-
-	// 3. Handle pointers: Dereference pointers to get to the underlying struct or value.
-	if itemType.Kind() == reflect.Ptr {
-		if itemValue.IsNil() {
-			t.logger.Debugf("convertItemToCells: Item is a nil pointer of type %s. Returning single empty cell.", itemType.String())
-			return []string{""}, nil
-		}
-		itemValue = itemValue.Elem()
-		itemType = itemValue.Type()
-		t.logger.Debugf("convertItemToCells: Dereferenced pointer, now processing type %s.", itemType.String())
+	// 3. Use the new unified struct parser. It handles pointers and embedding.
+	// We only care about the values it returns.
+	_, values := t.extractFieldsAndValuesFromStruct(item)
+	if values != nil {
+		t.logger.Debugf("convertItemToCells: Structs %T reflected into %d cells: %v", item, len(values), values)
+		return values, nil
 	}
 
-	// 4. Special handling for structs:
-	if itemType.Kind() == reflect.Struct {
-		// Check if the original item (before potential dereference) implements Formatter or Stringer.
-		if formatter, ok := item.(tw.Formatter); ok {
-			t.logger.Debugf("convertItemToCells: Struct item (type %s) is tw.Formatter. Using Format(). Resulting in 1 cell.", itemType.Name())
-			return []string{formatter.Format()}, nil
-		}
-		if stringer, ok := item.(fmt.Stringer); ok {
-			t.logger.Debugf("convertItemToCells: Struct item (type %s) is fmt.Stringer. Using String(). Resulting in 1 cell.", itemType.Name())
-			return []string{stringer.String()}, nil
-		}
-
-		t.logger.Debugf("convertItemToCells: Item is a struct (type %s). Attempting generic field reflection to expand into multiple cells.", itemType.Name())
-		numFields := itemValue.NumField()
-		structCells := make([]string, 0, numFields)
-		hasProcessableFields := false
-
-		for i := 0; i < numFields; i++ {
-			fieldMeta := itemType.Field(i)
-			if fieldMeta.PkgPath != "" {
-				t.logger.Debugf("convertItemToCells: Skipping unexported field %s in struct %s", fieldMeta.Name, itemType.Name())
-				continue
-			}
-			hasProcessableFields = true // Mark true if we encounter any exported field
-
-			jsonTag := fieldMeta.Tag.Get("json")
-			if jsonTag == "-" {
-				t.logger.Debugf("convertItemToCells: Skipping field %s in struct %s due to json:\"-\" tag", fieldMeta.Name, itemType.Name())
-				continue
-			}
-
-			fieldReflectedValue := itemValue.Field(i)
-			if strings.Contains(jsonTag, ",omitempty") && fieldReflectedValue.IsZero() {
-				t.logger.Debugf("convertItemToCells: Omitting zero value for field %s in struct %s due to omitempty tag", fieldMeta.Name, itemType.Name())
-				structCells = append(structCells, "")
-				continue
-			}
-			structCells = append(structCells, t.convertToString(fieldReflectedValue.Interface()))
-		}
-
-		// Only return expanded cells if there were processable fields.
-		// If a struct has no exported fields, or all were skipped via json:"-",
-		// it should still produce output (e.g. fmt.Sprintf of the struct) rather than an empty row.
-		if hasProcessableFields {
-			t.logger.Debugf("convertItemToCells: Struct %s reflected into %d cells: %v", itemType.Name(), len(structCells), structCells)
-			return structCells, nil
-		}
-
-		t.logger.Warnf("convertItemToCells: Struct %s has no processable exported fields. Falling back to Sprintf for the whole item (resulting in 1 cell).", itemType.Name())
-		return []string{t.convertToString(item)}, nil // 'item' is the original potentially pointer type
-	}
-
-	// 5. Item is NOT a struct. It might be a basic type or a non-struct type implementing Formatter/Stringer.
-	//    These should all result in a single cell.
+	// 4. Fallback for any other single item (e.g., basic types, or types that implement Stringer/Formatter).
+	// This code path is now for non-struct types.
 	if formatter, ok := item.(tw.Formatter); ok {
-		t.logger.Debugf("convertItemToCells: Item (non-struct, type %T) is tw.Formatter. Using Format(). Resulting in 1 cell.", item)
+		t.logger.Debugf("convertItemToCells: Item (non-struct, type %T) is tw.Formatter. Using Format().", item)
 		return []string{formatter.Format()}, nil
 	}
 	if stringer, ok := item.(fmt.Stringer); ok {
-		t.logger.Debugf("convertItemToCells: Item (non-struct, type %T) is fmt.Stringer. Using String(). Resulting in 1 cell.", item)
+		t.logger.Debugf("convertItemToCells: Item (non-struct, type %T) is fmt.Stringer. Using String().", item)
 		return []string{stringer.String()}, nil
 	}
 
-	// 6. Fallback for any other single item (e.g., basic types like int, string, bool):
-	t.logger.Debugf("convertItemToCells: Item (type %T) is a basic type or unhandled by other mechanisms. Treating as single cell via convertToString.", item)
+	t.logger.Debugf("convertItemToCells: Item (type %T) is a basic type. Treating as single cell via convertToString.", item)
 	return []string{t.convertToString(item)}, nil
 }
 
@@ -1307,7 +1242,7 @@ func (t *Table) convertCellsToStrings(rowInput interface{}, cellCfg tw.CellConfi
 	var err error
 
 	switch v := rowInput.(type) {
-	//Directly supported slice types
+	// Directly supported slice types
 	case []string:
 		cells = v
 	case []interface{}: // Catches variadic simple types grouped by Append
@@ -1393,7 +1328,7 @@ func (t *Table) convertCellsToStrings(rowInput interface{}, cellCfg tw.CellConfi
 			cells[i] = val.String()
 		}
 
-	//Cases for single items that are NOT slices
+	// Cases for single items that are NOT slices
 	// These are now dispatched to convertItemToCells by the default case.
 	// Keeping direct tw.Formatter and fmt.Stringer here could be a micro-optimization
 	// if `rowInput` is *exactly* that type (not a struct implementing it),
@@ -1633,7 +1568,7 @@ func (t *Table) processVariadic(elements []any) []any {
 }
 
 // toStringLines converts raw cells to formatted lines for table output
-func (t *Table) toStringLines(row interface{}, config tw.CellConfig) ([][]string, error) {
+func (t *Table) toStringLines(row any, config tw.CellConfig) ([][]string, error) {
 	cells, err := t.convertCellsToStrings(row, config)
 	if err != nil {
 		return nil, err
@@ -1693,4 +1628,93 @@ func (t *Table) updateWidths(row []string, widths tw.Mapper[int, int], padding t
 			t.logger.Debugf("  Col %d: Width %d not greater than current max %d for cell '%s'", i, totalWidth, currentMax, cell)
 		}
 	}
+}
+
+// extractHeadersFromStruct is now a thin wrapper around the new unified function.
+// It only cares about the header names.
+func (t *Table) extractHeadersFromStruct(sample interface{}) []string {
+	headers, _ := t.extractFieldsAndValuesFromStruct(sample)
+	return headers
+}
+
+// extractFieldsAndValuesFromStruct is the new single source of truth for struct reflection.
+// It recursively processes a struct, handling pointers and embedded structs,
+// and returns two slices: one for header names and one for string-converted values.
+func (t *Table) extractFieldsAndValuesFromStruct(sample interface{}) ([]string, []string) {
+	v := reflect.ValueOf(sample)
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return nil, nil
+		}
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return nil, nil
+	}
+
+	typ := v.Type()
+	headers := make([]string, 0, typ.NumField())
+	values := make([]string, 0, typ.NumField())
+
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		fieldValue := v.Field(i)
+
+		// Skip unexported fields
+		if field.PkgPath != "" {
+			continue
+		}
+
+		// Handle embedded structs recursively
+		if field.Anonymous {
+			h, val := t.extractFieldsAndValuesFromStruct(fieldValue.Interface())
+			if h != nil {
+				headers = append(headers, h...)
+				values = append(values, val...)
+			}
+			continue
+		}
+
+		var tagName string
+		skipField := false
+
+		// Loop through the priority list of configured tags (e.g., ["json", "db"])
+		for _, tagKey := range t.config.Behavior.Structs.Tags {
+			tagValue := field.Tag.Get(tagKey)
+
+			// If a tag is found...
+			if tagValue != "" {
+				// If the tag is "-", this field should be skipped entirely.
+				if tagValue == "-" {
+					skipField = true
+					break // Stop processing tags for this field.
+				}
+				// Otherwise, we've found our highest-priority tag. Store it and stop.
+				tagName = tagValue
+				break // Stop processing tags for this field.
+			}
+		}
+
+		// If the field was marked for skipping, continue to the next field.
+		if skipField {
+			continue
+		}
+
+		// Determine header name from the tag or fallback to the field name
+		headerName := field.Name
+		if tagName != "" {
+			headerName = strings.Split(tagName, ",")[0]
+		}
+		headers = append(headers, tw.Title(headerName))
+
+		// Determine value, respecting omitempty from the found tag
+		value := ""
+		if !strings.Contains(tagName, ",omitempty") || !fieldValue.IsZero() {
+			value = t.convertToString(fieldValue.Interface())
+		}
+		values = append(values, value)
+	}
+
+	return headers, values
 }
