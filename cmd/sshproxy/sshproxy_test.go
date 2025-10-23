@@ -530,3 +530,86 @@ func BenchmarkSrcDst(b *testing.B) {
 		}
 	})
 }
+
+var getOriginalCommandTests = []struct {
+	sshUserAuth string
+	wantCmd     string
+	wantComment string
+	logs        []string
+}{
+	{
+		// without SSH_USER_AUTH
+		"",
+		"",
+		" ",
+		[]string{},
+	}, {
+		// with a wrong SSH_USER_AUTH
+		"_non_existing_file_",
+		"",
+		" ",
+		[]string{
+			"open _non_existing_file_: no such file or directory",
+		},
+	}, {
+		// SSH_USER_AUTH is not a publickey
+		"../../test/sshUserAuthPassword",
+		"",
+		" ",
+		[]string{},
+	}, {
+		// error in the publickey
+		"../../test/sshUserAuthInvalidKey",
+		"",
+		" ",
+		[]string{
+			"ssh: no key found",
+		},
+	}, {
+		// publickey is not a certificate
+		"../../test/sshUserAuthKey",
+		"",
+		" ",
+		[]string{},
+	}, {
+		// publickey is a certificate without force-command
+		"../../test/sshUserAuthCert",
+		"",
+		" ",
+		[]string{},
+	}, {
+		// publickey is a certificate with force-command
+		"../../test/sshUserAuthCertForceCmd",
+		"test-command",
+		" (forced) ",
+		[]string{},
+	},
+}
+
+func TestGetOriginalCommand(t *testing.T) {
+	for _, tt := range getOriginalCommandTests {
+		logBackend := setTestLogBackend()
+		os.Setenv("SSH_USER_AUTH", tt.sshUserAuth)
+		originalCmd, comment := getOriginalCommand()
+		if originalCmd != tt.wantCmd || comment != tt.wantComment {
+			t.Errorf("want '%s' - '%s', got '%s' - '%s'", tt.wantCmd, tt.wantComment, originalCmd, comment)
+		}
+		logs := getTestLogs(logBackend)
+		if !reflect.DeepEqual(tt.logs, logs) {
+			t.Errorf("want %v, got %v", tt.logs, logs)
+		}
+	}
+	os.Unsetenv("SSH_USER_AUTH")
+}
+
+func BenchmarkGetOriginalCommand(b *testing.B) {
+	for _, tt := range getOriginalCommandTests {
+		os.Setenv("SSH_USER_AUTH", tt.sshUserAuth)
+		b.Run(tt.sshUserAuth, func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				getOriginalCommand()
+			}
+		})
+	}
+	os.Unsetenv("SSH_USER_AUTH")
+}
