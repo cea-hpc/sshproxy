@@ -101,6 +101,7 @@ var loadConfigTests = []struct {
 	{"../../test/configLogStatsIntervalError.yaml", "alice", []string{}, `time: invalid duration "not a duration"`},
 	{"../../test/configLogStatsIntervalNotString.yaml", "alice", []string{}, "log_stats_interval: 10 is not a string"},
 	{"../../test/configMatchSourceError.yaml", "alice", []string{}, "source: invalid address: address 127.0.0.1:abcd: invalid port"},
+	{"../../test/configMatchSourceNodesetError.yaml", "alice", []string{}, "invalid nodeset for sources match: unbalanced '[' found while parsing 127.0.0.[1- - nodeset parse error"},
 	{"../../test/configRouteSelectError.yaml", "alice", []string{}, "invalid value for `route_select` option of service 'default': notarouteselect"},
 	{"../../test/configModeError.yaml", "alice", []string{}, "invalid value for `mode` option of service 'default': notamode"},
 	// yes, "cannont" is an upstream typo

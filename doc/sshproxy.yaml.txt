@@ -239,6 +239,17 @@ For example if we want to save debug messages for the 'foo' group we define:
 	        - groups: [foo]
 	      debug: true
 
+Each source can be a nodeset. If libnodeset.so is available, clustershell
+groups can also be used (eg. "@hosts").
+
+For example if we want to save debug messages for connections on SSH daemon's
+listening IPs 192.168.0.1 and 192.168.0.2:
+
+	overrides:
+	    - match:
+	        - sources: ['192.168.0.[1-2]']
+	      debug: true
+
 It is possible to override the same options for multiple groups and users.
 
 For example, if we want to save debug messages if the user is 'alice' or if

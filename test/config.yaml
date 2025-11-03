@@ -1,72 +1,13 @@
 ---
-# Debug mode
 debug: true
-
-# Where logs will be written.
-# Default is empty but it can either be "syslog" if you want to use syslog or a
-# filename where the pattern '{user}' which will be replaced by the user login
-# (e.g. "/var/log/sshproxy/{user}.log").
 log: "/var/log/sshproxy/{user}.log"
-
-# Minimum interval for checking if an host is alive.
-# Empty by default (i.e. always check host).
-# The string can contain a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s").
 check_interval: "2m30s"
-
-# Banner displayed to the client when no backend can be reached (more
-# precisely, when all backends are either down or disabled in etcd). This
-# message can be multiline.
 error_banner: "an error banner"
-
-# Where raw dumps are written. Only interactive sessions are dumped.
-# Default is empty.
-# It can be a path which can (and should) contain one or more of the following
-# patterns:
-#   - '{user}' replaced by the user login
-#   - '{sid}' replaced by the unique session id
-#   - '{time}' replaced by the connection starting time (e.g.
-#     "2006-01-02T15:04:05.999999999Z07:00").
-# The subdirectories will be created if needed.
-# For example: "/var/lib/sshproxy/dumps/{user}/{time}-{sid}.dump"
-# It can also be "etcd", in order to store stats into etcd.
-# It can also be a network address where to send dumps if specified as
-# 'TCP:host:port' (the TCP is case sensitive), e.g. 'TCP:collector:5555'.
 dump: "/var/lib/sshproxy/dumps/{user}/{time}-{sid}.dump"
-
-# Maximum amount of bytes of a dump. Setting the 'dump_limit_window' option
-# will limit the amount of bytes per window. This option is only useful if the
-# 'dump' option is set to a file or to a network address. Defaults to 0 (no
-# limit).
 dump_limit_size: 10
-
-# Duration of a dump measurement window. "0" by default, the string can contain
-# a unit suffix such as 'h', 'm' and 's' (e.g. "2m30s"). When set to "0", a
-# dump will stop once it's too big (and the dump's file descriptor will be
-# closed. When set to a duration, the dump will pause when there is too much
-# data transferred in the current window (or the previous), and will resume
-# when few enough data are transferred during the previous window and the
-# current one. This option is only useful when the 'dump_limit_size' option is
-# set.
 dump_limit_window: "2m31s"
-
-# Interval at which basic statistics of transferred bytes are logged.
-# "0" by default (i.e. disabled), the string can contain a unit suffix such as
-# 'h', 'm' and 's' (e.g. "2m30s"). These statistics are only available when the
-# 'dump' option is set.
 log_stats_interval: "2m32s"
-
-# Interval at which bandwidth is updated in etcd. "0" by default (i.e.
-# disabled), the string can contain a unit suffix such as 'h', 'm' and 's'
-# (e.g. "2m30s"). These statistics are only available when the 'dump' option is
-# set.
 etcd_stats_interval: "2m33s"
-
-# Commands can be translated between what is received by sshproxy and what is
-# executed by the ssh forked by sshproxy. The keys are strings containing the
-# exact user command. ssh_args contains an optional list of options that will
-# be passed to ssh. command is a mandatory string, the actual executed command.
-# disable_dump is false by default. If true, no dumps will be done for this
-# command.
 translate_commands:
   "internal-sftp":
     ssh_args:
@@ -78,27 +19,6 @@ translate_commands:
       - "-s"
     command: "sftp"
     disable_dump: true
-
-# A command can be launched before the bg_command and before connecting to the
-# destination. The standard and error outputs are displayed to the user. If the
-# return code of the blocking command is not 0, sshproxy will abort the
-# session.
-#blocking_command: ""
-
-# A command can be launched in the background for the session duration.
-# The standard and error outputs are only logged in debug mode.
-#bg_command: ""
-
-# etcd configuration. Associative array whose keys are:
-# - endpoints: a list of etcd endpoints. Default is determined by the
-#   underlying library.
-# - tls: TLS configuration if enabled on etcd endpoints. Default is no TLS.
-# - username: username if basic authentication is enabled.
-# - password: password if basic authentication is enabled.
-# - keyttl: time to live in second for a connection stored in etcd after it has
-#   ended. Default is 5 seconds.
-# - mandatory: if true, connections will be allowed only if etcd is available.
-#   Default is false.
 etcd:
     endpoints:
         - "host1:port1"
@@ -111,76 +31,15 @@ etcd:
     password: "pass"
     keyttl: 5
     mandatory: true
-
-# Environment variables can be set if needed. The '{user}' pattern will be
-# replaced with the user login.
 environment:
     XAUTHORITY: /tmp/.Xauthority_{user}
-
-# Global SSH options.
-#ssh:
-#    exe: ssh
-#    args: ["-q", "-Y"]
-
-# Maximum number of connections allowed per user.  Connections are counted in
-# the etcd database. If set to 0, there is no limit number of connections per
-# user. Default is 0.
 max_connections_per_user: 50
-
-# The service name is used for display. It's also used as a key in order to
-# check in etcd if a user already has active connections. The default service
-# name is "default".
-#service: default
-
-# The dest value is an array of destination hosts (with an optional port). Each
-# host can be a nodeset (eg. "host[5-6]"). If libnodeset.so is available,
-# clustershell groups can also be used (eg. "@hosts").
 dest: ["host5:4222"]
-
-# The route_select value defines how the host destination will be chosen. It
-# can be "ordered" (the default), "random", "connections" or "bandwidth". If
-# "ordered", the hosts are tried in the order listed until a successful
-# connection is made. The list is first randomly sorted if "random" is
-# specified (i.e. a poor-man load-balancing algorithm).  If "connections", the
-# hosts with less connections from the user have priority, then the hosts with
-# less global connections, and in case of a draw, the selection is random. For
-# "bandwidth", it's the same as "connections", but based on the bandwidth used,
-# with a rollback on connections (which is frequent for new simultaneous
-# connections).
-#route_select: ordered
-
-# The mode value defines the stickiness of a connection. It can be "sticky" or
-# "balanced" (defaults to sticky). If "sticky", then all connections of a user
-# will be made on the same destination host. If "balanced", the route_select
-# algorithm will be used for every connection.
-#mode: sticky
-
-# The force_command can be set to override the command asked by the user.
-#force_command: "internal-sftp"
-
-# If command_must_match is set to true, then the connection is closed if the
-# original command is not the same as the force_command. command_must_match
-# defaults to false.
 command_must_match: true
-
-# etcd_keyttl defaults to
-# 0. If a value is set (in seconds), the chosen backend will be remembered for
-# this amount of time.
 etcd_keyttl: 3600
-
-# Each option can be overridden for specific sources (IP address or DNS name of
-# the listening SSH daemon, with an optional port), for specific users and/or
-# Unix groups of users (eg. for debugging purpose). Multiple sources, users
-# and/or groups can be defined. Each element of the "match" array is treated as
-# an "or" statement.  If an element of the "match" array contains multiple
-# keys, they are treated as an "and" statement. If multiple overrides match,
-# they will be applied in the order they are defined. In the following example:
-# alice, bob and any user in the group foo will have the debug set to true. But
-# if any of those are also in the groups bar AND baz, debug will be set to
-# false, as the last override takes precedence.
 overrides:
     - match:
-        - sources: [127.0.0.1]
+        - sources: ['127.0.0.[1-3]']
       environment:
           XAUTHORITY: /dev/shm/.Xauthority_{user}
     - match:
