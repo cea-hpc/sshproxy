@@ -18,6 +18,13 @@ DESCRIPTION
 
 'sshproxy' is used on a gateway to proxy SSH connections.
 
+If the SSH server sets the 'SSH_USER_AUTH' environment variable (see
+'ExposeAuthInfo' in openssh's 'sshd_config'), 'sshproxy' uses it to get the
+'force-command' directive of the client's signed ssh public key. If a
+'force-command' is found, it is used as an argument to the 'ssh' command
+forked by sshproxy. Otherwise, the 'SSH_ORIGINAL_COMMAND' environment variable
+is used as the argument to the 'ssh' command.
+
 OPTIONS
 -------
 

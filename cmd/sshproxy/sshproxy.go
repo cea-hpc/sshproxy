@@ -11,6 +11,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"flag"
@@ -34,6 +35,7 @@ import (
 	"github.com/moby/term"
 	"github.com/op/go-logging"
 	"go.etcd.io/etcd/client/v3"
+	"golang.org/x/crypto/ssh"
 )
 
 var (
@@ -204,6 +206,42 @@ type ConnInfo struct {
 	Start time.Time // start time
 	User  string    // user name
 	SSH   *SSHInfo  // SSH source and destination (from SSH_CONNECTION)
+}
+
+// GetOriginalCommand returns the force-command included in the client ssh
+// certificate, if any. Otherwise, it returns the content of the environment
+// variable SSH_ORIGINAL_COMMAND. No error is returned. In case of any error,
+// the content of SSH_ORIGINAL_COMMAND will be returned. The second returned
+// string is a comment for debugging purpose.
+func getOriginalCommand() (string, string) {
+	userAuthFile := os.Getenv("SSH_USER_AUTH")
+	if userAuthFile != "" {
+		// The environment variable is present
+		content, err := os.ReadFile(userAuthFile)
+		if err == nil {
+			// The temporary file is read
+			prefix := []byte("publickey ")
+			key, found := bytes.CutPrefix(content, prefix)
+			if found {
+				// The file contains a publickey
+				pubKey, _, _, _, err := ssh.ParseAuthorizedKey(key)
+				if err == nil {
+					// The publickey is parsed
+					cert, ok := pubKey.(*ssh.Certificate)
+					if ok && cert.Permissions.CriticalOptions != nil && cert.Permissions.CriticalOptions["force-command"] != "" {
+						// the publickey is a certificate, and contains a
+						// force-command
+						return cert.Permissions.CriticalOptions["force-command"], " (forced) "
+					}
+				} else {
+					log.Warning(err)
+				}
+			}
+		} else {
+			log.Warning(err)
+		}
+	}
+	return os.Getenv("SSH_ORIGINAL_COMMAND"), " "
 }
 
 func main() {
@@ -428,8 +466,8 @@ func mainExitCode() int {
 		}
 	}()
 
-	originalCmd := os.Getenv("SSH_ORIGINAL_COMMAND")
-	log.Debugf("original command = %s", originalCmd)
+	originalCmd, comment := getOriginalCommand()
+	log.Debugf("original command%s= %s", comment, originalCmd)
 
 	interactiveCommand := term.IsTerminal(os.Stdout.Fd())
 	log.Debugf("interactiveCommand = %v", interactiveCommand)
