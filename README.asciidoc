@@ -32,7 +32,7 @@ be replayed with the +sshproxy-replay+ command.
 Compilation
 -----------
 
-Install the Go (version >= 1.23) compiler suite: see
+Install the Go (version >= 1.24) compiler suite: see
 http://golang.org/doc/install for details.
 
 Define and export the +$GOPATH+ directory where the source code will be
