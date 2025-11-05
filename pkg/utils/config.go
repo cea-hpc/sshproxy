@@ -360,6 +360,11 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 		return nil, err
 	}
 
+	// prepare nodesetExpand function
+	nodesetComment, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
+	defer nodesetDlclose()
+	cachedConfig.Nodeset = nodesetComment
+
 	for _, override := range cachedConfig.Overrides {
 		for _, conditions := range override.Match {
 			match := true
@@ -383,7 +388,11 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 					if sshdHostPort != "" {
 						// sshdHostPort is empty when sshproxyctl is called
 						// without the --source option
-						for _, source := range cValue {
+						sources, err := nodesetExpand(strings.Join(cValue, ","))
+						if err != nil {
+							return nil, fmt.Errorf("invalid nodeset for sources match: %s", err)
+						}
+						for _, source := range sources {
 							match, err = MatchSource(source, sshdHostPort)
 							if err != nil {
 								return nil, err
@@ -457,9 +466,6 @@ func LoadConfig(filename, currentUsername, sid string, start time.Time, groups m
 	}
 
 	// expand destination nodesets
-	nodesetComment, nodesetDlclose, nodesetExpand := nodesets.InitExpander()
-	defer nodesetDlclose()
-	cachedConfig.Nodeset = nodesetComment
 	dsts, err := nodesetExpand(strings.Join(cachedConfig.Dest, ","))
 	if err != nil {
 		return nil, fmt.Errorf("invalid nodeset for service '%s': %s", cachedConfig.Service, err)
