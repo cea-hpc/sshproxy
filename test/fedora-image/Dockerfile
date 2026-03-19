@@ -5,14 +5,16 @@ RUN set -ex \
 	&& yum -y update \
 	&& yum -y install asciidoc etcd git golang hostname iproute make openssh-server rpm-build procps
 
-# Create fedora, user1 and user2 users ; fedora and user1 groups
+# Create fedora, user1, user2 and tmpuser users ; fedora and user1 groups
 RUN set -ex \
 	&& useradd fedora \
 	&& install -d -m0755 -o fedora -g fedora /home/fedora/.ssh \
 	&& useradd user1 \
 	&& install -d -m0755 -o user1 -g user1 /home/user1/.ssh \
 	&& useradd -g user1 user2 \
-	&& install -d -m0755 -o user2 -g user1 /home/user2/.ssh
+	&& install -d -m0755 -o user2 -g user1 /home/user2/.ssh \
+	&& useradd -g user1 tmpuser \
+	&& install -d -m0755 -o tmpuser -g user1 /home/tmpuser/.ssh
 
 # Copy fedora public key to root authorized_keys
 RUN set -ex && install -d -m0700 /root/.ssh
@@ -40,6 +42,10 @@ COPY --chown=user2:user1 ./ssh/id_ed25519.pub /home/user2/.ssh/authorized_keys
 COPY --chown=user2:user1 ./ssh/id_ed25519* ./ssh/known_hosts /home/user2/.ssh/
 RUN chmod 0600 /home/user2/.ssh/id_ed25519 /home/user2/.ssh/authorized_keys
 
+# Copy tmpuser ssh keys
+COPY --chown=tmpuser:user1 ./ssh/id_ed25519.pub /home/tmpuser/.ssh/authorized_keys
+COPY --chown=tmpuser:user1 ./ssh/id_ed25519* ./ssh/known_hosts /home/tmpuser/.ssh/
+RUN chmod 0600 /home/tmpuser/.ssh/id_ed25519 /home/tmpuser/.ssh/authorized_keys
 
 # Copy etcd certificates and keys
 COPY ./etcd/*.pem /etc/etcd/
