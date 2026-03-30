@@ -309,11 +309,15 @@ func (fu flatUsers) getAllUsers(allFlag bool, passthrough bool) ([][]string, map
 	totalOut := 0
 
 	for i, v := range fu {
+		groups := v.Groups
+		if !passthrough && groups == "" {
+			groups = "\u274C"
+		}
 		if allFlag {
 			rows[i] = []string{
 				v.User,
 				v.Service,
-				v.Groups,
+				groups,
 				fmt.Sprintf("%d", v.N),
 				byteToHuman(v.BwIn, passthrough),
 				byteToHuman(v.BwOut, passthrough),
@@ -323,7 +327,7 @@ func (fu flatUsers) getAllUsers(allFlag bool, passthrough bool) ([][]string, map
 		} else {
 			rows[i] = []string{
 				v.User,
-				v.Groups,
+				groups,
 				fmt.Sprintf("%d", v.N),
 				byteToHuman(v.BwIn, passthrough),
 				byteToHuman(v.BwOut, passthrough),
@@ -422,9 +426,13 @@ type flatGroups []*utils.FlatGroup
 func (fg flatGroups) getAllGroups(allFlag bool, passthrough bool) [][]string {
 	rows := make([][]string, len(fg))
 	for i, v := range fg {
+		group := v.Group
+		if !passthrough && group == "" {
+			group = "\u274C"
+		}
 		if allFlag {
 			rows[i] = []string{
-				v.Group,
+				group,
 				v.Service,
 				v.Users,
 				fmt.Sprintf("%d", v.N),
@@ -433,7 +441,7 @@ func (fg flatGroups) getAllGroups(allFlag bool, passthrough bool) [][]string {
 			}
 		} else {
 			rows[i] = []string{
-				v.Group,
+				group,
 				v.Users,
 				fmt.Sprintf("%d", v.N),
 				byteToHuman(v.BwIn, passthrough),

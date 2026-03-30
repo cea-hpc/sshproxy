@@ -11,8 +11,11 @@
 package utils
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"os"
 	"os/user"
 	"reflect"
 	"sort"
@@ -174,7 +177,7 @@ var getGroupListTests = []struct {
 	{"testuser", "testgroup", ""},
 	{"userwithnogroupid", "", "user: list groups for userwithnogroupid: invalid gid \"\""},
 	{"userwithinvalidgroup", "nonexistentgroup", "group: unknown group ID 1002"},
-	{"nonexistentuser", "nonexistentgroup", "user: unknown user nonexistentuser"},
+	{"nonexistentuser", "", "user: unknown user nonexistentuser"},
 }
 
 func TestGetGroupList(t *testing.T) {
@@ -209,6 +212,57 @@ func BenchmarkGetGroupList(b *testing.B) {
 			})
 		}
 	}
+}
+
+var getSortedGroupsTests = []struct {
+	user, groups, err string
+}{
+	{"root", "root", ""},
+	{"testuser", "testgroup", ""},
+	{"userwithnogroupid", "", "user: list groups for userwithnogroupid: invalid gid \"\"\n"},
+	{"userwithinvalidgroup", "", "group: unknown group ID 1002\n"},
+	{"nonexistentuser", "", "user: unknown user nonexistentuser\n"},
+}
+
+func TestGetSortedGroups(t *testing.T) {
+	userLookup = mockUserLookup
+	userLookupGroupId = mockUserLookupGroupId
+	for _, tt := range getSortedGroupsTests {
+		// Save the original stderr
+		originalStderr := os.Stderr
+
+		// Create a new buffer and redirect stderr
+		var buf bytes.Buffer
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatalf("Failed to create pipe: %v", err)
+		}
+		os.Stderr = w
+
+		groups := GetSortedGroups(tt.user)
+
+		// Stop writing and restore stderr
+		w.Close()
+		os.Stderr = originalStderr
+		io.Copy(&buf, r)
+
+		// Verify the output
+		errStr := buf.String()
+		if errStr != tt.err {
+			t.Errorf("GetSortedGroups err = %s, want %s", errStr, tt.err)
+		}
+		if groups != tt.groups {
+			t.Errorf("GetSortedGroups groups = %s, want %s", groups, tt.groups)
+		}
+	}
+}
+
+func BenchmarkGetSortedGroups(b *testing.B) {
+	b.Run("root", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			GetSortedGroups("root")
+		}
+	})
 }
 
 func mockNetLookupHost(host string) ([]string, error) {

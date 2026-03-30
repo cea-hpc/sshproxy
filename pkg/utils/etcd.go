@@ -744,16 +744,7 @@ func (c *Client) GetAllUsers(allFlag bool) ([]*FlatUser, error) {
 		}
 		if users[key] == nil {
 			v := &FlatUser{}
-			groups, err := GetGroupList(connection.User)
-			if err != nil {
-				return nil, err
-			}
-			g := make([]string, 0, len(groups))
-			for group := range groups {
-				g = append(g, group)
-			}
-			sort.Strings(g)
-			v.Groups = strings.Join(g, " ")
+			v.Groups = GetSortedGroups(connection.User)
 			v.N = 1
 			v.BwIn = connection.BwIn
 			v.BwOut = connection.BwOut
@@ -774,16 +765,7 @@ func (c *Client) GetAllUsers(allFlag bool) ([]*FlatUser, error) {
 			key := hist.User
 			if users[key] == nil {
 				v := &FlatUser{}
-				groups, err := GetGroupList(strings.Split(hist.User, "@")[0])
-				if err != nil {
-					return nil, err
-				}
-				g := make([]string, 0, len(groups))
-				for group := range groups {
-					g = append(g, group)
-				}
-				sort.Strings(g)
-				v.Groups = strings.Join(g, " ")
+				v.Groups = GetSortedGroups(strings.Split(hist.User, "@")[0])
 				v.Dest = hist.Dest
 				v.TTL = hist.TTL
 				users[key] = v

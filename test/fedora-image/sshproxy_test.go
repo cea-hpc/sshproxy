@@ -42,31 +42,23 @@ var (
 )
 
 func addLineSSHProxyConf(line string) {
-	ctx := context.Background()
-	for _, gateway := range gateways {
-		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", fmt.Sprintf("echo \"%s\" >> %s", line, SSHPROXYCONFIG)}, nil, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	runRootCommand(fmt.Sprintf("echo \"%s\" >> %s", line, SSHPROXYCONFIG))
 }
 
 func removeLineSSHProxyConf(line string) {
-	ctx := context.Background()
 	line = strings.ReplaceAll(line, "/", "\\/")
-	for _, gateway := range gateways {
-		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", fmt.Sprintf("sed -i 's/^%s$//' %s", line, SSHPROXYCONFIG)}, nil, nil)
-		if err != nil {
-			log.Fatal(err)
-		}
-	}
+	runRootCommand(fmt.Sprintf("sed -i 's/^%s$//' %s", line, SSHPROXYCONFIG))
 }
 
 func updateLineSSHProxyConf(key string, value string) {
-	ctx := context.Background()
 	value = strings.ReplaceAll(value, "/", "\\/")
+	runRootCommand(fmt.Sprintf("sed -i '/%s:/s/: .*$/: %s/' %s", key, value, SSHPROXYCONFIG))
+}
+
+func runRootCommand(cmd string) {
+	ctx := context.Background()
 	for _, gateway := range gateways {
-		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", fmt.Sprintf("sed -i '/%s:/s/: .*$/: %s/' %s", key, value, SSHPROXYCONFIG)}, nil, nil)
+		_, _, _, err := runCommand(ctx, "ssh", []string{fmt.Sprintf("root@%s", gateway), "--", cmd}, nil, nil)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -659,6 +651,36 @@ func TestForgetPersist(t *testing.T) {
 	users, _ = getEtcdAllUsers()
 	if users[0].Dest != "" {
 		t.Errorf("'Persist to' is %s, want empty string", users[0].Dest)
+	}
+}
+
+func TestMissingUser(t *testing.T) {
+	// remove old connections stored in etcd
+	time.Sleep(4 * time.Second)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	args, _ := prepareCommand("tmpuser@gateway1", 2022, "sleep 20")
+	ch := make(chan *os.Process)
+	go func() {
+		runCommand(ctx, "ssh", args, nil, ch)
+	}()
+	process1 := <-ch
+
+	time.Sleep(time.Second)
+	users, _ := getEtcdAllUsers()
+	if len(users) != 1 {
+		t.Errorf("Want 1 user, got %d", len(users))
+	} else if users[0].Groups != "user1" {
+		t.Errorf("Want Groups=\"user1\", got \"%s\"", users[0].Groups)
+	}
+	runRootCommand("userdel -f tmpuser")
+	users, _ = getEtcdAllUsers()
+	process1.Kill()
+	if len(users) != 1 {
+		t.Errorf("Want 1 user, got %d", len(users))
+	} else if users[0].Groups != "" {
+		t.Errorf("Want Groups=\"\", got \"%s\"", users[0].Groups)
 	}
 }
 

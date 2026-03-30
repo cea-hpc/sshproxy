@@ -14,8 +14,11 @@ import (
 	"crypto/sha1"
 	"fmt"
 	"net"
+	"os"
 	"os/user"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -109,6 +112,26 @@ func GetGroupList(username string) (map[string]bool, error) {
 	}
 
 	return groups, nil
+}
+
+// GetSortedGroups returns a string of sorted space-separated groups for the
+// specified user.
+//
+// It displays a warning when a user has no group (happens when a user has been
+// deleted, but still has an open connection
+func GetSortedGroups(username string) string {
+	groups, err := GetGroupList(username)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return ""
+	} else {
+		g := make([]string, 0, len(groups))
+		for group := range groups {
+			g = append(g, group)
+		}
+		sort.Strings(g)
+		return strings.Join(g, " ")
+	}
 }
 
 // Mocking net.LookupHost for testing.
