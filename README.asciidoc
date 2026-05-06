@@ -29,6 +29,8 @@ sshproxy can be configured to monitor SSH sessions and either to save them in
 files or to send them to the very simple +sshproxy-dumpd+ daemon. Sessions can
 be replayed with the +sshproxy-replay+ command.
 
+image::misc/demo.gif[]
+
 Compilation
 -----------
 
