@@ -251,6 +251,10 @@ func (m mockClientv3KV) Txn(ctx context.Context) clientv3.Txn {
 	return nil
 }
 
+func (m mockClientv3KV) GetStream(ctx context.Context, key string, opts ...clientv3.OpOption) (clientv3.GetStreamChan, error) {
+	return nil, nil
+}
+
 var selectDestinationBandwidthTests = []struct {
 	username string
 	etcd     bool
