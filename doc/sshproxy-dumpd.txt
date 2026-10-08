@@ -24,6 +24,10 @@ named after the user. The filename is the concatenation of the start time and
 a unique session identifier calculated with some of the header information
 (it is the same one used by *sshproxy*(8) in its log).
 
+Warning: sshproxy-dumpd expects an unencrypted data-stream. If you want to
+encrypt it, you first need to create an encrypted tunnel (with ssh, vpn…), and
+send the data through it.
+
 OPTIONS
 -------
 
