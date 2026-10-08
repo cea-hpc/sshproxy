@@ -76,6 +76,9 @@ It can also be "etcd", in order to store stats into etcd.
 
 It can also be a network address where to send dumps if specified as
 'TCP:host:port' (the TCP is case sensitive), e.g.  'TCP:collector:5555'.
+Warning: sshproxy dumps are sent unencrypted. If you want to encrypt them, you
+first need to create an encrypted tunnel (with ssh, vpn…), and send the dumps
+through it.
 
 *dump_limit_size*::
 	an integer specifying the maximum amount of bytes of a dump. Setting
