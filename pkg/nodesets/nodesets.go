@@ -37,17 +37,17 @@ func goString(c uintptr) string {
 	return string(unsafe.Slice((*byte)(ptr), length))
 }
 
-// InitExpander checks if nodeset-rs/libnodeset.so is available. If it is not
-// available, it falls back on iskylite's go implementation.
+// InitExpander checks if nodeset-rs/libnodeset.so.0.1 is available. If it is
+// not available, it falls back on iskylite's go implementation.
 func InitExpander() (
 	string, // Comment for verbose logs
 	func() error, // Close function
 	func(ns string) ([]string, error)) { // Expand function
 
-	libnodeset, err := purego.Dlopen("libnodeset.so", purego.RTLD_NOW|purego.RTLD_GLOBAL)
+	libnodeset, err := purego.Dlopen("libnodeset.so.0.1", purego.RTLD_NOW|purego.RTLD_GLOBAL)
 
 	if err != nil {
-		return "libnodeset.so not found, falling back to iskylite's implementation", func() error {
+		return "libnodeset.so.0.1 not found, falling back to iskylite's implementation", func() error {
 				// Close function: do nothing
 				return nil
 			}, func(ns string) ([]string, error) {
@@ -59,7 +59,7 @@ func InitExpander() (
 			}
 	}
 
-	return "libnodeset.so found", func() error {
+	return "libnodeset.so.0.1 found", func() error {
 			// Close function
 			return purego.Dlclose(libnodeset)
 		}, func(ns string) ([]string, error) {
