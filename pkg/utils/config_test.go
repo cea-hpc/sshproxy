@@ -66,7 +66,7 @@ var loadConfigTests = []struct {
 }{
 	{"nonexistingfile.yaml", "alice", []string{}, "open nonexistingfile.yaml: no such file or directory"},
 	{"../../test/configEmpty.yaml", "alice", []string{
-		"libnodeset.so not found, falling back to iskylite's implementation",
+		"libnodeset.so.0.1 not found, falling back to iskylite's implementation",
 		"groups = map[bar:true foo:true]",
 		"config.debug = false",
 		"config.log = ",
@@ -108,7 +108,7 @@ var loadConfigTests = []struct {
 	{"../../test/configDestNodesetError.yaml", "alice", []string{}, "invalid nodeset for service 'default': cannont convert ending range to integer a - rangeset parse error"},
 	{"../../test/configDestError.yaml", "alice", []string{}, "invalid destination '127.0.0.1:abcd' for service 'default': address 127.0.0.1:abcd: invalid port"},
 	{"../../test/configDefault.yaml", "alice", []string{
-		"libnodeset.so not found, falling back to iskylite's implementation",
+		"libnodeset.so.0.1 not found, falling back to iskylite's implementation",
 		"groups = map[bar:true foo:true]",
 		"config.debug = false",
 		"config.log = ",
@@ -134,7 +134,7 @@ var loadConfigTests = []struct {
 		"config.max_connections_per_user = 0",
 	}, ""},
 	{"../../test/config.yaml", "alice", []string{
-		"libnodeset.so not found, falling back to iskylite's implementation",
+		"libnodeset.so.0.1 not found, falling back to iskylite's implementation",
 		"groups = map[bar:true foo:true]",
 		"config.debug = true",
 		"config.log = /tmp/sshproxy-foo/alice.log",
@@ -162,7 +162,7 @@ var loadConfigTests = []struct {
 		"config.max_connections_per_user = 0",
 	}, ""},
 	{"../../test/config.yaml", "notalice", []string{
-		"libnodeset.so not found, falling back to iskylite's implementation",
+		"libnodeset.so.0.1 not found, falling back to iskylite's implementation",
 		"groups = map[bar:true foo:true]",
 		"config.debug = true",
 		"config.log = /var/log/sshproxy/notalice.log",

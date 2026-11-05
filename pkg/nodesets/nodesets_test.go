@@ -76,7 +76,7 @@ var InitExpanderTests = []struct {
 
 func TestInitExpander(t *testing.T) {
 	got, close_func, expand_func := InitExpander()
-	want := "libnodeset.so not found, falling back to iskylite's implementation"
+	want := "libnodeset.so.0.1 not found, falling back to iskylite's implementation"
 	if got != want {
 		t.Errorf("InitExpander got \"%s\", want \"%s\"", got, want)
 	} else {
